@@ -31,3 +31,6 @@ To do that for data from detector (-d), run
 -t ejtau (computes the 3D histogram, with Y_e, entropy and expansion timescale as axis)  
 -t yeilds (computes and plots nuclesynthetic yeilds)  
 -t mknprof (computes and plots angular profile of mass, Y_e and vel_inf for macrokilonova bayes code)  
+Example:
+`python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t all -m geo -d 0 --overwrite yes`  
+would perform all (-t all) the default analysis methods, for geodeiscally unbound materai (-m geo) for detector 0 (-d 0) and if the results are already present, it will overwrite them (--overwrite yes)  
