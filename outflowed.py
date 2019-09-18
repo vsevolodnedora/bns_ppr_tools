@@ -52,7 +52,7 @@ from plotting_methods import PLOT_MANY_TASKS
 
 __outflowed__ = {
     "name": "outflowed",
-    "tasklist": ["reshape", "all", "d1hist", "d1corr", "totflux", "massave", "ejtau", "yeilds", "mknprof"],
+    "tasklist": ["reshape", "all", "hist", "corr", "totflux", "massave", "ejtau", "yeilds", "mknprof"],
     "detectors":[0,1]
 }
 
@@ -2094,10 +2094,10 @@ if __name__ == '__main__':
     for task in glob_tasklist:
         if task == "reshape":
             pass
-        elif task == "d1hist":
+        elif task == "hist":
             assert len(glob_v_ns) > 0
             outflowed_historgrams(outflowed, glob_detectors, glob_masks, glob_v_ns, glob_overwrite)
-        elif task == "d1corr":
+        elif task == "corr":
             assert len(glob_v_ns) > 0
             outflowed_correlations(outflowed, glob_detectors, glob_masks, glob_v_ns, glob_overwrite)
         elif task == "totflux":
