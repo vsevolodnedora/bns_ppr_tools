@@ -20,5 +20,14 @@ Options for this script:
 ## outflowed.py
 purpose: 
 1) parse set of `outflow_surface_det_0_fluxdens.asc` files from every output-xxxx into a singular .h5 file with the same data, just reshaped onto a spherical grid with `n_theta` and `n_phi` parameters of the grid.  
-To do that for data from detexctor (-d), run 
+To do that for data from detector (-d), run  
 `python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t reshape -d 0`  
+2) do the comprehensive, easily extendeble analysis of this data. Available standart methods (-t otion):
+-t all (to do all the below mention tasks one after another)
+-t hist (creates and plot histograms of variables that speified with option -v, like -v Y_e theta vel_inf )
+-t corr (creates and plots correlations (2D histograms) of pairs of variables that speified with option -v, like -v Y_e theta vel_inf theta)  
+-t totflux (creates and plots total flux of the ejecta  
+-t massave (creates the mass averaged quantities)  
+-t ejtau (computes the 3D histogram, with Y_e, entropy and expansion timescale as axis)  
+-t yeilds (computes and plots nuclesynthetic yeilds)  
+-t mknprof (computes and plots angular profile of mass, Y_e and vel_inf for macrokilonova bayes code)  
