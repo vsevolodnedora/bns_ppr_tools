@@ -352,6 +352,43 @@ class Labels:
                             .format(v_n))
 
 
+class REFLEVEL_LIMITS:
+
+    @staticmethod
+    def get(rl=0):
+        if rl == 6:
+            xmin, xmax = -14, 14
+            ymin, ymax = -14, 14
+            zmin, zmax = 0, 14
+        elif rl == 5:
+            xmin, xmax = -28, 28
+            ymin, ymax = -28, 28
+            zmin, zmax = 0, 28
+        elif rl == 4:
+            xmin, xmax = -48, 48
+            ymin, ymax = -48, +48
+            zmin, zmax = 0, 48
+        elif rl == 3:
+            xmin, xmax = -88, 88
+            ymin, ymax = -88, 88
+            zmin, zmax = 0, 88
+        elif rl == 2:
+            xmin, xmax = -178, 178
+            ymin, ymax = -178, +178
+            zmin, zmax = 0, 178
+        elif rl == 1:
+            xmin, xmax = -354, 354
+            ymin, ymax = -354, +354
+            zmin, zmax = 0, 354
+        elif rl == 0:
+            xmin, xmax = -1044, 1044
+            ymin, ymax = -1044, 1044
+            zmin, zmax = 0, 1044
+        else:
+            raise IOError("Limits not found for rl:{}".format(rl))
+        return xmin, xmax, ymin, ymax, zmin, zmax
+
+
 class Limits:
 
     @staticmethod

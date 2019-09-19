@@ -1274,6 +1274,11 @@ class PLOT_TASK(BASIC_PARTS):
             assert "xarr" in dic.keys()
             assert "yarr" in dic.keys()
             self.plot_generic_line(ax, dic, dic["xarr"], dic["yarr"])
+        elif dic["task"] == "colormesh":
+            assert "xarr" in dic.keys()
+            assert "yarr" in dic.keys()
+            assert "zarr" in dic.keys()
+            return self.plot_colormesh(ax, dic, dic["xarr"], dic["yarr"], dic["zarr"])
         else:
             raise NameError("dic['task'] is not recognized ({})".format(dic["task"]))
 
