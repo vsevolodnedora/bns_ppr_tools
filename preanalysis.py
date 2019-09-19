@@ -14,6 +14,7 @@ import statsmodels.formula.api as smf
 from math import pi, log10, sqrt
 import scipy.optimize as opt
 import matplotlib as mpl
+from numpy import inf
 from glob import glob
 import pandas as pd
 import numpy as np
@@ -42,7 +43,7 @@ from matplotlib.colors import Normalize, LogNorm
 
 __preanalysis__ = {
     "name": "preanalysis",
-    "tasklist": ["update_status", "print_status", "init_data"],
+    "tasklist": ["update_status", "collate", "print_status", "init_data"],
     "files": ["ittime.h5", "init_data.csv", "parfile.par"]
 }
 
@@ -1666,6 +1667,72 @@ class LOAD_INIT_DATA:
             return par
 
 
+class COLLATE_DATA(LOAD_ITTIME):
+
+    def __init__(self, sim):
+
+        LOAD_ITTIME.__init__(self, sim)
+
+        self.all_fnames = Lists.collate_list
+        self.all_outputs = self.get_list_outputs()
+        self.outdir = Paths.ppr_sims+'/'+sim+'/collated/'
+        if not os.path.isdir(self.outdir):
+            os.mkdir(self.outdir)
+
+        self.tmax = inf         # Maximum time to include (default: inf)
+        self.epsilon = 1e-15    # Precision used in comparing timestamps
+        self.tidx = 1           # Index of the time column, from 1 (default: 1)
+
+        self.collate()
+
+    def __collate(self, list_of_files, fname, comment, include_comments=True):
+
+        ofile = open(self.outdir+fname, 'w')
+
+        told = None
+        for fpath in list_of_files:
+            for dline in open(fpath, 'r'):
+                skip = False
+                for c in comment:
+                    if dline[:len(c)] == c:
+                        if include_comments:
+                            ofile.write(dline)
+                        skip = True
+                        break
+                if len(dline.split()) == 0:
+                    skip = True
+                if skip:
+                    continue
+
+                tnew = float(dline.split()[self.tidx - 1])
+                if tnew > self.tmax:
+                    break
+                if told is None or tnew > told * (1 + self.epsilon):
+                    ofile.write(dline)
+                    told = tnew
+
+        ofile.close()
+
+    def collate(self):
+        for fname in self.all_fnames:
+            output_files = []
+            for output in self.all_outputs:
+                fpath = Paths.gw170817+self.sim+'/'+output+'/data/'+fname
+                if os.path.isfile(fpath):
+                    output_files.append(fpath)
+                else:
+                    Printcolor.yellow("\tFile not found: {}".format(fpath))
+            assert len(output_files) > 0
+            Printcolor.blue("Located {} files of a type: {}"
+                            .format(len(output_files), fname), comma=True)
+            try:
+                self.__collate(output_files, fname, ['#'], True)
+                Printcolor.green(" collated.")
+            except:
+                Printcolor.red(" failed to collate.")
+
+
+
 if __name__ == '__main__':
 
     parser = ArgumentParser(description="postprocessing pipeline")
@@ -1742,6 +1809,8 @@ if __name__ == '__main__':
             Printcolor.blue("Task:'{}' Executing...".format(task))
             statis = SIM_STATUS(glob_sim, clean=True, save=True)
             Printcolor.blue("Task:'{}' DONE...".format(task))
+        elif task == "collate":
+            COLLATE_DATA(glob_sim)
         elif task == "print_status":
             Printcolor.blue("Task:'{}' Executing...".format(task))
             statis = PRINT_SIM_STATUS(glob_sim)

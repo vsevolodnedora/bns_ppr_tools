@@ -26,6 +26,7 @@ import csv
 import sys
 import os
 import re
+import click
 from argparse import ArgumentParser
 from scipy.interpolate import RegularGridInterpolator
 
@@ -497,7 +498,7 @@ class HISTOGRAM_EDGES:
 
     @staticmethod
     def get_edge(v_n):
-        if v_n == "Y_e": return np.linspace(0., 0.5, 50)
+        if v_n == "Y_e": return np.linspace(0.035, 0.55, 50)
         elif v_n == "theta": return np.linspace(0.031, 3.111, 50)
         elif v_n == "phi": return np.linspace(0.06, 6.29, 93)
         elif v_n == "vel_inf" or v_n == "vel_inf_bern": return np.linspace(0., 1., 50)
@@ -665,7 +666,7 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
 
         COMPUTE_OUTFLOW_SURFACE_H5.__init__(self, sim)
 
-        self.list_masks = ["geo", "bern", "bern & 98%geo"]
+        self.list_masks = ["geo", "bern", "bern_geoend"]
         self.mask_matrix = [[np.zeros(0,)
                             for i in range(len(self.list_masks))]
                             for j in range(len(self.list_detectors))]
@@ -693,7 +694,7 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
             enthalpy = self.get_full_comp_arr(det, "enthalpy")
             einf = self.get_full_arr(det, "eninf")
             res = ((enthalpy * (einf + 1) - 1) > self.set_min_eninf) & (enthalpy >= self.set_min_enthalpy)
-        elif mask == "bern & 98%geo":
+        elif mask == "bern_geoend":
             # have to compute mass flux here...
             fluxdens = self.get_full_arr(det, "fluxdens")
             da = self.get_full_arr(det, "surface_element")
@@ -1890,7 +1891,7 @@ def outflowed_mkn_profile(o_outflow, detectors, masks, rewrite=False):
                     # print(corr_vel_inf_theta[1:, 0])  # theta
                     assert corr_vel_inf_theta[0, 1:].min() > 0. and corr_vel_inf_theta[0, 1:].max() < 1.
                     assert corr_vel_inf_theta[1:, 0].min() > 0. and corr_vel_inf_theta[1:, 0].max() < 3.14
-                    assert corr_ye_theta[0, 1:].min() > 0. and corr_ye_theta[0, 1:].max() < 0.5
+                    assert corr_ye_theta[0, 1:].min() > 0.035 and corr_ye_theta[0, 1:].max() < 0.55
 
                     vel_v = np.array(corr_vel_inf_theta[0, 1:])
                     thf = np.array(corr_vel_inf_theta[1:, 0])
@@ -2014,6 +2015,7 @@ if __name__ == '__main__':
         if not os.path.isfile(glob_eos):
             raise NameError("given eos fpaths deos not exist: {}".format(glob_eos))
 
+
     if not os.path.isdir(glob_simdir + glob_sim):
         raise NameError("simulation dir: {} does not exist in rootpath: {} "
                         .format(glob_sim, glob_simdir))
@@ -2046,6 +2048,14 @@ if __name__ == '__main__':
     if "reshape" in glob_tasklist:
         assert len(glob_detectors) > 0
         o_os = COMPUTE_OUTFLOW_SURFACE(glob_sim)
+        # check if EOS file is correclty set
+        if not glob_eos == None: o_os.eos_fname = glob_eos
+        else: o_os.eos_fname = Paths.get_eos_fname_from_curr_dir(glob_sim)
+        if click.confirm('Is the EOS fname correct? {}'.format(o_os.eos_fname), default=True):
+            print("Initializing...")
+        else:
+            exit(1)
+
         for det in glob_detectors:
             Printcolor.print_colored_string(
                 ["Task:", "reshape", "detector:", "{}".format(det), "Executing..."],

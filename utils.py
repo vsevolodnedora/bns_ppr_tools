@@ -121,6 +121,40 @@ class Lists:
                   "SFHo_M14521283_M0_HR"
     ]
 
+    collate_list = [
+        "bnstrackergen-bns_positions..asc",
+        "dens.norm1.asc",
+        "dens_unbnd.norm1.asc",
+        "dens_unbnd_bernoulli.norm1.asc",
+        "dens_unbnd_garching.norm1.asc",
+        "H.norm2.asc",
+        "luminosity_nua.norm1.asc",
+        "luminosity_nue.norm1.asc",
+        "luminosity_nux.norm1.asc",
+        "mp_Psi4_l0_m0_r400.00.asc",
+        "mp_Psi4_l1_m0_r400.00.asc",
+        "mp_Psi4_l1_m1_r400.00.asc",
+        "mp_Psi4_l2_m0_r400.00.asc",
+        "mp_Psi4_l2_m1_r400.00.asc",
+        "mp_Psi4_l2_m2_r400.00.asc",
+        "mp_Psi4_l3_m0_r400.00.asc",
+        "mp_Psi4_l3_m1_r400.00.asc",
+        "mp_Psi4_l3_m2_r400.00.asc",
+        "mp_Psi4_l3_m3_r400.00.asc",
+        "mp_Psi4_l4_m0_r400.00.asc",
+        "mp_Psi4_l4_m1_r400.00.asc",
+        "mp_Psi4_l4_m2_r400.00.asc",
+        "mp_Psi4_l4_m3_r400.00.asc",
+        "mp_Psi4_l4_m4_r400.00.asc",
+        "outflow_det_0.asc",
+        "outflow_det_1.asc",
+        "outflow_det_2.asc",
+        "outflow_det_3.asc",
+        "rho.maximum.asc",
+        "temperature.maximum.asc",
+        "thc_leakagem0-thc_leakage_m0_flux..asc"
+    ]
+
     tarball = [
         # "bnstrackergen - bns_positions..asc",
         "dens.norm1.asc",
@@ -354,7 +388,6 @@ class Limits:
                 dic["ymin"], dic["ymax"] = lim1, lim2
 
         return dic
-
 
 
 class Constants:
