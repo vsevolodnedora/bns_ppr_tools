@@ -1,6 +1,11 @@
 # bns_ppr_tools
 Set of scripts and methods for WhyskyTHC output postprocessing 
 
+## Dependencies:
+`python 2.7.xx` with `scipy`, `numpy`, `cPickle`, `itertools`, `h5py`, `csv`, `mpl_toolkits`, `matplotlib`, `statsmodels`, `pandas`, `math`, `click`, `re`, `argparse`  
+`scidata` that can be found at https://bitbucket.org/dradice/scidata/src/default/
+
+
 # Running pipeline:  
 cd `/bns_ppr_tools/`   
 `./analyze.sh simulation_dir_name /path_to_this_dir/ /path_to_output/`  
