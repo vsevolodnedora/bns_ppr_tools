@@ -43,7 +43,7 @@ from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
 from matplotlib.colors import LogNorm, Normalize
 from matplotlib.colors import Normalize, LogNorm
 
-from utils import Lists, Paths, Printcolor, Constants, Labels, FORMULAS, Limits
+from utils import *
 
 from preanalysis import LOAD_ITTIME
 
@@ -307,7 +307,6 @@ class EXTRACT_OUTFLOW_SURFACE(LOAD_OUTFLOW_SURFACE):
                                      for i in range(len(self.list_iterations))]
                                      for d in range(len(self.list_detectors))]
 
-
     def check_it(self, it):
         if not it in self.list_iterations:
             raise NameError("it:{} not in the list of iterations: {}"
@@ -368,7 +367,6 @@ class EXTRACT_OUTFLOW_SURFACE(LOAD_OUTFLOW_SURFACE):
             self.matrix_reshaped_data[self.i_det(det)][self.i_it(it)][self.i_v_n(v_n)] = data
         if len(data) == 0:
             raise ValueError("data extraction and reshaping failed")
-
 
     def get_reshaped_data(self, det, it, v_n):
         self.check_it(it)
@@ -1595,7 +1593,7 @@ def outflowed_correlations(o_outflow, detectors, masks, v_ns, rewrite=False):
                             'task': 'corr2d', 'dtype': 'corr', 'ptype': 'cartesian',
                             'data': corr,
                             'position': (1, 1),
-                            'v_n_x': v_n1, 'v_n_y': v_n2, 'v_n': 'mass',
+                            'v_n_x': v_n1, 'v_n_y': v_n2, 'v_n': 'mass', 'normalize':True,
                             'cbar': {
                                 'location': 'right .03 .0', 'label': Labels.labels("mass"),#  'fmt': '%.1f',
                                 'labelsize': 14, 'fontsize': 14},

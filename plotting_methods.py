@@ -1189,8 +1189,8 @@ class PLOT_TASK(BASIC_PARTS):
         y_arr = np.array(corr[1:, 0])
         z_arr = np.array(corr[1:, 1:])
 
-        if "norm" in dic.keys():
-            if dic["norm"]:
+        if "normalize" in dic.keys():
+            if dic["normalize"]:
                 z_arr = z_arr / np.sum(z_arr)
         z_arr = np.maximum(z_arr, 1e-10)
         if dic["v_n_x"] == "theta":

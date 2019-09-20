@@ -9,7 +9,12 @@
 #
 ########################################################################
 
+from math import log
+from glob import glob
 import numpy as np
+import re
+import os
+
 
 class Paths:
 
@@ -44,6 +49,55 @@ class Paths:
             raise NameError("Current dir does not contain a hint to what EOS to use: \n{}"
                             .format(sim))
         return fname
+
+    @staticmethod
+    def get_list_iterations_from_res_3d(sim, outdir="profiles/"):
+        """
+        Checks the /res_3d/ for 12345 folders, (iterations) retunrs their sorted list
+        :param sim:
+        :return:
+        """
+
+        if not os.path.isdir(Paths.ppr_sims + sim + '/' + outdir):
+            raise IOError("no {} directory found".format(Paths.ppr_sims + sim + '/' + outdir))
+        itdirs = os.listdir(Paths.ppr_sims + sim + '/' + outdir)
+        if len(itdirs) == 0:
+            raise NameError("No iteration-folders found in the {}".format(Paths.ppr_sims + sim + '/' + outdir))
+
+        # this is a f*cking masterpiece of programming)))
+        list_iterations = np.array(
+            np.sort(np.array(list([int(itdir) for itdir in itdirs if re.match("^[-+]?[0-9]+$", itdir)]))))
+        if len(list_iterations) == 0:
+            raise ValueError("Error extracting the iterations")
+
+        return list(list_iterations)
+
+    @staticmethod
+    def find_itdir_with_grid(sim, gridfname='cyl_grid.h5'):
+        # for dir_ in os.listdir()
+        path = Paths.ppr_sims + sim + '/res_3d/' + '*' + '/' + gridfname
+        files = glob(path)
+        # print(files)
+        if len(files) == 0:
+            raise ValueError("No grid file ({}) found for {}".format(gridfname, sim))
+        if len(files) > 1:
+            Printcolor.yellow("More than 1({}) grid file ({}) found for {}"
+                              .format(len(files), gridfname, sim))
+            return files[0]
+        return str(files)
+
+    @staticmethod
+    def get_it_from_itdir(itdir):
+        it = -1
+        try:
+            it = int(itdir.split('/')[-2])
+        except:
+            try:
+                itdirs = list(itdir)
+                it = [int(itdir) for itdir in itdirs if re.match("^[-+]?[0-9]+$", itdir)]
+            except:
+                raise ValueError("failed to extract iteration from itdir:{} ".format(itdir))
+        return it
 
 
 class Files:
@@ -348,8 +402,9 @@ class Labels:
             return r'$\log($T$_{eff}/K)$'
 
         else:
-            raise NameError("No label found for v_n:{}"
-                            .format(v_n))
+            return str(v_n).replace('_', '\_')
+            # raise NameError("No label found for v_n:{}"
+            #                 .format(v_n))
 
 
 class REFLEVEL_LIMITS:
@@ -672,3 +727,94 @@ class FORMULAS:
         tau_0 = 0.5 * 2.71828182845904523536 * (radius / vel) * (0.004925794970773136) # in ms
         tau_b = tau_0 * ((rho/rho_b) ** (1.0 / 3.0))
         return tau_b # ms
+
+
+class UTILS:
+
+    @staticmethod
+    def combine(x, y, xy, corner_val=None):
+        '''creates a 2d array  1st raw    [0, 1:] -- x -- density     (log)
+                               1st column [1:, 0] -- y -- lemperature (log)
+                               Matrix     [1:,1:] -- xy --Opacity     (log)
+           0th element in 1st raw (column) - can be used a corner value
+
+        '''
+        x = np.array(x)
+        y = np.array(y)
+        xy = np.array((xy))
+
+        res = np.insert(xy, 0, x, axis=0)
+        new_y = np.insert(y, 0, 0, axis=0)  # inserting a 0 to a first column of a
+        res = np.insert(res, 0, new_y, axis=1)
+
+        if corner_val != None:
+            res[0, 0] = corner_val
+
+        return res
+
+    @staticmethod
+    def combine3d(x, y, z, xyz, corner_val=None):
+        '''creates a 2d array  1st raw    [0, 1:] -- x -- density     (log)
+                               1st column [1:, 0] -- y -- lemperature (log)
+                               Matrix     [1:,1:] -- xy --Opacity     (log)
+           0th element in 1st raw (column) - can be used a corner value
+
+        '''
+
+        print(xyz.shape, x.shape, y.shape, z.shape)
+
+        tmp = np.zeros((len(xyz[:, 0, 0])+1, len(xyz[0, :, 0])+1, len(xyz[0, 0, :])+1))
+        tmp[1:, 1:, 1:] = xyz
+        tmp[1:, 0, 0] = x
+        tmp[0, 1:, 0] = y
+        tmp[0, 0, 1:] = z
+        return tmp
+
+    @staticmethod
+    def find_nearest_index(array, value):
+        ''' Finds index of the value in the array that is the closest to the provided one '''
+        idx = (np.abs(array - value)).argmin()
+        return idx
+
+class PHYSICS:
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def get_dens_decomp_2d(dens_2d, phi_2d, dphi_2d, dr_2d, m=1):
+        '''
+        Uses a 2d slice at z=0
+        Returns complex arrays [\int(d\phi)] and [\int(dr d\phi)]
+        '''
+        # dens_2d = dens_3d[:, :, 0]
+        # phi_2d  = phi_3d[:, :, 0]
+        # dr_2d   = dr_3d[:, :, 0]
+        # dphi_2d = dphi_3d[:, :, 0]
+
+        integ_over_phi = np.sum(dens_2d * np.exp(1j * m * phi_2d) * dphi_2d, axis=1)
+
+        integ_over_phi_r = np.sum(integ_over_phi * dr_2d[:, 0])
+
+        return integ_over_phi, integ_over_phi_r
+
+    @staticmethod
+    def get_dens_decomp_3d(dens_3d, r, phi_3d, dphi_3d, dr_3d, dz_3d, m=1):
+        '''
+        Integrates density over 'z'
+        Returns complex arrays [\int(d\phi)] and [\int(dr d\phi)]
+        '''
+
+        integ_dens_z = np.sum(dens_3d * dz_3d[:, :, :], axis=2) # -> 2d array
+
+        integ_over_z_phi = np.sum(integ_dens_z * np.exp(1j * m * phi_3d[:, :, 0]) * dphi_3d[:, :, 0], axis=1) # -> 1d array
+
+        integ_over_z_phi_r = np.sum(integ_over_z_phi * dr_3d[:, 0, 0] * r[:, 0, 0]) # -> number
+
+        return integ_over_z_phi, integ_over_z_phi_r
+
+    @staticmethod
+    def get_retarded_time(t, M_Inf=2.7, R_GW=400.0):
+        R = R_GW * (1 + M_Inf / (2 * R_GW)) ** 2
+        rstar = R + 2 * M_Inf * log(R / (2 * M_Inf) - 1)
+        return t - rstar
