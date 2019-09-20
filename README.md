@@ -23,7 +23,11 @@ Options for this script:
 -t task to perform, such as: `update_status` or `print_status`  
 
 ## outflowed.py
-purpose: 
+
+Requirements:  
+`ittime.h5` file, created by `preanalysis.py` (see above)  
+
+Purpose and usage: 
 1) parse set of `outflow_surface_det_0_fluxdens.asc` files from every output-xxxx into a singular .h5 file with the same data, just reshaped onto a spherical grid with `n_theta` and `n_phi` parameters of the grid.  
 To do that for data from detector (-d), run  
 `python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t reshape -d 0`  
@@ -66,5 +70,38 @@ These plots and the final movie will be located in:
 To redo the movie without recomputing all the plots, -- remove the `rho_rl3.mp4` and relaunch the script with `--overwrite no` flag.  
 
 As movie creation takes a considerable time (for long simulations) this is not a part of a pipeline. To be run separately.  
+
+# makeprofile.py 
+
+Purpose and usage:
+This is a stand alone tool for converting 3D .h5  data (that is usually 
+saved as `var_name.file_0.h5`, where number stands for a processor, 
+on from which this file was dumped) into a single profile.h5 file 
+that contains several variable data that has been mapped onto a unique 
+grid for every reflevel using `scidata`.  
+Two types of profiles can be created as of now. 
+-t prof    (task for a hydro profile)
+-t nuprof  (task for a neutrino M0 profile)  
+
+First a directory `profiles/` will be created inside the output directory (-o)  
+Then, the data for every variable will be loaded and saved as a unique `variable_name.h5` file. This is done to
+avoind overloading `h5py`. Then these files would be loaded and a unique `parfile.h5` will be created with 
+all the data and grid parameters.  
+**Note** that to evaluate internal energy and pressure, the EOS is used, provided Ye, rho and temperature from simulation. However,
+if one of these quantities is out of limits for EOS the closes EOS value is used. No extrapolation is done.    
+
+For neutrino M0 profile, only the M0 variables are used from the 3D output. 
+**Note** that M0 data is not evolved on the same grid as hydrodynamic variables. There is only one refinemnet level and the grid 
+is spherical with `nrad` `nphi` and `ntheta` being its parameters. This grid is saved in `profilenu.h5` as well.  
+
+Example:  
+`python makeprofile.py -i path_to_inside_of_simulation_dir --eos path_to_hydro_eos.h5 -o same -t prof nuprof -m times --time 90`  
+This will create `parfile/` directory inside of the one given in (-o), 
+Here the output dir (-o) is set to be the same as input (-i). The mode is (-m times) is set, so the data will be extracted for given timesteps.
+One by one `variable.h5` will be saved and then both (-t prof nuprof) will be saved as `123456.h5` and `123456nu.h5`
+where 123456 would be the iteration, closest to the required time (--time 90) ms. 
+
+**Note** that overall, this is a lengthy procedure and henceforth is not a part of a pipeline.  
+Which profiles to extract and analyze is up to the user. 
 
     
