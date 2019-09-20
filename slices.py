@@ -15,9 +15,11 @@ from math import pi, sqrt
 import matplotlib as mpl
 import pandas as pd
 import numpy as np
+from glob import glob
 import itertools
 import os.path
 import cPickle
+import click
 import time
 import copy
 import h5py
@@ -350,7 +352,7 @@ class EXTRACT_STORE_DATA(LOAD_STORE_DATASETS):
             's_phi':        "BNSANALYSIS::s_phi",
             'temperature':  "HYDROBASE::temperature",
             'entropy':      "HYDROBASE::entropy",
-            'dens_unb':     "BNSANALYSIS::dens_unbnd"
+            'dens_unbnd':   "BNSANALYSIS::dens_unbnd"
         }
 
 
@@ -1239,7 +1241,7 @@ class ADD_METHODS_FOR_2DINT_DATA(LOAD_INT_DATA_2D):
 
 """ ================================================================================================================  """
 
-def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, i, list_times, outdir, rewrite=False):
+def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
 
     # ---
     data_arr = o_slice.get_data_rl(it, "xz", rl, v_n)
@@ -1294,6 +1296,15 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, i, list_times, outdir, rewr
         def_dic_xy['v_n'] = 'rho'
         def_dic_xy['vmin'] = 1e-10
         def_dic_xy['vmax'] = 1e-4
+    elif v_n == "dens_unbnd":
+        def_dic_xz['v_n'] = 'rho'
+        def_dic_xz['vmin'] = 1e-13
+        def_dic_xz['vmax'] = 1e-6
+        def_dic_xz['cbar']['label'] = r'$D_{\rm{unb}}$ [geo]'
+
+        def_dic_xy['v_n'] = 'rho'
+        def_dic_xy['vmin'] = 1e-13
+        def_dic_xy['vmax'] = 1e-6
     elif v_n == "Y_e":
         def_dic_xz['v_n'] = 'Y_e'
         def_dic_xz['vmin'] = 0.05
@@ -1316,7 +1327,7 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, i, list_times, outdir, rewr
         def_dic_xy['v_n'] = 'temperature'
         def_dic_xy['vmin'] = 1e-2
         def_dic_xy['vmax'] = 1e2
-    elif v_n == 'entropy':
+    elif v_n == 'entropy' or v_n == "s_phi":
         def_dic_xz['v_n'] = 'entropy'
         def_dic_xz['vmin'] = 1e-1
         def_dic_xz['vmax'] = 1e2
@@ -1352,43 +1363,53 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, i, list_times, outdir, rewr
     o_plot.gen_set["subplots_adjust_w"] = 0.2
     o_plot.set_plot_dics = []
 
-    plotfpath = outdir + "{0:07d}.png".format(int(it))
-    if True:
-        if (os.path.isfile(plotfpath) and rewrite) or not os.path.isfile(plotfpath):
-            if os.path.isfile(plotfpath): os.remove(plotfpath)
-            Printcolor.print_colored_string(
-            ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t*1e3, i, len(list_times)),
-             "rl:", "{}".format(rl), "v_n:", v_n, ':', "plotting"],
-            ["blue",  "green",     "blue", "green",   "blue", "green",      "blue", "green", "", "green"]
-            )
-            # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+    def_dic_xz["it"] = int(it)
+    def_dic_xz["title"]["text"] = r'$t:{:.1f}ms$'.format(float(t * 1e3))
+    o_plot.set_plot_dics.append(def_dic_xz)
 
-            def_dic_xz["it"] = int(it)
-            def_dic_xz["title"]["text"] = r'$t:{:.1f}ms$'.format(float(t*1e3))
-            o_plot.set_plot_dics.append(def_dic_xz)
+    def_dic_xy["it"] = int(it)
+    o_plot.set_plot_dics.append(def_dic_xy)
 
-            def_dic_xy["it"] = int(it)
-            o_plot.set_plot_dics.append(def_dic_xy)
+    o_plot.main()
+    o_plot.set_plot_dics = []
 
-            o_plot.main()
-            o_plot.set_plot_dics = []
-
-            # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-        else:
-            Printcolor.print_colored_string(
-                ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t * 1e3, i, len(list_times)), "rl:",
-                 "{}".format(rl), "v_n:", v_n, ':', "skipping"],
-                ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"]
-            )
-
-    # except KeyboardInterrupt:
-    #     exit(1)
-    else:
-        Printcolor.print_colored_string(
-            ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t * 1e3, i, len(list_times)), "rl:",
-             "{}".format(rl), "v_n:", v_n, ':', "failed"],
-            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
-        )
+    # plotfpath = outdir + "{0:07d}.png".format(int(it))
+    # if True:
+    #     if (os.path.isfile(plotfpath) and rewrite) or not os.path.isfile(plotfpath):
+    #         if os.path.isfile(plotfpath): os.remove(plotfpath)
+    #         Printcolor.print_colored_string(
+    #         ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t*1e3, i, len(list_times)),
+    #          "rl:", "{}".format(rl), "v_n:", v_n, ':', "plotting"],
+    #         ["blue",  "green",     "blue", "green",   "blue", "green",      "blue", "green", "", "green"]
+    #         )
+    #         # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+    #
+    #         def_dic_xz["it"] = int(it)
+    #         def_dic_xz["title"]["text"] = r'$t:{:.1f}ms$'.format(float(t*1e3))
+    #         o_plot.set_plot_dics.append(def_dic_xz)
+    #
+    #         def_dic_xy["it"] = int(it)
+    #         o_plot.set_plot_dics.append(def_dic_xy)
+    #
+    #         o_plot.main()
+    #         o_plot.set_plot_dics = []
+    #
+    #         # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+    #     else:
+    #         Printcolor.print_colored_string(
+    #             ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t * 1e3, i, len(list_times)), "rl:",
+    #              "{}".format(rl), "v_n:", v_n, ':', "skipping"],
+    #             ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"]
+    #         )
+    #
+    # # except KeyboardInterrupt:
+    # #     exit(1)
+    # else:
+    #     Printcolor.print_colored_string(
+    #         ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t * 1e3, i, len(list_times)), "rl:",
+    #          "{}".format(rl), "v_n:", v_n, ':', "failed"],
+    #         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
+    #     )
 
 def plot_selected_data(o_slice, v_ns, times, rls, rootdir, rewrite=False):
 
@@ -1409,15 +1430,93 @@ def plot_selected_data(o_slice, v_ns, times, rls, rootdir, rewrite=False):
         nearest_time = o_slice.get_nearest_time(t, d1d2d3="d2")
         it = o_slice.get_it_for_time(nearest_time, d1d2d3="d2")
         for v_n in v_ns:
-            outdir_ = outdir + v_n + '/'
+            outdir_ = rootdir + v_n + '/'
             if not os.path.isdir(outdir_):
                 os.mkdir(outdir_)
             for rl in rls:
                 outdir__ = outdir_ + str("rl_{:d}".format(rl)) + '/'
                 if not os.path.isdir(outdir__):
                     os.mkdir(outdir__)
-                __plot_data_for_a_slice(o_slice, v_n, it, nearest_time, rl, i, times, outdir__, rewrite)
+                plotfpath = outdir__ + "{0:07d}.png".format(int(it))
+                try:
+                    if (os.path.isfile(plotfpath) and rewrite) or not os.path.isfile(plotfpath):
+                        if os.path.isfile(plotfpath): os.remove(plotfpath)
+                        Printcolor.print_colored_string(
+                            ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t * 1e3, i, len(times)),
+                             "rl:", "{}".format(rl), "v_n:", v_n, ':', "plotting"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"]
+                        )
+                        # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                        __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir__)
+                        # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    else:
+                        Printcolor.print_colored_string(
+                            ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t * 1e3, i, len(times)),
+                             "rl:",
+                             "{}".format(rl), "v_n:", v_n, ':', "skipping"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"]
+                        )
+                except KeyboardInterrupt:
+                    exit(1)
+                except:
+                    Printcolor.print_colored_string(
+                        ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t * 1e3, i, len(times)),
+                         "rl:",
+                         "{}".format(rl), "v_n:", v_n, ':', "failed"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
+                    )
+
         i += 1
+
+def make_movie(v_ns, rls, rootdir, rewrite=False):
+
+
+
+    for v_n in v_ns:
+        outdir_ = rootdir + v_n + '/'
+        if not os.path.isdir(outdir_):
+            os.mkdir(outdir_)
+        for rl in rls:
+            outdir__ = outdir_ + str("rl_{:d}".format(rl)) + '/'
+            if not os.path.isdir(outdir__):
+                os.mkdir(outdir__)
+            fname = "{}_rl{}.mp4".format(v_n, rl)
+            moviefath = outdir__ + fname
+            nfiles = len(glob(outdir__))
+            if nfiles < 1:
+                Printcolor.red("No plots found to make a movie in: {}".format(outdir__))
+                break
+            try:
+                if (os.path.isfile(moviefath) and rewrite) or not os.path.isfile(moviefath):
+                    if os.path.isfile(moviefath): os.remove(moviefath)
+                    Printcolor.print_colored_string(
+                        ["task:", "movie slice", "N files", "{:d}".format(nfiles),
+                         "rl:", "{}".format(rl), "v_n:", v_n, ':', "plotting"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"]
+                    )
+                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    # ffmpeg -framerate 10 -pattern_type glob -i "*.png" -s:v 1280x720 -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p dt.mp4
+
+                    os.system("ffmpeg -framerate 10 -pattern_type glob -i '{}*.png' -s:v 1280x720 "
+                              "-c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p {}"
+                              .format(outdir__, outdir__ + fname))
+                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                else:
+                    Printcolor.print_colored_string(
+                        ["task:", "movie slice", "N files", "{:d}".format(nfiles),
+                         "rl:",
+                         "{}".format(rl), "v_n:", v_n, ':', "skipping"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"]
+                    )
+            except KeyboardInterrupt:
+                exit(1)
+            except:
+                Printcolor.print_colored_string(
+                    ["task:", "plot slice", "N files", "{:d}".format(nfiles),
+                     "rl:",
+                     "{}".format(rl), "v_n:", v_n, ':', "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
+                )
 
 
 if __name__ == '__main__':
@@ -1441,8 +1540,8 @@ if __name__ == '__main__':
     glob_tasklist = args.tasklist
     glob_overwrite = args.overwrite
     glob_v_ns = args.v_ns
-    glob_times = np.array(args.times, dtype=float)
-    glob_reflevels = np.array(args.reflevels, dtype=int)
+    glob_times =args.times
+    glob_reflevels = args.reflevels
     #
     if not os.path.isdir(glob_simdir + glob_sim):
         raise NameError("simulation dir: {} does not exist in rootpath: {} "
@@ -1478,6 +1577,40 @@ if __name__ == '__main__':
     #
     o_slice = COMPUTE_STORE(glob_sim)
     #
+
+    do_all_iterations = False
+    if len(glob_times) == 1 and "all" in glob_times:
+        glob_times = o_slice.times
+        do_all_iterations = True
+    else:
+        glob_times = np.array(glob_times, dtype=float) / 1e3 # back to seconds
+
+    do_all_reflevels = False
+    if len(glob_reflevels) == 1 and "all" in glob_reflevels:
+        glob_reflevels = __slices__["reflevels"]
+        do_all_reflevels = True
+    else:
+        glob_reflevels = np.array(glob_reflevels, dtype=int)
+
+    do_all_v_ns = False
+    if len(glob_v_ns) == 1 and "all" in glob_v_ns:
+        glob_v_ns=o_slice.list_v_ns
+        do_all_v_ns = True
+    else:
+        pass
+
+    if do_all_v_ns or do_all_iterations or do_all_reflevels:
+        Printcolor.yellow("Selected all", comma=True)
+        if do_all_iterations:
+            Printcolor.print_colored_string(["timesteps", "({})".format(len(glob_times))],
+                                            ["blue", "green"], comma=True)
+        if do_all_v_ns: Printcolor.print_colored_string(["v_ns", "({})".format(len(glob_v_ns))],
+                                                        ["blue", "green"], comma=True)
+        if do_all_reflevels: Printcolor.print_colored_string(["reflevels", "({})".format(len(glob_reflevels))],
+                                                             ["blue", "green"], comma=True)
+        Printcolor.yellow("this might take time.")
+        if not click.confirm(text="Confirm?",default=True,show_default=True):
+            exit(0)
     for task in glob_tasklist:
         # do tasks one by one
         if task == "plot":
@@ -1490,7 +1623,27 @@ if __name__ == '__main__':
             outdir += 'plots/'
             if not os.path.isdir(outdir):
                 os.mkdir(outdir)
-            glob_times /= 1e3 # back to seconds
             plot_selected_data(o_slice, glob_v_ns, glob_times, glob_reflevels, outdir, rewrite=glob_overwrite)
 
+        if task == "movie":
 
+            assert len(glob_v_ns) > 0
+            assert len(glob_times) > 0
+            assert len(glob_reflevels) > 0
+            outdir = Paths.ppr_sims + glob_sim + '/' + __slices__["outdir"] + '/'
+            if not os.path.isdir(outdir):
+                os.mkdir(outdir)
+            outdir += 'movie/'
+            if not os.path.isdir(outdir):
+                os.mkdir(outdir)
+
+            plot_selected_data(o_slice, glob_v_ns, glob_times, glob_reflevels, outdir, rewrite=glob_overwrite)
+
+            assert len(glob_v_ns) > 0
+            assert len(glob_reflevels) > 0
+            outdir = Paths.ppr_sims + glob_sim + '/' + __slices__["outdir"] + '/'
+            if not os.path.isdir(outdir):
+                os.mkdir(outdir)
+            outdir += 'movie/'
+
+            make_movie(glob_v_ns, glob_reflevels, outdir, rewrite=glob_overwrite)

@@ -38,4 +38,33 @@ To do that for data from detector (-d), run
 -t mknprof (computes and plots angular profile of mass, Y_e and vel_inf for macrokilonova bayes code)  
 Example:
 `python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t all -m geo -d 0 --overwrite yes`  
-would perform all (-t all) the default analysis methods, for geodeiscally unbound materai (-m geo) for detector 0 (-d 0) and if the results are already present, it will overwrite them (--overwrite yes)  
+would perform all (-t all) the default analysis methods, for geodeiscally unbound materai (-m geo) for detector 0 (-d 0) and if the results are already present, it will overwrite them (--overwrite yes)   
+
+# slice.py
+
+Requirements:  
+`ittime.h5` file, created by `preanalysis.py` (see above)  
+
+Purpose and usage:
+1) To load and easily plot `var_name.xy.h5` and `var_name.xz.h5` data. as a 2 attached plots, with `xz` ont top and `xy` square plot in the bottom.  
+For that use task: `-t plot`.   
+Exaple:  
+`python slices.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ -t plot --v_n rho --rl 3 --time 20 --overwrite yes`  
+This will plot rest mass density (--v_n rho) for reflevel (--rl 3) and time (--time 20) millisecond, overwriting existing plot (--overwrite yes)  
+The plot will be located in:  
+`/path_to_output/simulation_name/slice/plot/rho/rl_3/00000.png`  
+with the name of the plot, corresponding to iteration for the plotted timestep.  
+
+2) To make 2D movie of the variable evolution.
+For that use task `-t movie`
+Example:  
+`python slices.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ -t movie --v_n rho --rl 3 --time all --overwrite yes`  
+This will plot rest mass density (--v_n rho) for reflevel (--rl 3) for all the timesteps available (--time all) overwriting existing plots (--overwrite yes)  
+After all plots are made, movies will be created, using `ffmpeg`.  
+These plots and the final movie will be located in:  
+`/path_to_output/simulation_name/slice/movie/rho/rl_3/rho_rl3.mp4`  
+To redo the movie without recomputing all the plots, -- remove the `rho_rl3.mp4` and relaunch the script with `--overwrite no` flag.  
+
+As movie creation takes a considerable time (for long simulations) this is not a part of a pipeline. To be run separately.  
+
+    

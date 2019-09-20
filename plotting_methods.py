@@ -57,7 +57,7 @@ class BASIC_PARTS():
                     #print(" getting yscale: {}".format(ax.get_yscale()))
                 else:
                     ax.set_xscale("linear")
-                    print("xscale '{}' is not recognized".format(dic["xscale"]))
+                    # print("xscale '{}' is not recognized".format(dic["xscale"]))
 
             if "yscale" in dic.keys():
                 if dic["yscale"] == 'log':
@@ -66,7 +66,7 @@ class BASIC_PARTS():
                     ax.set_yscale("linear")
                 else:
                     ax.set_yscale("linear")
-                    print("yscale '{}' is not recognized".format(dic["yscale"]))
+                    # print("yscale '{}' is not recognized".format(dic["yscale"]))
 
             if "xmin" in dic.keys() and "xmax" in dic.keys():
                 if dic["xmin"] != None and dic["xmax"] != None:
