@@ -91,7 +91,8 @@ from utils import *
 
 """ ==============================================| SETTINGS |====================================================== """
 __rootoutdir__ = "profiles/"
-__tasks__ = ["d3all", "d3corrs", "d3hists", "d3slices"]
+__profile__ = {"tasklist": ["all", "corr", "hist", "slice", "mass", "densmode",
+                            "plotall", "plotcorr", "plothist", "plotslice", "plotmass", "plotdensmode"]}
 __d3slicesvns__ = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "eps", "lapse", "velx", "vely", "velz",
                     "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye'] + \
                     ["density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
@@ -1303,7 +1304,7 @@ class MAINMETHODS_STORE(MASK_STORE):
         # hist
 
         self.hist_task_dic_r = {"v_n": "r", "edges": np.linspace(10, 200, 500)}
-        self.hist_task_dic_theta = {"v_n": "theta", "edges": np.linspace(0, 2*np.pi, 500)}
+        self.hist_task_dic_theta = {"v_n": "theta", "edges": np.linspace(0., 4*np.pi, 500)}
         self.hist_task_dic_ye = {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}
 
     def get_min_max(self, it, v_n):
@@ -2081,6 +2082,8 @@ class LOAD_INT_DATA(LOAD_ITTIME):
 
         path = Paths.ppr_sims + self.sim + '/' + self.set_rootdir + str(int(it)) + '/'
         fname = path + self.grid_type + '_grid.h5'
+        if not os.path.isfile(fname):
+            raise IOError("file: {} not found".format(fname))
         print("\tloading grid: {}".format(fname))
         grid_file = h5py.File(fname, "r")
         # print(grid_file)
@@ -2096,6 +2099,8 @@ class LOAD_INT_DATA(LOAD_ITTIME):
 
         path = Paths.ppr_sims + self.sim + '/' + self.set_rootdir + str(int(it)) + '/'
         fname = path + self.grid_type + '_' + v_n + ".h5"
+        if not os.path.isfile(fname):
+            raise IOError("file: {} not found".format(fname))
         data_file = h5py.File(fname, "r")
         if len(data_file) > 1:
             raise IOError("More than one v_n is found in data_file: {}".format(fname))
@@ -2185,7 +2190,6 @@ class ADD_METHODS_FOR_INT_DATA(LOAD_INT_DATA):
         phi1d_arr = np.insert(phi1d_arr, 0, 0)
         z2d_arr = np.vstack((z2d_arr[:, 0], z2d_arr.T)).T
         return phi1d_arr, z2d_arr
-
 
     def get_modified_2d_data(self, it, v_n_x, v_n_y, v_n_z, mod):
 
@@ -2338,7 +2342,7 @@ class COMPUTE_STORE_DESITYMODES(LOAD_INT_DATA):
         self.is_computed(it, mode, v_n)
         return self.data_dm_matrix[self.i_it(it)][self.i_mode(mode)][self.i_dm_v_n(v_n)]
 
-
+# old class (unused)
 class LOAD_DENSITY_MODES:
 
     def __init__(self, sim):
@@ -2402,6 +2406,8 @@ class LOAD_DENSITY_MODES:
 
     def load_density_modes(self):
 
+        if not os.path.isfile(self.gen_set['fname']):
+            raise IOError("file {} npt found".format(self.gen_set['fname']))
         dfile = h5py.File(self.gen_set['fname'], "r")
 
         for v_n in dfile:
@@ -2516,7 +2522,7 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
 
     def loaded_extract(self, it, plane):
 
-        path = Paths.ppr_sims + self.sim + self.set_rootdir + str(it) + '/'
+        path = Paths.ppr_sims + self.sim + '/' + self.set_rootdir + str(it) + '/'
         fname = "profile" + '.' + plane + ".h5"
         fpath = path + fname
 
@@ -2545,24 +2551,26 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
 
 """ ================================================================================================================ """
 
-def select_number(list, ref_list, dtype=int):
+def select_number(list, ful_list, dtype=int):
     if not any(list):
-        return np.array(ref_list, dtype=dtype)
+        return np.array(ful_list, dtype=dtype)
     array = np.array(list, dtype=dtype)
-    ref_array = np.array(ref_list, dtype=dtype)
+    ref_array = np.array(ful_list, dtype=dtype)
     for element in array:
         if not element in ref_array:
             raise ValueError("number element: {} is not in the ref_array:{}"
                              .format(element, ref_array))
     return array
 
-def select_string(list_str, ref_list):
+def select_string(list_str, ful_list, for_all="all"):
     if not any(list_str):
-        return ref_list
+        return ful_list
+    if len(list_str) == 1 and for_all in list_str:
+        return ful_list
     for element in list_str:
-        if not element in ref_list:
+        if not element in ful_list:
             raise ValueError("string element: {} is not in the ref_array:{}"
-                             .format(element, ref_list))
+                             .format(element, ful_list))
     return list_str
 
 """ ===========================================| FOR PRINTING |===================================================== """
@@ -2627,9 +2635,9 @@ def get_xmin_xmax_ymin_ymax_zmin_zmax(rl):
 
 """ ========================================| D3 COMPUTING MODULES |================================================ """
 
-def d3_disk_mass_for_it(it, d3corrclass, roodtdir="profiles/", rewrite=False):
+def d3_disk_mass_for_it(it, d3corrclass, outdir, rewrite=False):
 
-    fpath = Paths.ppr_sims + d3corrclass.sim + '/' + roodtdir + str(it) + '/' + __d3diskmass__
+    fpath = outdir + __d3diskmass__
 
     if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
         if os.path.isfile(fpath): os.remove(fpath)
@@ -2641,7 +2649,7 @@ def d3_disk_mass_for_it(it, d3corrclass, roodtdir="profiles/", rewrite=False):
         print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), ":", "skipping"],
                              ["blue", "green", "blue", "green", "", "blue"])
 
-def d3_hist_for_it(it, d3corrclass, rewrite=False):
+def d3_hist_for_it(it, d3corrclass, outdir, rewrite=False):
 
     selected_vn1vn2s = select_string(glob_v_ns, __d3histvns__)
 
@@ -2652,7 +2660,7 @@ def d3_hist_for_it(it, d3corrclass, rewrite=False):
         elif v_n == "Ye":    hist_dic = d3corrclass.hist_task_dic_ye
         else:raise NameError("hist v_n:{} is not recognized".format(v_n))
         #
-        fpath = Paths.ppr_sims + d3corrclass.sim + '/' + __rootoutdir__ + str(it) + "/hist_{}.dat".format(v_n)
+        fpath = outdir + "hist_{}.dat".format(v_n)
         #
         if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
             if os.path.isfile(fpath): os.remove(fpath)
@@ -2664,7 +2672,7 @@ def d3_hist_for_it(it, d3corrclass, rewrite=False):
             print_colored_string(["task:", "hist", "it:", "{}".format(it), "v_n:", v_n, ":", "skipping"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
 
-def d3_corr_for_it(it, d3corrclass, rewrite=False):
+def d3_corr_for_it(it, d3corrclass, outdir, rewrite=False):
 
     selected_vn1vn2s = select_string(glob_v_ns, __d3corrs__)
 
@@ -2705,9 +2713,9 @@ def d3_corr_for_it(it, d3corrclass, rewrite=False):
                             .format(v_ns))
 
 
-        fpath = Paths.ppr_sims + d3corrclass.sim + '/' + __rootoutdir__ + str(it) + "/corr_{}.h5".format(v_ns)
+        fpath = outdir + "corr_{}.h5".format(v_ns)
 
-        try:
+        if True:
             if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                 if os.path.isfile(fpath): os.remove(fpath)
                 print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "computing"],
@@ -2721,16 +2729,18 @@ def d3_corr_for_it(it, d3corrclass, rewrite=False):
             else:
                 print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "skipping"],
                                      ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        except:
-            print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "failed"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+        # except KeyboardInterrupt:
+        #     exit(1)
+        # except:
+        #     print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "failed"],
+        #                          ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
-def d3_to_d2_slice_for_it(it, d3corrclass, rewrite=False):
+def d3_to_d2_slice_for_it(it, d3corrclass, outdir, rewrite=False):
 
     selected_planes = select_string(glob_v_ns, __d3slicesplanes__)
 
     for plane in selected_planes:
-        fpath = Paths.ppr_sims + d3corrclass.sim + '/' + __rootoutdir__ + str(it) + '/' + "profile" + '.' + plane + ".h5"
+        fpath = outdir + "profile" + '.' + plane + ".h5"
         try:
             if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                 if os.path.isfile(fpath): os.remove(fpath)
@@ -2744,8 +2754,8 @@ def d3_to_d2_slice_for_it(it, d3corrclass, rewrite=False):
             print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "failed"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
-def d3_dens_modes(d3corrclass, rewrite=False):
-    fpath = Paths.ppr_sims + d3corrclass.sim + '/' + __rootoutdir__ + "density_modes_lap15.h5"
+def d3_dens_modes(d3corrclass, outdir, rewrite=False):
+    fpath = outdir + "density_modes_lap15.h5"
     rl = 3
     mmax = 8
     Printcolor.blue("\tNote: that for density mode computation, masks (lapse etc) are NOT used")
@@ -2776,15 +2786,15 @@ def d3_dens_modes(d3corrclass, rewrite=False):
 
 def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
 
-    iterations = d3class.list_iterations
-    times = d3class.list_iterations
 
+    iterations = select_number(glob_its, d3class.list_iterations)
+    v_ns = select_string(glob_v_ns, __d3sliceplotvns__, for_all="all")
 
     # tmerg = d1class.get_par("tmerger_gw")
     i = 1
-    for it, t in zip(iterations, times):
+    for it in iterations:
         for rl in __d3sliceplotrls__:
-            for v_n in __d3sliceplotvns__:
+            for v_n in v_ns:
                 #
                 data_arr = d3class.get_data(it, rl, "xz", v_n)
                 x_arr = d3class.get_data(it, rl, "xz", "x")
@@ -3034,12 +3044,13 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                         "Required data ia missing: {}".format(datafpath + str(it) + '/' + "profile.xy(or yz).h5"))
                     continue
                 fpath = datafpath + str(it) + '/' + figdir + figname
+                t = d3class.get_time_for_it(it, "prof")
                 try:
                     if (os.path.isfile(fpath) and rewritefigs) or not os.path.isfile(fpath):
                         if os.path.isfile(fpath): os.remove(fpath)
                         print_colored_string(
-                            ["task:", "plot prof slice", "it:", "{}".format(it), "v_ns:", v_n, ":", "plotting"],
-                            ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                            ["task:", "plot prof slice", "it:", "{}".format(it), "rl:", "{:d}".format(rl), "v_ns:", v_n, ":", "plotting"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
                         # ---------- PLOTTING -------------
                         if v_n in ["velx", "vely", "velz", "vphi", "vr", "ang_mom_flux"]:
                             print("\t\tUsing 2 colobars for v_n:{}".format(v_n))
@@ -3063,7 +3074,7 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                             n_def_dic_xz["mask"] = "positive"
                             n_def_dic_xz['cbar'] = {}
                             n_def_dic_xz["it"] = int(it)
-                            n_def_dic_xz["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t))
+                            n_def_dic_xz["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t*1e3))
 
                             o_plot.set_plot_dics.append(n_def_dic_xz)
 
@@ -3101,7 +3112,7 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                             def_dic_xz['cbar']['label'] = v_n.replace('_', '\_')
                             def_dic_xz['cbar']['location'] = 'right .04 -.36'
                             def_dic_xz["it"] = int(it)
-                            def_dic_xz["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t))
+                            def_dic_xz["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t*1e3))
                             o_plot.gen_set["figdir"] = datafpath + str(it) + '/' + figdir
                             o_plot.set_plot_dics.append(def_dic_xz)
 
@@ -3120,14 +3131,14 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                         # ------------------------
                     else:
                         print_colored_string(
-                            ["task:", "plot prof slice", "it:", "{}".format(it), "v_ns:", v_n, ":", "skipping"],
-                            ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+                            ["task:", "plot prof slice", "it:", "{}".format(it), "rl:", "{:d}".format(rl), "v_ns:", v_n, ":", "skipping"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
                 except KeyboardInterrupt:
                     exit(1)
                 except:
                     print_colored_string(
-                        ["task:", "plot prof slice", "it:", "{}".format(it), "v_ns:", v_n, ":", "failed"],
-                        ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+                        ["task:", "plot prof slice", "it:", "{}".format(it),  "rl:", "{:d}".format(rl), "v_ns:", v_n, ":", "failed"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
                 v_n = None
             rl = None
         it = None
@@ -3137,13 +3148,11 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
 
 def plot_d3_corr(d3histclass, rewrite=False):
 
-    iterations = d3histclass.list_iterations
-    times = d3histclass.times
+    iterations = select_number(glob_its, d3histclass.list_iterations)
+    v_ns = select_string(glob_v_ns, __d3corrs__, for_all="all")
 
-    # tmerg = d1class.get_par("tmerger_gw")
-
-    for it, t in zip(iterations, times):
-        for vn1vn2 in __d3corrs__:
+    for it in iterations:
+        for vn1vn2 in v_ns:
 
             default_dic = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
                 'task': 'corr2d', 'ptype': 'cartesian',
@@ -3173,7 +3182,7 @@ def plot_d3_corr(d3histclass, rewrite=False):
                 default_dic['xmin'] = 1e-9
                 default_dic['xmax'] = 2e-5
                 default_dic['ymin'] = 0
-                default_dic['ymax'] = 500
+                default_dic['ymax'] = 250
                 default_dic['yscale'] = None
             elif vn1vn2 == "rho_Ye":
                 v_n_x = 'rho'
@@ -3210,10 +3219,10 @@ def plot_d3_corr(d3histclass, rewrite=False):
                 v_n_y = 'theta'
                 # default_dic['v_n_x'] = 'velz'
                 # default_dic['v_n_y'] = 'theta'
-                default_dic['xmin'] = .5
-                default_dic['xmax'] = -.5
-                default_dic['ymin'] = 1.
-                default_dic['ymax'] = 1.7
+                default_dic['xmin'] = -.5
+                default_dic['xmax'] = .5
+                default_dic['ymin'] = 0
+                default_dic['ymax'] = 90.
                 default_dic['yscale'] = None
                 default_dic['xscale'] = None
             elif vn1vn2 == "velz_Ye":
@@ -3221,8 +3230,8 @@ def plot_d3_corr(d3histclass, rewrite=False):
                 v_n_y = 'Ye'
                 # default_dic['v_n_x'] = 'velz'
                 # default_dic['v_n_y'] = 'Ye'
-                default_dic['xmin'] = .5
-                default_dic['xmax'] = -.5
+                default_dic['xmin'] = -.5
+                default_dic['xmax'] = .5
                 default_dic['ymin'] = 0.01
                 default_dic['ymax'] = 0.5
                 default_dic['yscale'] = None
@@ -3250,8 +3259,8 @@ def plot_d3_corr(d3histclass, rewrite=False):
                 v_n_x = 'velz'
                 v_n_y = 'dens_unb_bern'
                 # default_dic['v_n_x'] = 'velz'
-                default_dic['xmin'] = .5
-                default_dic['xmax'] = -.5
+                default_dic['xmin'] = -.5
+                default_dic['xmax'] = .5
                 default_dic['xscale'] = None
                 # default_dic['v_n_y'] = 'dens_unb_bern'
                 default_dic['ymin'] = 1e-9
@@ -3307,6 +3316,8 @@ def plot_d3_corr(d3histclass, rewrite=False):
 
             table = d3histclass.get_res_corr(it, v_n_x, v_n_y)
             default_dic["data"] = table
+            default_dic["v_n_x"] = v_n_x
+            default_dic["v_n_y"] = v_n_y
             default_dic["xlabel"] = Labels.labels(v_n_x)
             default_dic["ylabel"] = Labels.labels(v_n_y)
 
@@ -3336,7 +3347,7 @@ def plot_d3_corr(d3histclass, rewrite=False):
                     #-------------------------------
                     # tr = (t - tmerg) * 1e3  # ms
                     default_dic["it"] = it
-                    default_dic["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t))
+                    default_dic["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t*1e3))
                     o_plot.set_plot_dics.append(default_dic)
 
                     o_plot.main()
@@ -3346,6 +3357,9 @@ def plot_d3_corr(d3histclass, rewrite=False):
                 else:
                     print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "skipping"],
                                          ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            except IOError:
+                print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "missing file"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
             except KeyboardInterrupt:
                 exit(1)
             except:
@@ -3354,21 +3368,22 @@ def plot_d3_corr(d3histclass, rewrite=False):
 
 def plot_d3_hist(d3histclass, rewrite=False):
 
-    iterations = d3histclass.list_iterations
-    times = d3histclass.times
+    iterations = select_number(glob_its, d3histclass.list_iterations)
+    v_ns = select_string(glob_v_ns, __d3histvns__, for_all="all")
 
-    for it, t in zip(iterations, times):
-        for v_n in __d3histvns__:
+    for it in iterations:
+        for v_n in v_ns:
 
             fpath = resdir + __rootoutdir__ + str(it) + "/" + "hist_{}.dat".format(v_n)
-            xarr, yarr = np.loadtxt(fpath, unpack=True)
-
+            data = np.loadtxt(fpath, unpack=False)
+            # print(data)
             default_dic = {
-                'task': 'line', 'ptype': 'cartesian',
+                'task': 'hist1d', 'ptype': 'cartesian',
                 'position': (1, 1),
-                'xarr': xarr, 'yarr': yarr,
-                'color': "black", 'ls': ':', 'lw': 0.6, 'ds': 'steps', 'alpha':0.6,
-                'ymin': 1e-4, 'ymax': 1e0,
+                'data': data, 'normalize': False,
+                'v_n_x': 'var', 'v_n_y': 'mass',
+                'color': "black", 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha':1.0,
+                'ymin': 1e-4, 'ymax': 1e-1,
                 'xlabel': None,  'ylabel': "mass",
                 'label': None, 'yscale': 'log',
                 'fancyticks': True, 'minorticks': True,
@@ -3378,14 +3393,17 @@ def plot_d3_hist(d3histclass, rewrite=False):
             }
 
             if v_n == "r":
+                default_dic['v_n_x'] = 'r'
                 default_dic['xlabel'] = 'cylindrical radius'
                 default_dic['xmin'] = 10.
                 default_dic['xmax'] = 50.
             elif v_n == "theta":
+                default_dic['v_n_x'] = 'theta'
                 default_dic['xlabel'] = 'angle from binary plane'
-                default_dic['xmin'] = 0.
-                default_dic['xmax'] = 0.5*np.pi
+                default_dic['xmin'] = 0
+                default_dic['xmax'] = 90.
             elif v_n == "Ye":
+                default_dic['v_n_x'] = 'Ye'
                 default_dic['xlabel'] = 'Ye'
                 default_dic['xmin'] = 0.
                 default_dic['xmax'] = 0.5
@@ -3425,6 +3443,9 @@ def plot_d3_hist(d3histclass, rewrite=False):
                 else:
                     print_colored_string(["task:", "plot hist", "it:", "{}".format(it), "v_ns:", v_n, ":", "skipping"],
                                          ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            except IOError:
+                print_colored_string(["task:", "plot hist", "it:", "{}".format(it), "v_ns:", v_n, ":", "missing file"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
             except KeyboardInterrupt:
                 exit(1)
             except:
@@ -3496,6 +3517,11 @@ def plot_density_modes(dmclass, rewrite=False):
         else:
             print_colored_string(["task:", "plot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "skipping"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+    except IOError:
+        print_colored_string(["task:", "plot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "missing file"],
+                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+    except KeyboardInterrupt:
+        exit(1)
     except:
         print_colored_string(["task:", "plot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "failed"],
                              ["blue", "green", "blue", "green", "blue", "green", "", "red"])
@@ -3504,104 +3530,183 @@ def plot_density_modes(dmclass, rewrite=False):
 
 def d3_main_computational_loop():
 
+    outdir = glob_outdir_sim
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
+    outdir += __rootoutdir__
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
+
+
     d3corr_class = MAINMETHODS_STORE(glob_sim)
     d3corr_class.mask_setup = {'rm_rl': True, # REMOVE previouse ref. level from the next
                                 'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
                                 'lapse': [0.15, 1.]}  # remove apparent horizon
 
-    isprofs, itprofs, tprofs = d3corr_class.get_ittime(output="profiles", d1d2d3prof='prof')
-
-    selected_iterations = select_number(glob_its, itprofs, dtype=int)
-
-    for it in selected_iterations:
-        if glob_task == "d3corrs":    d3_corr_for_it(it, d3corr_class, rewrite=glob_overwrite)
-        elif glob_task == "d3hists":  d3_hist_for_it(it, d3corr_class, rewrite=glob_overwrite)
-        elif glob_task == "d3mass":   d3_disk_mass_for_it(it, d3corr_class, rewrite=glob_overwrite)
-        elif glob_task == "d3slices": d3_to_d2_slice_for_it(it, d3corr_class, rewrite=glob_overwrite)
-        elif glob_task == "d3all":
-            d3_hist_for_it(it, d3corr_class, rewrite=glob_overwrite)
-            d3_disk_mass_for_it(it, d3corr_class, rewrite=glob_overwrite)
-            d3_corr_for_it(it, d3corr_class, rewrite=glob_overwrite)
-            d3_to_d2_slice_for_it(it, d3corr_class, rewrite=glob_overwrite)
-        else:
-            raise NameError("d3 method is not recognized: {}".format(glob_task))
+    for it in glob_its:
+        _outdir = outdir + str(it) + '/'
+        if not os.path.isdir(_outdir):
+            os.mkdir(_outdir)
+        for task in glob_tasklist:
+            # if task in ["all", "plotall", "densmode"]:   pass
+            if task == "corr":  d3_corr_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
+            if task == "hist":  d3_hist_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
+            if task == "mass":  d3_disk_mass_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
+            if task == "slice": d3_to_d2_slice_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
+            # else:
+            #     raise NameError("d3 method is not recognized: {}".format(task))
+            sys.stdout.flush()
         print("\n")
 
     # methods that require all iterations loaded
-    d3_dens_modes(d3corr_class, rewrite=glob_overwrite)
+    if "densmode" in glob_tasklist:
+        d3_dens_modes(d3corr_class, outdir=outdir, rewrite=glob_overwrite)
 
-def d3_main_plotting_loop(rewrite=False):
-
-    # d1class = ADD_METHODS_1D(glob_sim)
+    # plotting tasks
     d3_slices = LOAD_PROFILE_XYXZ(glob_sim)
     d3_corr = LOAD_RES_CORR(glob_sim)
     dm_class = LOAD_DENSITY_MODES(glob_sim)
 
-    if glob_task == "d3plotcorrs":   plot_d3_corr(d3_corr, rewrite=rewrite)
-    elif glob_task == "d3plotslices":plot_d3_prof_slices(d3_slices, rewritefigs=rewrite)
-    elif glob_task == "d3plothists": plot_d3_hist(d3_corr, rewrite=rewrite)
-    elif glob_task == "d3plotdm":    plot_density_modes(dm_class, rewrite=rewrite)
-    elif glob_task == "d3plotall":
-        plot_d3_corr(d3_corr, rewrite=rewrite)
-        plot_d3_prof_slices(d3_slices, rewritefigs=rewrite)
-        plot_d3_hist(d3_corr, rewrite=rewrite)
-        plot_density_modes(dm_class, rewrite=rewrite)
-    else: raise NameError("glob_task for plotting is not recognized: {}"
-                        .format(glob_task))
+    for task in glob_tasklist:
+        if task.__contains__("plot"):
+            # if task in ["all", "plotall", "densmode"]:  pass
+            if task == "plotcorr":        plot_d3_corr(d3_corr, rewrite=glob_overwrite)
+            if task == "plotslice":       plot_d3_prof_slices(d3_slices, rewritefigs=glob_overwrite)
+            if task == "plothist":        plot_d3_hist(d3_corr, rewrite=glob_overwrite)
+            if task == "plotdensmode":    plot_density_modes(dm_class, rewrite=glob_overwrite)
+
+            # else:
+            #     raise NameError("glob_task for plotting is not recognized: {}"
+            #                     .format(task))
+
 
 
 if __name__ == '__main__':
     #
     parser = ArgumentParser(description="postprocessing pipeline")
     parser.add_argument("-s", dest="sim", required=True, help="task to perform")
-    parser.add_argument("-t", dest="task", required=True, default='no', help="task to perform")
+    parser.add_argument("-t", dest="tasklist", required=False, nargs='+', default=[], help="tasks to perform")
     parser.add_argument("--v_n", dest="v_ns", required=False, nargs='+', default=[], help="variable (or group) name")
-    parser.add_argument("--rl", dest="rls", required=False, nargs='+', default=[], help="reflevels")
-    parser.add_argument("--it", dest="its", required=False, nargs='+', default=[], help="iterations")
+    parser.add_argument("--rl", dest="reflevels", required=False, nargs='+', default=[], help="reflevels")
+    parser.add_argument("--it", dest="iterations", required=False, nargs='+', default=[], help="iterations")
     parser.add_argument('--time', dest="times", required=False, nargs='+', default=[], help='Timesteps')
     #
-    parser.add_argument("-o", dest="overwrite", required=False, default="no", help="overwrite if exists")
-    parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to sim dir")
+    parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
+    parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
+    parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")
+
     parser.add_argument("--sym", dest="symmetry", required=False, default=None, help="symmetry (like 'pi')")
-    parser.add_argument("--crits", dest="criteria", nargs='+', required=False, default=[], help="criteria to use (like _0 ...)")
     # Info/checks
     args = parser.parse_args()
-    glob_task = str(args.task)
-    glob_plot = str(args.plot)
-    glob_sim = str(args.sim)
-    glob_v_ns = list(args.v_ns)
-    glob_rls = list(args.rls)
-    glob_its = list(args.its)
-    glob_symmetry = str(args.symmetry)
-    overwrite = str(args.overwrite)
-    glob_criteria = str(args.criteria)
+    glob_tasklist = args.tasklist
+    glob_sim = args.sim
+    glob_simdir = args.simdir
+    glob_outdir = args.outdir
+    glob_v_ns = args.v_ns
+    glob_rls = args.reflevels
+    glob_its = args.iterations
+    glob_times=args.times
+    glob_symmetry = args.symmetry
+    glob_overwrite = args.overwrite
     Paths.gw170817 = args.simdir # '/data1/numrel/WhiskyTHC/Backup/2018/SLy4_M130130_SR_physics/'
     simdir = Paths.gw170817 + glob_sim + '/'
     resdir = Paths.ppr_sims + glob_sim + '/'
 
-    glob_times = np.array(args.times, dtype=np.float32)
-    # assert that given input is correct
-    assert os.path.isdir(args.simdir)
-    assert os.path.isdir(args.simdir+glob_sim+'/')
+    # check given data
+    if glob_symmetry != None:
+        if not click.confirm("Selected symmetry: {} Is it correct?".format(glob_symmetry),
+                             default=True, show_default=True):
+            exit(1)
 
-    if overwrite == "no":
+    # check if the simulations dir exists
+    if not os.path.isdir(glob_simdir + glob_sim):
+        raise NameError("simulation dir: {} does not exist in rootpath: {} "
+                        .format(glob_sim, glob_simdir))
+    # check if tasks are set properly
+    if len(glob_tasklist) == 0:
+        raise NameError("tasklist is empty. Set what tasks to perform with '-t' option")
+    elif len(glob_tasklist) == 1 and "all" in glob_tasklist:
+        glob_tasklist = __profile__["tasklist"]
+        Printcolor.print_colored_string(["Set", "All", "tasks"],
+                                        ["blue", "green", "blue"])
+    else:
+        for task in glob_tasklist:
+            if not task in __profile__["tasklist"]:
+                raise NameError("task: {} is not among available ones: {}"
+                                .format(task, __profile__["tasklist"]))
+    # check if there any profiles to use
+    ittime = LOAD_ITTIME(glob_sim)
+    isprof, itprof, tprof = ittime.get_ittime("profiles", d1d2d3prof="prof")
+    if len(itprof) == 0:
+        Printcolor.red("No profiles found. Please, extract profiles for {} "
+                         "and save them in /sim_dir/profiles/3d/".format(glob_sim))
+        exit(0)
+    else:
+        Printcolor.print_colored_string(["Available", "{}".format(len(itprof)), "profiles to postprocess"],
+                                        ["blue", "green", "blue"])
+        for it, t in zip(itprof, tprof):
+            Printcolor.print_colored_string(["\tit:", "{:d}".format(it), "time:", "{:.1f}".format(t*1e3), "[ms]"],
+                                            ["blue", "green", "blue", "green", "blue"])
+    # check which iterations/timesteps to use
+    if len(glob_its) > 0 and len(glob_times) > 0:
+        raise ValueError("Please, set either iterations (--it) or times (--time) "
+                         "but NOT both")
+    elif len(glob_its) == 0 and len(glob_times) == 0:
+        raise ValueError("Please, set either iterations (--it) or times (--time)")
+    elif (len(glob_times) == 1 and "all" in glob_times) or (len(glob_its) == 1 and "all" in glob_its):
+        Printcolor.print_colored_string(["Selected All", "{}".format(len(itprof)), "iterations to postprocess"],
+                                        ["blue", "green", "blue"])
+        glob_its = itprof
+        glob_times = tprof
+    elif len(glob_its) > 0 and len(glob_times) == 0:
+        glob_its = np.array(glob_its, dtype=int)
+        _glob_its = []
+        _glob_times = []
+        for it in glob_its:
+            if int(it) in itprof:
+                _glob_its = np.append(_glob_its, it)
+                _glob_times = np.append(_glob_times, ittime.get_time_for_it(it, "prof"))
+            else:
+                raise ValueError("For given iteraton:{} profile is not found (in ittime.h5)"
+                                 .format(it))
+        glob_its = _glob_its
+        glob_times = _glob_times
+        assert len(glob_its) > 0
+    elif len(glob_its) == 0 and len(glob_times) > 0:
+        glob_times = np.array(glob_times, dtype=float) / 1e3 # back to [s]
+        _glob_its = []
+        _glob_times = []
+        for t in glob_times:
+            idx = UTILS.find_nearest_index(tprof, t)
+            _t =  tprof[idx]
+            _it = ittime.get_it_for_time(_t, "prof")
+            _glob_its = np.append(_glob_its, _it)
+            _glob_times = np.append(_glob_times, _t)
+        glob_its = np.unique(_glob_its)
+        glob_times = np.unique(_glob_times)
+        assert len(glob_its) > 0
+        assert len(glob_times) == len(glob_its)
+    else:
+        raise IOError("Input iterations (--it) or times (--time) are not recognized")
+
+    glob_its = np.array(glob_its, dtype=int)
+    Printcolor.print_colored_string(["Set iterations", "{}".format(glob_its)],["blue","green"])
+    Printcolor.print_colored_string(["Set timesteps ", "{}".format(glob_times*1e3, fmt=".1f")], ["blue", "green"])
+
+    if glob_overwrite == "no":
         glob_overwrite = False
-    elif overwrite == "yes":
+    elif glob_overwrite == "yes":
         glob_overwrite = True
     else:
-        raise NameError("-o option is not recognized:{} use 'yes' or 'no' ".format(overwrite))
+        raise NameError("for '--overwrite' option use 'yes' or 'no'. Given: {}"
+                        .format(glob_overwrite))
+    glob_outdir_sim = Paths.ppr_sims + glob_sim + '/'
 
-    if glob_task == "no":
-        raise NameError("No task given")
+    # set globals
+    Paths.gw170817 = glob_simdir
+    Paths.ppr_sims = glob_outdir
 
-    if not glob_task in __tasks__:
-        raise NameError("task: {} is not available. Available are: {}".format(glob_task, __tasks__))
+    # tasks
+    d3_main_computational_loop()
 
-    """ ------------------------------------------------------------------------------------------------------------ """
-    if glob_task.__contains__("d3") and not glob_task.__contains__("plot"):
-        d3_main_computational_loop()
-
-    if glob_task.__contains__("d3") and glob_task.__contains__("plot"):
-        d3_main_plotting_loop()
-
-
+    Printcolor.blue("Done.")

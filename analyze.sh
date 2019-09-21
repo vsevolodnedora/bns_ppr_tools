@@ -26,3 +26,8 @@ call python outflowed.py -s $sim -i $2 -o $3 -t reshape -d 0 || exit 1
 
 # do outflwoed analysis for detector -d 0  and for mask -m  geo (geodesic)
 call python outflowed.py -s $sim -i $2 -o $3 -t all -m geo -d 0 --overwrite yes || exit 1
+
+# do profile analusis. Warning! If there are many profiles. i will take long
+call python profile.py -s $sim -i $2 -o $3 -t all --it all --overwrite no || exit 1
+
+call touch postrocessing.done

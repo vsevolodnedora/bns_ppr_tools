@@ -1521,7 +1521,7 @@ def outflowed_historgrams(o_outflow, detectors, masks, v_ns, rewrite=False):
                         plot_dic = {
                             'task': 'hist1d', 'ptype': 'cartesian',
                             'position': (1, 1),
-                            'data': hist, 'norm': True,
+                            'data': hist, 'normalize': True,
                             'v_n_x': v_n, 'v_n_y': None,
                             'color': "black", 'ls': ':', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
                             'ymin': 1e-4, 'ymax': 1e0,

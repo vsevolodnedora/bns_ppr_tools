@@ -102,6 +102,48 @@ One by one `variable.h5` will be saved and then both (-t prof nuprof) will be sa
 where 123456 would be the iteration, closest to the required time (--time 90) ms. 
 
 **Note** that overall, this is a lengthy procedure and henceforth is not a part of a pipeline.  
-Which profiles to extract and analyze is up to the user. 
+Which profiles to extract and analyze is up to the user.  
 
-    
+# profile.py
+
+Requirements: 
+1) ittime.h5 file, created by preanalysis.py (see above)
+2) Extracted profiles, located in `/path/to/simulation_dir/profiles/3d/`
+
+Purpose and usage:  
+To do a comprehensive analysis of the 3D data. It allows to compute: 
+1) Compute quntities such as `dens_unb_bern` or `ang_mom_flux` with methods specified in the class `FORMULAS`  
+2) 1D histograms, 2D correlations (histograms), total mass, (applying user specified masks)
+3) Plot xz-xy snapshots of the data, initially available as well as computed. 
+
+Parameters:  
+`-t` tasklist to do.  
+`-i` path to the simulation dir (for example `/home/myname/mysimulations/`)  
+`-s` simulation dir (for example: `LS220_M130130_SR`)  
+`--v_n` list of variable names or their combinations (for correlation task)
+`--rl` list of refinement levels to use  
+`--time` list of timesteps to use  
+`--it` list of iterations to use  
+`--overwrite` flag to overwrite data if already exists.  
+
+Example:  
+`python profile.py -s LS220_130130 -i /home/my_simulations/ -o /home/my_postprocessing/ 
+-t all --it all`  
+This would perform the complete analysis for every `profile.h5`. For every profile, it would create a separate output subdirectory in the root postrpocessing directory (-o), named with the iteration of this profile
+1) `-t densmode` compute density modes for default 1-8 modes accounting for center of mass drift, saving output in the root as `density_modes_lap15`.
+2) `-t slice` computes additional variables and saves their xy and xz slices in `profile.xy.h5` and `profile.xz.h5` in the in the aforementioned subdirectories.
+3) `-t corr` computes correlations for all available variables, saving the `corr_v_n1_v_n2.h5` files in the aforementioned subdirectories.  
+4) `-t hist` computes histograms for some variables, saving the `hist_v_n.dat` files in the aforementioned subdirectories.  
+5) `-t mass` computes mass of the disk using the present masks  
+
+**Note** that tor last three tasks, the mask for all data is used. Default is lapse>0.15 and 6e4<rho<1e13 (cgs)
+
+6) `-t plotslice` loads `profile.xy.h5`, `profile.xz.h5` and for every reflevel and variable plots xz-xy 2D slice, saving in `/slices/`
+7) `-t plotcorr` loads computed  `corr_v_n1_v_n2.h5` and plots data, saving in `/corr_plots/`
+8) `-t plothist` loads computed  `hist_v_n.dat` and plots data, saving in `/hist_plots/`
+9) `-t plotdensmode` loads computed  `density_modes_lap15` and plots data, saving in root. 
+
+Any of these tasks can be peroformed for one or a list of:  
+1) iterations by specifying `--it` option **or** timesteps by specifying `--time` option
+2) reflevels by specifying `--rl` option (will not affect `corr`, `mass`, `hist` tasks, as they use the entire simulation domain by default.
+3) variable names by specifying `--v_n` option. 

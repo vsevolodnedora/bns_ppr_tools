@@ -1206,20 +1206,20 @@ class PLOT_TASK(BASIC_PARTS):
             tht = hist[:, 0]
             M = hist[:, 1]
 
-            if dic['norm']: M /= np.sum(M)
+            if dic['normalize']: M /= np.sum(M)
 
             # ax.step(90. - (tht / np.pi * 180.), M, color=dic['color'], where='mid', label=dic['label'])
             # ax.plot(90. - (tht / np.pi * 180.), M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
             self.plot_generic_line(ax, dic, 90. - (tht / np.pi * 180.), M)
             dtht = tht[1] - tht[0]
 
-            ax.set_xlim(xmin=0 - dtht / np.pi * 180, xmax=90.)
+            # ax.set_xlim(xmin=0 - dtht / np.pi * 180, xmax=90.)
         elif dic["v_n_x"] == "phi":
             hist = dic["data"]
             tht = hist[:, 0]
             M = hist[:, 1]
 
-            if dic['norm']: M /= np.sum(M)
+            if dic['normalize']: M /= np.sum(M)
 
             # ax.step(90. - (tht / np.pi * 180.), M, color=dic['color'], where='mid', label=dic['label'])
             # ax.plot(90. - (tht / np.pi * 180.), M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
@@ -1232,7 +1232,7 @@ class PLOT_TASK(BASIC_PARTS):
             ye = hist[:, 0]
             M = hist[:, 1]
 
-            if dic['norm']: M /= np.sum(M)
+            if dic['normalize']: M /= np.sum(M)
 
             # ax.step(ye, M, color=dic['color'], where='mid', label=dic['label'])
 
@@ -1243,7 +1243,7 @@ class PLOT_TASK(BASIC_PARTS):
             vel_inf =hist[:, 0]
             M = hist[:, 1]
 
-            if dic['norm']: M /= np.sum(M)
+            if dic['normalize']: M /= np.sum(M)
 
             # ax.step(ye, M, color=dic['color'], where='mid', label=dic['label'])
 
@@ -1254,14 +1254,22 @@ class PLOT_TASK(BASIC_PARTS):
             s =hist[:, 0]
             M = hist[:, 1]
 
-            if dic['norm']: M /= np.sum(M)
+            if dic['normalize']: M /= np.sum(M)
 
             # ax.step(ye, M, color=dic['color'], where='mid', label=dic['label'])
 
             # ax.plot(ye, M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
             self.plot_generic_line(ax, dic, s, M)
         else:
-            raise NameError("Plotting method for hist: dic['v_n']:{} is not available".format(dic["v_n"]))
+            hist = dic['data']
+            s = hist[:, 0]
+            M = hist[:, 1]
+
+            if dic['normalize']: M /= np.sum(M)
+
+            self.plot_generic_line(ax, dic, s, M)
+            print("\tplotting unknown histogram: v_n_x:{} v_n_y:{}".format(dic["v_n_x"], dic["v_n_y"]))
+            #raise NameError("Plotting method for hist: dic['v_n']:{} is not available".format(dic["v_n"]))
         return 0
 
     def plot_task(self, ax, dic):
