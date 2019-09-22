@@ -3594,7 +3594,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
     parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")
-
+    #
     parser.add_argument("--sym", dest="symmetry", required=False, default=None, help="symmetry (like 'pi')")
     # Info/checks
     args = parser.parse_args()
@@ -3608,7 +3608,6 @@ if __name__ == '__main__':
     glob_times=args.times
     glob_symmetry = args.symmetry
     glob_overwrite = args.overwrite
-    Paths.gw170817 = args.simdir # '/data1/numrel/WhiskyTHC/Backup/2018/SLy4_M130130_SR_physics/'
     simdir = Paths.gw170817 + glob_sim + '/'
     resdir = Paths.ppr_sims + glob_sim + '/'
 

@@ -28,6 +28,7 @@ import os
 from argparse import ArgumentParser
 from math import pi, log10
 import time
+import sys
 
 from scidata.utils import locate
 import scidata.carpet.hdf5 as h5
@@ -1465,12 +1466,10 @@ def plot_selected_data(o_slice, v_ns, times, rls, rootdir, rewrite=False):
                          "{}".format(rl), "v_n:", v_n, ':', "failed"],
                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
                     )
-
+        sys.stdout.flush()
         i += 1
 
 def make_movie(v_ns, rls, rootdir, rewrite=False):
-
-
 
     for v_n in v_ns:
         outdir_ = rootdir + v_n + '/'

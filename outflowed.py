@@ -197,7 +197,7 @@ class LOAD_OUTFLOW_SURFACE(LOAD_ITTIME):
             'temperature'       : 16
         }
 
-        self.clean = False
+        self.clean = True
 
     def check_det(self, det):
         if not det in self.list_detectors:
@@ -262,7 +262,7 @@ class LOAD_OUTFLOW_SURFACE(LOAD_ITTIME):
         assert os.path.isfile(fpath)
         if not self.clean: print("\t\tReading %s..." % (output)),
         sys.stdout.flush()
-        fdata = np.loadtxt(fpath,usecols=self.v_n_to_file_dic.values(), dtype=np.float64,unpack=True)
+        fdata = np.loadtxt(fpath, usecols=self.v_n_to_file_dic.values(), unpack=True) # dtype=np.float64
         for i_v_n, v_n in enumerate(self.v_n_to_file_dic.keys()):
             data = np.array(fdata[i_v_n])
             self.matrix_raw_data[self.i_det(det)][self.i_output(output)][self.i_v_n(v_n)] = data

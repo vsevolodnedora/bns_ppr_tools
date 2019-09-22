@@ -5,6 +5,19 @@ Set of scripts and methods for WhyskyTHC output postprocessing
 `python 2.7.xx` with `scipy`, `numpy`, `cPickle`, `itertools`, `h5py`, `csv`, `mpl_toolkits`, `matplotlib`, `statsmodels`, `pandas`, `math`, `click`, `re`, `argparse`  
 `scidata` that can be found at https://bitbucket.org/dradice/scidata/src/default/
 
+## Suggested setup:  
+to have a directory with simulation(s), like `/home/my_simulations/` 
+inside of which there are simulation dirs like `LS220_130130_SR/`  
+This directory can be specified in the file `utils.py` in the class `Paths` in a variable `gw170810`    
+
+to have a separate directory for the results of postprocessing, like `/home/my_postprocessing/` 
+indide of which the pipeline would automatically create a subdirectory for every simulation it 
+analysis with the name of this simulation.  
+This 'root posprecessing directory' can be set in in the file `utils.py` in the class `Paths` in a variable `ppr_sims`.  
+
+This setup would allow a user to set only `-s` option for the pipeline, instead of `-i` and `-o`, 
+as the location of the simulation dir and output are already set in `Paths.gw170817` and `Paths.ppr_sims` respectively.   
+
 
 # Running pipeline:  
 cd `/bns_ppr_tools/`   
@@ -147,3 +160,27 @@ Any of these tasks can be peroformed for one or a list of:
 1) iterations by specifying `--it` option **or** timesteps by specifying `--time` option
 2) reflevels by specifying `--rl` option (will not affect `corr`, `mass`, `hist` tasks, as they use the entire simulation domain by default.
 3) variable names by specifying `--v_n` option. 
+
+# gw.py
+
+Requirements: 
+1) ittime.h5 file, created by `preanalysis.py` (see above)  
+2) collated data, created by `preanalysis.py` (see above)
+
+**Note**  
+This part of the data analysis is incomplete as I am not a specialist in this area. 
+
+Purpose and usage:  
+1) to do a rudimentary, zero-order analysis of the Psi4 data and to obtain a waveform, wfrom which 
+the time of the merger can be deduced. Similarly, time of the collapse to a BH can be obtained but this 
+is not as reliable, as the magnitude of the strain can go to almost zero in between remnant osciallation. 
+
+Example:
+`python gw.py -s LS220_130130 -i /home/my_simulations/ -o /home/my_postprocessing/ -t all`  
+this would create a `/waveforms/` subdirectory inside the `/home/my_postprocessing/LS220_130130/` 
+and put there the following:  
+`-t strain` computes the strain and some basing properties of the radiation reaction. 
+`-t tmergtcoll` plots the waveform alongside the collated density and makes an estimate of the time of the 
+merger and the time of the collapse (if occures).  
+**Note** that user inspection of the produced summory plot is required to determine if the time of the collapse 
+was estimated properly. 
