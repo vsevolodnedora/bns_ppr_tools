@@ -175,11 +175,11 @@ Purpose and usage:
 the time of the merger can be deduced. Similarly, time of the collapse to a BH can be obtained but this 
 is not as reliable, as the magnitude of the strain can go to almost zero in between remnant osciallation. 
 
-Example:
+Example:  
 `python gw.py -s LS220_130130 -i /home/my_simulations/ -o /home/my_postprocessing/ -t all`  
 this would create a `/waveforms/` subdirectory inside the `/home/my_postprocessing/LS220_130130/` 
 and put there the following:  
-`-t strain` computes the strain and some basing properties of the radiation reaction. 
+`-t strain` computes the strain and some basing properties of the radiation reaction.   
 `-t tmergtcoll` plots the waveform alongside the collated density and makes an estimate of the time of the 
 merger and the time of the collapse (if occures).  
 **Note** that user inspection of the produced summory plot is required to determine if the time of the collapse 
