@@ -30,6 +30,8 @@ import click
 from argparse import ArgumentParser
 from scipy.interpolate import RegularGridInterpolator
 
+from multiprocessing import Pool
+
 import warnings
 import matplotlib.cbook
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
@@ -42,6 +44,9 @@ from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
     MultipleLocator
 from matplotlib.colors import LogNorm, Normalize
 from matplotlib.colors import Normalize, LogNorm
+
+import multiprocessing as mp
+from functools import partial
 
 from utils import *
 
@@ -329,7 +334,7 @@ class EXTRACT_OUTFLOW_SURFACE(LOAD_OUTFLOW_SURFACE):
         # if not self.clean: print("\tdone")
         # if v_n == "fluxdens":
         #     print("reshaped_data: {}".format(np.sum(reshaped_data))),
-        print(' ')
+        if not self.clean: print(' ')
         return reshaped_data
 
     def extract_eos_data(self, det, it, v_n):
@@ -425,6 +430,8 @@ class COMPUTE_OUTFLOW_SURFACE(EXTRACT_OUTFLOW_SURFACE):
             os.remove(fpath)
         # exit(1)
 
+        # self.load_all_data_in_parallel(det, 12)
+
         dfile = h5py.File(fpath, "w")
 
         dfile.create_dataset("iterations", data=np.array(self.list_iterations, dtype=int))
@@ -489,6 +496,165 @@ class COMPUTE_OUTFLOW_SURFACE(EXTRACT_OUTFLOW_SURFACE):
     #     grid = self.get_grid_object(det)
     #     total_flux = np.zeros((grid.ntheta, grid.nphi + 1))
     #     int_flux = 0.0
+
+# with parallelalisation
+class LOAD_RESHAPE_SAVE_PARALLEL:
+
+    def __init__(self, sim, det, n_proc, eosfname):
+
+        self.det = det
+        self.sim = sim
+        n_procs = n_proc
+        #
+        self.v_ns = ['it', 'time', "fluxdens", "w_lorentz", "eninf", "surface_element",
+                "alp", "rho", "vel[0]", "vel[1]", "vel[2]", "Y_e", "entropy", "temperature"]
+        self.eos_v_ns = ['eps', 'press']
+        #
+        self.eos_fpath = eosfname#Paths.get_eos_fname_from_curr_dir(self.sim)
+        #
+        self.outdirtmp = Paths.ppr_sims+sim+'/tmp/'
+        if not os.path.isdir(self.outdirtmp):
+            os.mkdir(self.outdirtmp)
+        #
+        fname = "outflow_surface_det_%d_fluxdens.asc" % det
+        self.flist = glob(Paths.gw170817 + sim + "/" + "output-????" + "/data/" + fname)
+        assert len(self.flist) > 0
+        #
+        self.grid = self.get_grid()
+        #
+        print("Pool procs = %d" % n_procs)
+        pool = mp.Pool(processes=int(n_procs))
+        task = partial(serial_load_reshape_save, grid_object=self.grid, outdir=self.outdirtmp)
+        result_list = pool.map(task, self.flist)
+        #
+        tmp_flist = [Paths.ppr_sims + sim + '/tmp/' + outfile.split('/')[-3] + ".h5" for outfile in self.flist]
+        tmp_flist = sorted(tmp_flist)
+        assert len(tmp_flist) == len(self.flist)
+        # load reshaped data
+        iterations, times, data_matrix = self.load_tmp_files(tmp_flist)
+        # concatenate data into [ntimes, ntheta, nphi] arrays
+        self.iterations = np.sort(iterations)
+        self.times = np.sort(times)
+        concatenated_data = {}
+        for v_n in self.v_ns:
+            concatenated_data[v_n] = np.stack(([data_matrix[it][v_n] for it in sorted(data_matrix.keys())]))
+        # compute EOS quantities
+        concatenated_data = self.add_eos_quantities(concatenated_data)
+        # save data
+        outfname = Paths.ppr_sims + sim + '/' + fname.replace(".asc", ".h5")
+        self.save_result(outfname, concatenated_data)
+        # removing outflow-xxxx.h5 fiels and /tmp/
+        print("...removing temporary files...")
+        if os.path.isdir(self.outdirtmp):
+            for fname in tmp_flist:
+                if os.path.isfile(fname):
+                    os.remove(fname)
+            os.rmdir(self.outdirtmp)
+        print("Done. {} is saved".format(outfname))
+
+
+
+
+    def get_grid(self):
+
+        dfile = open(self.flist[0], "r")
+        dfile.readline()  # move down one line
+        match = re.match('# detector no.=(\d+) ntheta=(\d+) nphi=(\d+)$', dfile.readline())
+        assert int(self.det) == int(match.group(1))
+        ntheta = int(match.group(2))
+        nphi = int(match.group(3))
+        dfile.readline()
+        dfile.readline()
+        line = dfile.readline().split()
+        radius = round(sqrt(float(line[2]) ** 2 + float(line[3]) ** 2 + float(line[4]) ** 2))
+        # if not self.clean:
+        print("\t\tradius = {}".format(radius))
+        print("\t\tntheta = {}".format(ntheta))
+        print("\t\tnphi   = {}".format(nphi))
+        del dfile
+
+        grid = SphericalSurface(ntheta, nphi, radius)
+        return grid
+
+    def load_tmp_files(self, tmp_flist):
+
+        iterations = []
+        times = []
+        data_matrix = {}
+        dum_i = 1
+        for ifile, fpath in enumerate(tmp_flist):
+            assert os.path.isfile(fpath)
+            dfile = h5py.File(fpath, "r")
+            for v_n in dfile:
+                match = re.match('iteration=(\d+)$', v_n)
+                it = int(match.group(1))
+                if not it in iterations:
+                    i_data_matrix = {}
+                    for var_name in self.v_ns:
+                        data = np.array(dfile[v_n][var_name])
+                        i_data_matrix[var_name] = data
+                    data_matrix[it] = i_data_matrix
+                    times.append(float(i_data_matrix["time"][0, 0]))
+                    iterations.append(int(match.group(1)))
+                    print("\tit:{} output:({}/{})".format(it, dum_i, len(tmp_flist)))
+                else:
+                    pass
+            dum_i+=1
+            dfile.close()
+        return iterations, times, data_matrix
+
+    def add_eos_quantities(self, concatenated_data):
+
+        o_eos = EOSTable()
+        o_eos.read_table(self.eos_fpath)
+        v_n_to_eos_dic = {
+            'eps': "internalEnergy",
+            'press': "pressure",
+            'entropy': "entropy"
+        }
+        for v_n in self.eos_v_ns:
+            print("Evaluating eos: {}".format(v_n))
+            data_arr = o_eos.evaluate(v_n_to_eos_dic[v_n], concatenated_data["rho"],
+                                      concatenated_data["temperature"],
+                                      concatenated_data["Y_e"])
+            if v_n == 'eps':
+                data_arr = ut.conv_spec_energy(ut.cgs, ut.cactus, data_arr)
+            elif v_n == 'press':
+                data_arr = ut.conv_press(ut.cgs, ut.cactus, data_arr)
+            elif v_n == 'entropy':
+                data_arr = data_arr
+            else:
+                raise NameError("EOS quantity: {}".format(v_n))
+
+            concatenated_data[v_n] = data_arr
+        return concatenated_data
+
+    def save_result(self, outfpath, concatenated_data):
+        if os.path.isfile(outfpath):
+            os.remove(outfpath)
+
+        outfile = h5py.File(outfpath, "w")
+
+        outfile.create_dataset("iterations", data=np.array(self.iterations, dtype=int))
+        outfile.create_dataset("times", data=self.times, dtype=np.float32)
+
+        outfile.attrs.create("ntheta", self.grid.ntheta)
+        outfile.attrs.create("nphi", self.grid.nphi)
+        outfile.attrs.create("radius", self.grid.radius)
+        outfile.attrs.create("dphi", 2 * np.pi / self.grid.nphi)
+        outfile.attrs.create("dtheta", np.pi / self.grid.ntheta)
+
+        outfile.create_dataset("area", data=self.grid.area(), dtype=np.float32)
+        theta, phi = self.grid.mesh()
+        outfile.create_dataset("phi", data=phi, dtype=np.float32)
+        outfile.create_dataset("theta", data=theta, dtype=np.float32)
+
+        self.v_ns.remove("it")
+        self.v_ns.remove("time")
+
+        for v_n in self.v_ns + self.eos_v_ns:
+            outfile.create_dataset(v_n, data=concatenated_data[v_n], dtype=np.float32)
+        outfile.close()
 
 """ ==========================================| ANALYZE OUTFLOW.h5 |================================================ """
 
@@ -757,6 +923,7 @@ class EJECTA(ADD_MASK):
         self.list_ejecta_v_ns = [
                                     "tot_mass", "tot_flux",  "weights", "corr3d Y_e entropy tau",
                                 ] +\
+                                ["timecorr {}".format(v_n) for v_n in self.list_hist_v_ns] +\
                                 ["hist {}".format(v_n) for v_n in self.list_hist_v_ns] +\
                                 ["corr2d {}".format(v_n) for v_n in self.list_corr_v_ns] +\
                                 ["mass_ave {}".format(v_n) for v_n in self.list_v_ns]
@@ -826,6 +993,47 @@ class EJECTA(ADD_MASK):
 
         # res = np.vstack((middles, historgram))
         # return res
+
+    def get_timecorr(self, det, mask, v_n, edge):
+
+        historgrams = np.zeros(len(edge) - 1)
+
+        times = self.get_full_arr(det, "times")
+        timeedges = np.linspace(times.min(), times.max(), 55)
+
+        indexes = []
+        for i_e, t_e in enumerate(timeedges[:-1]):
+            i_indx = []
+            for i, t in enumerate(times):
+                if (t >= timeedges[i_e]) and (t<timeedges[i_e+1]):
+                    i_indx = np.append(i_indx, int(i))
+            indexes.append(i_indx)
+        assert len(indexes) > 0
+        #
+
+        weights = np.array(self.get_ejecta_arr(det, mask, "weights"))
+        data = np.array(self.get_full_arr(det, v_n))
+
+        # print(weights[np.array(indexes[0], dtype=int), :, :].flatten())
+        # exit(1)
+
+        for i_ind, ind_list in enumerate(indexes):
+            print(i_ind,'/',len(indexes), len(ind_list))
+            historgram = np.zeros(len(edge) - 1)
+            for i in np.array(ind_list, dtype=int):
+                if np.array(data).ndim == 3: data_ = data[i, :, :].flatten()
+                else: data_ = data.flatten()
+                tmp, _ = np.histogram(data_, bins=edge, weights=weights[i, :, :].flatten())
+                historgram += tmp
+            historgrams = np.vstack((historgrams, historgram))
+
+        bins = 0.5 * (edge[1:] + edge[:-1])
+
+        print("hist", historgrams.shape)
+        print("times", timeedges.shape)
+        print("edges", bins.shape)
+
+        return bins, timeedges, historgrams
 
     @staticmethod
     def combine(x, y, xy, corner_val=None):
@@ -1066,6 +1274,12 @@ class EJECTA(ADD_MASK):
             edge2 = HISTOGRAM_EDGES.get_edge(v_n2)
             bins1, bins2, weights = self.get_corr2d(det, mask, v_n1, v_n2, edge1, edge2)
             arr = self.combine(bins1, bins2, weights) # y_arr [1:, 0] x_arr [0, 1:]
+
+        elif v_n.__contains__("timecorr "):
+            v_n = str(v_n.split(" ")[1])
+            edge = HISTOGRAM_EDGES.get_edge(v_n)
+            bins, binstime, weights = self.get_timecorr(det, mask, v_n, edge)
+            return self.combine(binstime, bins, weights.T)
 
         elif v_n == "corr3d Y_e entropy tau":
             bins1, bins2, bins3, corr = self.get_corr_ye_entr_tau(det, mask)
@@ -1484,7 +1698,58 @@ class EJECTA_PARS(EJECTA_NORMED_NUCLEO):
         data = self.matrix_ejecta_pars[self.i_det(det)][self.i_mask(mask)][self.i_ej_par(v_n)]
         return data
 
+""" ==========================================| ANALYZE OUTFLOW.h5 |================================================ """
+# for parallelasiation code
+def serial_load_reshape_save(outflow_ascii_file, outdir, grid_object):
+    v_n_to_file_dic = {
+        'it': 0,
+        'time': 1,
+        'fluxdens': 5,
+        'w_lorentz': 6,
+        'eninf': 7,
+        'surface_element': 8,
+        'alp': 9,
+        'rho': 10,
+        'vel[0]': 11,
+        'vel[1]': 12,
+        'vel[2]': 13,
+        'Y_e': 14,
+        'entropy': 15,
+        'temperature': 16
+    }
+    data_matrix = {}
+    # load ascii
+    fdata = np.loadtxt(outflow_ascii_file, usecols=v_n_to_file_dic.values(), unpack=True)
+    for i_v_n, v_n in enumerate(v_n_to_file_dic.keys()):
+        data = np.array(fdata[i_v_n])
+        data_matrix[v_n] = np.array(data)
+    iterations = np.sort(np.unique(data_matrix["it"]))
+    reshaped_data_matrix = [{} for i in range(len(iterations))]
+    # extract the data and reshape to [ntheta, nphi] grid for every iteration
+    for i_it, it in enumerate(iterations):
+        for i_v_n, v_n in enumerate(v_n_to_file_dic.keys()):
+            raw_data = np.array(data_matrix[v_n])
+            raw_iterations = np.array(data_matrix["it"], dtype=int)
+            tmp = raw_data[np.array(raw_iterations, dtype=int) == int(it)][:grid_object.size()]
+            assert len(tmp) > 0
+            reshaped_data = grid_object.reshape(tmp)
+            reshaped_data_matrix[i_it][v_n] = reshaped_data
+    # saving data
+    fname = outflow_ascii_file.split('/')[-3]  # output-xxxx
+    if os.path.isfile(outdir + fname + ".h5"):
+        os.remove(outdir + fname + ".h5")
+    dfile = h5py.File(outdir + fname + ".h5", "w")
+    for i_it, it in enumerate(iterations):
+        gname = "iteration=%d" % it
+        dfile.create_group(gname)
+        for i_v_n, v_n in enumerate(v_n_to_file_dic.keys()):
+            data = reshaped_data_matrix[i_it][v_n]
+            dfile[gname].create_dataset(v_n, data=data, dtype=np.float32)
+    dfile.close()
+    print("Done: {}".format(fname))
+
 """ ============================================| METHODS |=========================================================="""
+
 
 def outflowed_historgrams(o_outflow, detectors, masks, v_ns, rewrite=False):
 
@@ -1599,7 +1864,7 @@ def outflowed_correlations(o_outflow, detectors, masks, v_ns, rewrite=False):
                                 'labelsize': 14, 'fontsize': 14},
                             'cmap': 'inferno',
                             'xlabel': Labels.labels(v_n1), 'ylabel': Labels.labels(v_n2),
-                            'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-5, 'vmax': 1e-1,
+                            'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
                             'xscale': "linear", 'yscale': "linear", 'norm': 'log',
                             'mask_below': None, 'mask_above': None,
                             'title': {},#{"text": o_corr_data.sim.replace('_', '\_'), 'fontsize': 14},
@@ -1986,6 +2251,7 @@ if __name__ == '__main__':
     parser.add_argument("-d", dest="detectors", nargs='+', required=False, default=[], help="detectors to use (0, 1...)")
     parser.add_argument("-v", dest="v_ns", nargs='+', required=False, default=[], help="variable names to compute")
     parser.add_argument("-m", dest="masks", nargs='+', required=False, default=[], help="mask names")
+    parser.add_argument("-p", dest="num_proc", required=False, default=0, help="number of processes in parallel")
     #
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
@@ -2007,7 +2273,7 @@ if __name__ == '__main__':
     glob_detectors = np.array(args.detectors, dtype=int)
     glob_v_ns = args.v_ns
     glob_masks = args.masks
-
+    glob_nproc = int(args.num_proc)
     # check given data
     if not glob_eos == None:
         if not os.path.isfile(glob_eos):
@@ -2043,23 +2309,42 @@ if __name__ == '__main__':
 
     # do tasks
 
-    if "reshape" in glob_tasklist:
+    if "reshape" in glob_tasklist and glob_nproc == 0:
         assert len(glob_detectors) > 0
         o_os = COMPUTE_OUTFLOW_SURFACE(glob_sim)
         # check if EOS file is correclty set
         if not glob_eos == None: o_os.eos_fname = glob_eos
         else: o_os.eos_fname = Paths.get_eos_fname_from_curr_dir(glob_sim)
         if click.confirm('Is the EOS fname correct? {}'.format(o_os.eos_fname), default=True):
-            print("Initializing...")
+            print("Initializing serial reshape...")
         else:
             exit(1)
-
+        assert os.path.isfile(glob_eos)
         for det in glob_detectors:
             Printcolor.print_colored_string(
                 ["Task:", "reshape", "detector:", "{}".format(det), "Executing..."],
                 ["blue", "green", "blue", "green", "blue"])
             if not glob_eos == None: o_os.eos_fname = glob_eos
             o_os.save_outflow(det, glob_overwrite)
+            Printcolor.print_colored_string(
+                ["Task:", "reshape", "detector:", "{}".format(det), "DONE..."],
+                ["blue", "green", "blue", "green", "green"])
+        exit(0)
+    elif "reshape" in glob_tasklist and glob_nproc > 0:
+        assert len(glob_detectors) > 0
+        # check if EOS file is correclty set
+        if not glob_eos == None: pass
+        else: glob_eos = Paths.get_eos_fname_from_curr_dir(glob_sim)
+        if click.confirm('Is the EOS fname correct? {}'.format(glob_eos), default=True):
+            print("Initializing parallel reshape...")
+        else:
+            exit(1)
+        assert os.path.isfile(glob_eos)
+        for det in glob_detectors:
+            Printcolor.print_colored_string(
+                ["Task:", "reshape", "detector:", "{}".format(det), "Executing..."],
+                ["blue", "green", "blue", "green", "blue"])
+            LOAD_RESHAPE_SAVE_PARALLEL(glob_sim, det, glob_nproc, glob_eos)
             Printcolor.print_colored_string(
                 ["Task:", "reshape", "detector:", "{}".format(det), "DONE..."],
                 ["blue", "green", "blue", "green", "green"])

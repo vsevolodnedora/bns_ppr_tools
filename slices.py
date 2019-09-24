@@ -1471,6 +1471,8 @@ def plot_selected_data(o_slice, v_ns, times, rls, rootdir, rewrite=False):
 
 def make_movie(v_ns, rls, rootdir, rewrite=False):
 
+    rewrite = True
+
     for v_n in v_ns:
         outdir_ = rootdir + v_n + '/'
         if not os.path.isdir(outdir_):

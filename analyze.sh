@@ -16,10 +16,10 @@ target=$2
 output=$3
 
 # creates ittime.h5 file that maps iterations and timesteps of available data
-call python preanalysis.py -s $sim -i $2 -o $3 -t update_status || exit 1
+call python preanalysis.py -s $sim -i $2 -o $3 -t update_status print_status || exit 1
 
-# shows the output directories times and number of files avialable
-call python preanalysis.py -s $sim -i $2 -o $3 -t print_status || exit 1
+# cmpute strain andwaveform. Attmpt to get tmerg and tcoll
+call python  gw.py -t $3collated/ -o $3 -t all || exit 1
 
 # creates .h5 file with remaped outflow data for a spherical grid
 call python outflowed.py -s $sim -i $2 -o $3 -t reshape -d 0 || exit 1

@@ -7,8 +7,8 @@ Set of scripts and methods for WhyskyTHC output postprocessing
 
 ## Suggested setup:  
 to have a directory with simulation(s), like `/home/my_simulations/` 
-inside of which there are simulation dirs like `LS220_130130_SR/`  
-This directory can be specified in the file `utils.py` in the class `Paths` in a variable `gw170810`    
+inside of which there are simulation dirs like `LS220_130130_SR/` with output subdirectories like `output-1234`    
+This `/home/my_simulations/` directory can be specified in the file `utils.py` in the class `Paths` in a variable `gw170810`    
 
 to have a separate directory for the results of postprocessing, like `/home/my_postprocessing/` 
 indide of which the pipeline would automatically create a subdirectory for every simulation it 
@@ -33,7 +33,8 @@ Options for this script:
 -s simulation_dir_name
 -i /path_to_this_dir/  
 -o /path_to_output/  
--t task to perform, such as: `update_status` or `print_status`  
+-t task to perform, such as: `update_status` or `print_status`, `collate`,  
+where the last task allows to collate certain ascii files, removing the repetitions.
 
 ## outflowed.py
 
@@ -56,6 +57,9 @@ To do that for data from detector (-d), run
 Example:
 `python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t all -m geo -d 0 --overwrite yes`  
 would perform all (-t all) the default analysis methods, for geodeiscally unbound materai (-m geo) for detector 0 (-d 0) and if the results are already present, it will overwrite them (--overwrite yes)   
+
+**Note** Running the `-t reshape` (the longest part of the outflow analysis) on a multiprocessor 
+system can be done in parallel. For that specify `-p 4` option, setting the number to a number of processors to use.  
 
 # slice.py
 

@@ -471,12 +471,34 @@ class Limits:
 
         if "v_n_x" in dic.keys():
             if dic["v_n_x"] != None:
-                lim1, lim2 = Limits.lim(dic["v_n_x"])
+                try:
+                    lim1, lim2 = Limits.lim(dic["v_n_x"])
+                except:
+                    raise NameError("limits not found")
+                # try:
+                #     lim1, lim2 = np.array(dic["xarr"]).min(), np.array(dic["xarr"]).max()
+                # except:
+                #     pass
+                # try:
+                #     lim1, lim2 = np.array(dic["table"][0,1:]).min(), np.array(dic["table"][0,1:]).max()
+                # except:
+                #     raise NameError("limits not found")
                 dic["xmin"], dic["xmax"] = lim1, lim2
 
         if "v_n_y" in dic.keys():
             if dic["v_n_y"] != None:
-                lim1, lim2 = Limits.lim(dic["v_n_y"])
+                try:
+                    lim1, lim2 = Limits.lim(dic["v_n_y"])
+                except:
+                    raise NameError("limits not found")
+                # try:
+                #     lim1, lim2 = np.array(dic["yarr"]).min(), np.array(dic["yarr"]).max()
+                # except:
+                #     pass
+                # try:
+                #     lim1, lim2 = np.array(dic["table"][1:,0]).min(), np.array(dic["table"][1:,0]).max()
+                # except:
+                #     raise NameError("limits not found")
                 dic["ymin"], dic["ymax"] = lim1, lim2
 
         return dic
