@@ -494,6 +494,7 @@ if __name__ == '__main__':
                           .format(Paths.ppr_sims+glob_sim+'/collated/'))
         glob_indir = Paths.ppr_sims+glob_sim+'/collated/'
     elif glob_sim == '' and glob_simdir != Paths.gw170817:
+        if not os.path.isdir(glob_simdir): raise IOError("simdir does not exist: {}".format(glob_simdir))
         assert os.path.isdir(glob_simdir)
         glob_indir = glob_simdir
     else:
@@ -501,17 +502,26 @@ if __name__ == '__main__':
                       "{} or provide -i path to inside of the collated data for your simulation. "
                       .format(Paths.ppr_sims+'this_simulation/collated/'))
     #
-    if glob_sim != '' and glob_outdir == Paths.ppr_sims:
+    if glob_outdir == Paths.ppr_sims:
+        assert glob_sim != ''
         glob_outdir = Paths.ppr_sims+glob_sim+'/waveforms/'
         if not os.path.isdir(glob_outdir):
             os.mkdir(glob_outdir)
-    elif glob_sim == '' and glob_outdir != Paths.ppr_sims:
-        assert os.path.isdir(glob_outdir)
-        glob_outdir = glob_outdir + 'waveforms/'
     else:
-        raise IOError("Please either provide -s option for simulation, assuming the output dir would be in "
-                      "{} or provide -o path to where the output data should be put (the /wafeforms/ would still"
-                      "be created. ".format(Paths.ppr_sims+'this_simulation/waveformes/'))
+        # assert glob_sim != ''
+        glob_outdir = glob_outdir
+        if not os.path.isdir(glob_outdir):
+            os.mkdir(glob_outdir)
+
+    # elif glob_sim == '' and glob_outdir != Paths.ppr_sims:
+    #     assert os.path.isdir(glob_outdir)
+    #     glob_outdir = glob_outdir + 'waveforms/'
+    # else:
+    #     raise IOError("Please either provide -s option for simulation, assuming the output dir would be in "
+    #                   "{} or provide -o path to where the output data should be put (the /wafeforms/ would still"
+    #                   "be created. ".format(Paths.ppr_sims+'this_simulation/waveformes/'))
+    #
+    assert os.path.isdir(glob_outdir)
     #
     if len(glob_tasklist) == 1 and "all" in glob_tasklist:
         glob_tasklist = __gw__["tasklist"]

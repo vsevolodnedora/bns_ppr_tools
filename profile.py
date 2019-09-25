@@ -2715,7 +2715,7 @@ def d3_corr_for_it(it, d3corrclass, outdir, rewrite=False):
 
         fpath = outdir + "corr_{}.h5".format(v_ns)
 
-        if True:
+        try:
             if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                 if os.path.isfile(fpath): os.remove(fpath)
                 print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "computing"],
@@ -2729,11 +2729,11 @@ def d3_corr_for_it(it, d3corrclass, outdir, rewrite=False):
             else:
                 print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "skipping"],
                                      ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        # except KeyboardInterrupt:
-        #     exit(1)
-        # except:
-        #     print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "failed"],
-        #                          ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+        except KeyboardInterrupt:
+            exit(1)
+        except:
+            print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "failed"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def d3_to_d2_slice_for_it(it, d3corrclass, outdir, rewrite=False):
 
@@ -3544,6 +3544,7 @@ def d3_main_computational_loop():
                                 'lapse': [0.15, 1.]}  # remove apparent horizon
 
     for it in glob_its:
+        sys.stdout.flush()
         _outdir = outdir + str(it) + '/'
         if not os.path.isdir(_outdir):
             os.mkdir(_outdir)
@@ -3574,7 +3575,7 @@ def d3_main_computational_loop():
             if task == "plotslice":       plot_d3_prof_slices(d3_slices, rewritefigs=glob_overwrite)
             if task == "plothist":        plot_d3_hist(d3_corr, rewrite=glob_overwrite)
             if task == "plotdensmode":    plot_density_modes(dm_class, rewrite=glob_overwrite)
-
+            sys.stdout.flush()
             # else:
             #     raise NameError("glob_task for plotting is not recognized: {}"
             #                     .format(task))

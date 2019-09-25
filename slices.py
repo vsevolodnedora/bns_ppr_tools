@@ -115,7 +115,9 @@ class LOAD_STORE_DATASETS(LOAD_ITTIME):
         # self.iterations = np.array(self.it_time[:, 0], dtype=int)
         # self.times =  np.array(self.it_time[:, 1], dtype=float)
 
-        self.list_v_ns = ['rho', 'Y_e', 'temperature', 's_phi', 'entropy', 'dens_unbnd']
+        self.list_v_ns = ['rho', 'Y_e', 'temperature', 's_phi', 'entropy', 'dens_unbnd',
+                          "Q_eff_nua", "Q_eff_nue", "Q_eff_nux", "R_eff_nua", "R_eff_nue", "R_eff_nux",
+                          "optd_0_nua", "optd_0_nux", "optd_0_nue", "optd_1_nua", "optd_1_nux", "optd_1_nue"]
         self.list_planes=['xy', 'xz', 'xy']
 
         self.set_use_new_output_if_duplicated = False
@@ -353,7 +355,19 @@ class EXTRACT_STORE_DATA(LOAD_STORE_DATASETS):
             's_phi':        "BNSANALYSIS::s_phi",
             'temperature':  "HYDROBASE::temperature",
             'entropy':      "HYDROBASE::entropy",
-            'dens_unbnd':   "BNSANALYSIS::dens_unbnd"
+            'dens_unbnd':   "BNSANALYSIS::dens_unbnd",
+            'R_eff_nua':    "THC_LEAKAGEBASE::R_eff_nua",
+            'R_eff_nue':    "THC_LEAKAGEBASE::R_eff_nue",
+            'R_eff_nux':    "THC_LEAKAGEBASE::R_eff_nux",
+            'Q_eff_nua':    "THC_LEAKAGEBASE::Q_eff_nua",
+            'Q_eff_nue':    "THC_LEAKAGEBASE::Q_eff_nue",
+            'Q_eff_nux':    "THC_LEAKAGEBASE::Q_eff_nux",
+            'optd_0_nua':   "THC_LEAKAGEBASE::optd_0_nua",
+            'optd_0_nue':   "THC_LEAKAGEBASE::optd_0_nue",
+            'optd_0_nux':   "THC_LEAKAGEBASE::optd_0_nux",
+            'optd_1_nua':   "THC_LEAKAGEBASE::optd_1_nua",
+            'optd_1_nue':   "THC_LEAKAGEBASE::optd_1_nue",
+            'optd_1_nux':   "THC_LEAKAGEBASE::optd_1_nux",
         }
 
 
@@ -1337,6 +1351,86 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
         def_dic_xy['v_n'] = 'entropy'
         def_dic_xy['vmin'] = 1e-1
         def_dic_xy['vmax'] = 1e2
+    elif v_n == "Q_eff_nua":
+        def_dic_xz['v_n'] = 'Q_eff_nua'
+        def_dic_xz['vmin'] = 1e-18
+        def_dic_xz['vmax'] = 1e-14
+        def_dic_xz['cbar']['label'] = r'$Q_eff_nua$ [geo]'.replace('_', '\_')
+
+        def_dic_xy['v_n'] = 'Q_eff_nua'
+        def_dic_xy['vmin'] = 1e-18
+        def_dic_xy['vmax'] = 1e-14
+    elif v_n == "Q_eff_nue":
+        def_dic_xz['v_n'] = 'Q_eff_nue'
+        def_dic_xz['vmin'] = 1e-18
+        def_dic_xz['vmax'] = 1e-14
+        def_dic_xz['cbar']['label'] = r'$Q_eff_nue$ [geo]'.replace('_', '\_')
+
+        def_dic_xy['v_n'] = 'Q_eff_nue'
+        def_dic_xy['vmin'] = 1e-18
+        def_dic_xy['vmax'] = 1e-14
+    elif v_n == "Q_eff_nux":
+        def_dic_xz['v_n'] = 'Q_eff_nux'
+        def_dic_xz['vmin'] = 1e-18
+        def_dic_xz['vmax'] = 1e-14
+        def_dic_xz['cbar']['label'] = r'$Q_eff_nux$ [geo]'.replace('_', '\_')
+
+        def_dic_xy['v_n'] = 'Q_eff_nux'
+        def_dic_xy['vmin'] = 1e-18
+        def_dic_xy['vmax'] = 1e-14
+    elif v_n == "R_eff_nua":
+        def_dic_xz['v_n'] = 'R_eff_nua'
+        def_dic_xz['vmin'] = 1e-9
+        def_dic_xz['vmax'] = 1e-5
+        def_dic_xz['cbar']['label'] = r'$R_eff_nua$ [geo]'.replace('_', '\_')
+
+        def_dic_xy['v_n'] = 'R_eff_nue'
+        def_dic_xy['vmin'] = 1e-9
+        def_dic_xy['vmax'] = 1e-5
+    elif v_n == "R_eff_nue":
+        def_dic_xz['v_n'] = 'R_eff_nue'
+        def_dic_xz['vmin'] = 1e-9
+        def_dic_xz['vmax'] = 1e-5
+        def_dic_xz['cbar']['label'] = r'$R_eff_nue$ [geo]'.replace('_', '\_')
+
+        def_dic_xy['v_n'] = 'R_eff_nue'
+        def_dic_xy['vmin'] = 1e-9
+        def_dic_xy['vmax'] = 1e-5
+    elif v_n == "R_eff_nux":
+        def_dic_xz['v_n'] = 'R_eff_nux'
+        def_dic_xz['vmin'] = 1e-9
+        def_dic_xz['vmax'] = 1e-5
+        def_dic_xz['cbar']['label'] = r'$R_eff_nux$ [geo]'.replace('_', '\_')
+
+        def_dic_xy['v_n'] = 'R_eff_nux'
+        def_dic_xy['vmin'] = 1e-9
+        def_dic_xy['vmax'] = 1e-5
+    elif v_n == "optd_0_nua":
+        def_dic_xz['v_n'] = 'optd_0_nua'
+        def_dic_xz['vmin'] = 1e-5
+        def_dic_xz['vmax'] = 1e-2
+        def_dic_xz['cbar']['label'] = r'$optd_0_nua$ [geo]'.replace('_', '\_')
+        # def_dic_xz['norm'] = "linear"
+        def_dic_xz['cmap'] = 'inferno'
+
+        def_dic_xy['v_n'] = 'optd_0_nua'
+        def_dic_xy['vmin'] = 1e-5
+        def_dic_xy['vmax'] = 1e-1
+        # def_dic_xy['norm'] = "linear"
+        def_dic_xy['cmap'] = 'inferno'
+    elif v_n == "optd_0_nue":
+        def_dic_xz['v_n'] = 'optd_0_nue'
+        def_dic_xz['vmin'] = 1e-5
+        def_dic_xz['vmax'] = 1e-2
+        def_dic_xz['cbar']['label'] = r'$optd_0_nue$ [geo]'.replace('_', '\_')
+        # def_dic_xz['norm'] = "linear"
+        def_dic_xz['cmap'] = 'inferno'
+
+        def_dic_xy['v_n'] = 'optd_0_nue'
+        def_dic_xy['vmin'] = 1e-5
+        def_dic_xy['vmax'] = 1e-1
+        # def_dic_xy['norm'] = "linear"
+        def_dic_xy['cmap'] = 'inferno'
     else: raise NameError("v_n:{} not recognized".format(v_n))
 
     # setting boundaries for plots
@@ -1439,7 +1533,7 @@ def plot_selected_data(o_slice, v_ns, times, rls, rootdir, rewrite=False):
                 if not os.path.isdir(outdir__):
                     os.mkdir(outdir__)
                 plotfpath = outdir__ + "{0:07d}.png".format(int(it))
-                try:
+                if True:
                     if (os.path.isfile(plotfpath) and rewrite) or not os.path.isfile(plotfpath):
                         if os.path.isfile(plotfpath): os.remove(plotfpath)
                         Printcolor.print_colored_string(
@@ -1457,15 +1551,15 @@ def plot_selected_data(o_slice, v_ns, times, rls, rootdir, rewrite=False):
                              "{}".format(rl), "v_n:", v_n, ':', "skipping"],
                             ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"]
                         )
-                except KeyboardInterrupt:
-                    exit(1)
-                except:
-                    Printcolor.print_colored_string(
-                        ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t * 1e3, i, len(times)),
-                         "rl:",
-                         "{}".format(rl), "v_n:", v_n, ':', "failed"],
-                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
-                    )
+                # except KeyboardInterrupt:
+                #     exit(1)
+                # except:
+                #     Printcolor.print_colored_string(
+                #         ["task:", "plot slice", "t:", "{:.1f} [ms] ({:d}/{:d})".format(t * 1e3, i, len(times)),
+                #          "rl:",
+                #          "{}".format(rl), "v_n:", v_n, ':', "failed"],
+                #         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
+                #     )
         sys.stdout.flush()
         i += 1
 

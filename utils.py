@@ -470,37 +470,28 @@ class Limits:
         #         dic["zmin"], dic["zmax"] = lim1, lim2
 
         if "v_n_x" in dic.keys():
-            if dic["v_n_x"] != None:
-                try:
-                    lim1, lim2 = Limits.lim(dic["v_n_x"])
-                except:
-                    raise NameError("limits not found")
-                # try:
-                #     lim1, lim2 = np.array(dic["xarr"]).min(), np.array(dic["xarr"]).max()
-                # except:
-                #     pass
-                # try:
-                #     lim1, lim2 = np.array(dic["table"][0,1:]).min(), np.array(dic["table"][0,1:]).max()
-                # except:
-                #     raise NameError("limits not found")
-                dic["xmin"], dic["xmax"] = lim1, lim2
+            if dic["xmin"] != None and dic["xmax"] != None:
+                pass
+            else:
+                # print(dic["xmin"], dic["xmin"])
+                if dic["v_n_x"] != None:
+                    try:
+                        lim1, lim2 = Limits.lim(dic["v_n_x"])
+                    except:
+                        raise NameError("X limits for {} are not set and not found".format(dic["v_n_x"]))
+
+                    dic["xmin"], dic["xmax"] = lim1, lim2
 
         if "v_n_y" in dic.keys():
-            if dic["v_n_y"] != None:
-                try:
-                    lim1, lim2 = Limits.lim(dic["v_n_y"])
-                except:
-                    raise NameError("limits not found")
-                # try:
-                #     lim1, lim2 = np.array(dic["yarr"]).min(), np.array(dic["yarr"]).max()
-                # except:
-                #     pass
-                # try:
-                #     lim1, lim2 = np.array(dic["table"][1:,0]).min(), np.array(dic["table"][1:,0]).max()
-                # except:
-                #     raise NameError("limits not found")
-                dic["ymin"], dic["ymax"] = lim1, lim2
-
+            if dic["ymin"] != None and dic["ymax"] != None:
+                pass
+            else:
+                if dic["v_n_y"] != None:
+                    try:
+                        lim1, lim2 = Limits.lim(dic["v_n_y"])
+                    except:
+                        raise NameError("Y limits for {} are not set and not found".format(dic["v_n_y"]))
+                    dic["ymin"], dic["ymax"] = lim1, lim2
         return dic
 
 

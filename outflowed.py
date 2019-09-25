@@ -58,10 +58,9 @@ from plotting_methods import PLOT_MANY_TASKS
 
 __outflowed__ = {
     "name": "outflowed",
-    "tasklist": ["reshape", "all", "hist", "corr", "totflux", "massave", "ejtau", "yeilds", "mknprof"],
+    "tasklist": ["reshape", "all", "hist", "timecorr", "corr", "totflux", "massave", "ejtau", "yeilds", "mknprof"],
     "detectors":[0,1]
 }
-
 
 """ =======================================| OUTFLOW.ASC -> OUTFLOW.h5 |============================================ """
 
@@ -830,7 +829,7 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
 
         COMPUTE_OUTFLOW_SURFACE_H5.__init__(self, sim)
 
-        self.list_masks = ["geo", "bern", "bern_geoend"]
+        self.list_masks = ["geo", "bern", "bern_geoend", "Y_e04_geoend"]
         self.mask_matrix = [[np.zeros(0,)
                             for i in range(len(self.list_masks))]
                             for j in range(len(self.list_detectors))]
@@ -847,6 +846,29 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
         return int(self.list_masks.index(mask))
 
     # ----------------------------------------------
+    def __time_mask_end_geo(self, det):
+
+        fluxdens = self.get_full_arr(det, "fluxdens")
+        da = self.get_full_arr(det, "surface_element")
+        t = self.get_full_arr(det, "times")
+        dt = np.diff(t)
+        dt = np.insert(dt, 0, 0)
+        mask = self.get_mask(det, "geo").astype(int)
+        fluxdens = fluxdens * mask
+        flux_arr = np.sum(np.sum(fluxdens * da, axis=1), axis=1)  # sum over theta and phi
+        tot_mass = np.cumsum(flux_arr * dt)  # sum over time
+        tot_flux = np.cumsum(flux_arr)  # sum over time
+        # print("totmass:{}".format(tot_mass[-1]))
+        fraction = 0.98
+        i_t98mass = int(np.where(tot_mass >= fraction * tot_mass[-1])[0][0])
+        # print(i_t98mass)
+        assert i_t98mass < len(t)
+        i_mask = t > t[i_t98mass]
+        newmask = np.zeros(fluxdens.shape)
+        for i in range(len(newmask[:, 0, 0])):
+            newmask[i, :, :].fill(i_mask[i])
+        return newmask.astype(bool)
+    # ----------------------------------------------
 
     def compute_mask(self, det, mask):
         self.check_mask(mask)
@@ -860,33 +882,39 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
             res = ((enthalpy * (einf + 1) - 1) > self.set_min_eninf) & (enthalpy >= self.set_min_enthalpy)
         elif mask == "bern_geoend":
             # have to compute mass flux here...
-            fluxdens = self.get_full_arr(det, "fluxdens")
-            da = self.get_full_arr(det, "surface_element")
-            t = self.get_full_arr(det, "times")
-            dt = np.diff(t)
-            dt = np.insert(dt, 0, 0)
-            mask = self.get_mask(det, "geo").astype(int)
-            fluxdens = fluxdens * mask
-            flux_arr = np.sum(np.sum(fluxdens * da, axis=1), axis=1)  # sum over theta and phi
-            tot_mass = np.cumsum(flux_arr * dt)  # sum over time
-            tot_flux = np.cumsum(flux_arr)  # sum over time
-            # print("totmass:{}".format(tot_mass[-1]))
-            fraction = 0.98
-            i_t98mass = int(np.where(tot_mass >=fraction*tot_mass[-1])[0][0])
-            print(i_t98mass)
-            assert i_t98mass < len(t)
-            i_mask = t > t[i_t98mass]
-            print(i_mask)
-            newmask = np.zeros(fluxdens.shape)
-            for i in range(len(newmask[:, 0, 0])):
-                newmask[i, :, :].fill(i_mask[i])
+            # fluxdens = self.get_full_arr(det, "fluxdens")
+            # da = self.get_full_arr(det, "surface_element")
+            # t = self.get_full_arr(det, "times")
+            # dt = np.diff(t)
+            # dt = np.insert(dt, 0, 0)
+            # mask = self.get_mask(det, "geo").astype(int)
+            # fluxdens = fluxdens * mask
+            # flux_arr = np.sum(np.sum(fluxdens * da, axis=1), axis=1)  # sum over theta and phi
+            # tot_mass = np.cumsum(flux_arr * dt)  # sum over time
+            # tot_flux = np.cumsum(flux_arr)  # sum over time
+            # # print("totmass:{}".format(tot_mass[-1]))
+            # fraction = 0.98
+            # i_t98mass = int(np.where(tot_mass >=fraction*tot_mass[-1])[0][0])
+            # print(i_t98mass)
+            # assert i_t98mass < len(t)
+            # i_mask = t > t[i_t98mass]
+            # print(i_mask)
+            # newmask = np.zeros(fluxdens.shape)
+            # for i in range(len(newmask[:, 0, 0])):
+            #     newmask[i, :, :].fill(i_mask[i])
                 # print(mask)
             # print(newmask)
             mask2 = self.get_mask(det, "bern")
+            newmask = self.__time_mask_end_geo(det)
 
-            res = newmask.astype(bool) & mask2
+            res = newmask & mask2
 
-
+        elif mask == "Y_e04_geoend":
+            ye = self.get_full_arr(det, "Y_e")
+            mask_ye = ye > 0.4
+            mask_bern = self.get_mask(det, "bern")
+            mask_geo_end = self.__time_mask_end_geo(det)
+            return mask_ye & mask_bern & mask_geo_end
         else:
             raise NameError("No method found for computing mask:{}"
                             .format(mask))
@@ -1010,15 +1038,28 @@ class EJECTA(ADD_MASK):
             indexes.append(i_indx)
         assert len(indexes) > 0
         #
-
+        # print("indexes done")
         weights = np.array(self.get_ejecta_arr(det, mask, "weights"))
         data = np.array(self.get_full_arr(det, v_n))
 
         # print(weights[np.array(indexes[0], dtype=int), :, :].flatten())
         # exit(1)
 
+        # historgram = []
+        # for i_t, t in enumerate(times):
+        #     print("{}".format(i_t))
+        #     if np.array(data).ndim == 3:
+        #         data_ = data[i_t, :, :].flatten()
+        #     else:
+        #         data_ = data.flatten()
+        #     tmp, _ = np.histogram(data_, bins=edge, weights=weights[i_t, :, :].flatten())
+        #     historgram = np.append(historgram, tmp)
+        #
+        # print("done") # 1min.15
+        # exit(1)
+
         for i_ind, ind_list in enumerate(indexes):
-            print(i_ind,'/',len(indexes), len(ind_list))
+            # print("{} {}/{}".format(i_ind,len(indexes), len(ind_list)))
             historgram = np.zeros(len(edge) - 1)
             for i in np.array(ind_list, dtype=int):
                 if np.array(data).ndim == 3: data_ = data[i, :, :].flatten()
@@ -1026,6 +1067,9 @@ class EJECTA(ADD_MASK):
                 tmp, _ = np.histogram(data_, bins=edge, weights=weights[i, :, :].flatten())
                 historgram += tmp
             historgrams = np.vstack((historgrams, historgram))
+
+        # print("done") #1min15
+        # exit(1)
 
         bins = 0.5 * (edge[1:] + edge[:-1])
 
@@ -1750,7 +1794,6 @@ def serial_load_reshape_save(outflow_ascii_file, outdir, grid_object):
 
 """ ============================================| METHODS |=========================================================="""
 
-
 def outflowed_historgrams(o_outflow, detectors, masks, v_ns, rewrite=False):
 
     # exit(1)
@@ -1789,7 +1832,7 @@ def outflowed_historgrams(o_outflow, detectors, masks, v_ns, rewrite=False):
                             'data': hist, 'normalize': True,
                             'v_n_x': v_n, 'v_n_y': None,
                             'color': "black", 'ls': ':', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
-                            'ymin': 1e-4, 'ymax': 1e0,
+                            'xmin':None, 'xamx':None, 'ymin': 1e-4, 'ymax': 1e0,
                             'xlabel': Labels.labels(v_n), 'ylabel': Labels.labels("mass"),
                             'label': None, 'yscale': 'log',
                             'fancyticks': True, 'minorticks': True,
@@ -1923,6 +1966,132 @@ def outflowed_correlations(o_outflow, detectors, masks, v_ns, rewrite=False):
                 else:
                     Printcolor.print_colored_string(
                         ["task:", "d1corr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}_{}".format(v_n1, v_n2), ":", "failed"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+
+def outflowed_timecorr(o_outflow, detectors, masks, v_ns, rewrite=False):
+
+    # assert len(v_ns) % 2 == 0
+
+    for det in detectors:
+        for mask in masks:
+            outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
+            for v_n in v_ns:
+                fpath = outdir + "timecorr_{}.h5".format(v_n)
+                if True:
+                    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                        if os.path.isfile(fpath): os.remove(fpath)
+                        Printcolor.print_colored_string(
+                            ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":", "computing"],
+                            ["blue",   "green", "blue", "green",          "blue", "green","blue","green","", "green"])
+                        # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                        table = o_outflow.get_ejecta_arr(det, mask, "timecorr {}".format(v_n))
+                        table[0, 1:] *= Constants.time_constant
+                        timearr = table[0, 1:]
+                        yarr = table[1:, 0]
+                        zarr =  table[1:, 1:]
+
+                        # print (timearr)
+
+                        # table[0, 1:] *= Constants.time_constant
+
+                        # corr = o_outflow.get_ejecta_arr(det, mask, "timehist {} {}".format(v_n1, v_n2))
+
+                        # y_arr = corr[1:, 0]
+                        # x_arr = corr[0, 1:]
+                        # z_arr = corr[1:, 1:]
+                        dfile = h5py.File(fpath, "w")
+                        dfile.create_dataset("time", data=timearr)
+                        dfile.create_dataset(v_n, data=yarr)
+                        dfile.create_dataset("mass", data=zarr)
+                        dfile.close()
+                        # print(x_arr)
+                        # exit(1)
+
+                        # np.savetxt(outdir + "/hist_{}.dat".format(v_n), X=hist)
+                        #
+                        o_plot = PLOT_MANY_TASKS()
+                        o_plot.gen_set["figdir"] = outdir
+                        o_plot.gen_set["type"] = "cartesian"
+                        o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+                        o_plot.gen_set["figname"] = "timecorr_{}.png".format(v_n)
+                        o_plot.gen_set["sharex"] = False
+                        o_plot.gen_set["sharey"] = False
+                        o_plot.gen_set["dpi"] = 128
+                        o_plot.gen_set["subplots_adjust_h"] = 0.3
+                        o_plot.gen_set["subplots_adjust_w"] = 0.0
+                        o_plot.set_plot_dics = []
+                        #
+                        corr_dic2 = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
+                            'task': 'corr2d', 'dtype': 'corr', 'ptype': 'cartesian',
+                            'data': table,
+                            'position': (1, 1),
+                            'v_n_x': "time", 'v_n_y': v_n, 'v_n': 'mass', 'normalize':True,
+                            'cbar': {
+                                'location': 'right .03 .0', 'label': Labels.labels("mass"),#  'fmt': '%.1f',
+                                'labelsize': 14, 'fontsize': 14},
+                            'cmap': 'inferno',
+                            'xlabel': Labels.labels("time"), 'ylabel': Labels.labels(v_n),
+                            'xmin': timearr[0], 'xmax': timearr[-1], 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
+                            'xscale': "linear", 'yscale': "linear", 'norm': 'log',
+                            'mask_below': None, 'mask_above': None,
+                            'title': {},#{"text": o_corr_data.sim.replace('_', '\_'), 'fontsize': 14},
+                            'fancyticks': True,
+                            'minorticks': True,
+                            'sharex': False,  # removes angular citkscitks
+                            'sharey': False,
+                            'fontsize': 14,
+                            'labelsize': 14
+                        }
+
+
+                        corr_dic2 = Limits.in_dic(corr_dic2)
+                        o_plot.set_plot_dics.append(corr_dic2)
+                        #
+
+
+                        # if v_n1 in ["Y_e", "ye", "Ye"]:
+                        #     corr_dic2["xmin"] = 0.
+                        #     corr_dic2["xmax"] = 0.5
+                        # if v_n1 in ["vel_inf", "vinf", "velinf"]:
+                        #     corr_dic2["xmin"] = 0.
+                        #     corr_dic2["xmax"] = 1.
+                        # if v_n1 in ["vel_inf", "vinf", "velinf"]:
+                        #     corr_dic2["xmin"] = 0.
+                        #     corr_dic2["xmax"] = 1.
+                        # if v_n2 in ["Y_e", "ye", "Ye"]:
+                        #     corr_dic2["ymin"] = 0.
+                        #     corr_dic2["ymax"] = 0.5
+                        # if v_n2 in ["vel_inf", "vinf", "velinf"]:
+                        #     corr_dic2["ymin"] = 0.
+                        #     corr_dic2["ymax"] = 1.
+                        # if v_n2 in ["vel_inf", "vinf", "velinf"]:
+                        #     corr_dic2["ymin"] = 0.
+                        #     corr_dic2["ymax"] = 1.
+                        # if v_n1 in ["theta"]:
+                        #     corr_dic2["xmin"] = 0.
+                        #     corr_dic2["xmax"] = 90.
+                        # if v_n1 in ["phi"]:
+                        #     corr_dic2["xmin"] = 0.
+                        #     corr_dic2["xmax"] = 360
+                        # if v_n2 in ["theta"]:
+                        #     corr_dic2["ymin"] = 0.
+                        #     corr_dic2["ymax"] = 90.
+                        # if v_n2 in ["phi"]:
+                        #     corr_dic2["ymin"] = 0.
+                        #     corr_dic2["ymax"] = 360
+                        #
+                        # o_plot.set_plot_dics.append(plot_dic)
+                        o_plot.main()
+                        # del v_ns[0:2]
+                        # del v_ns[0]
+                        # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    else:
+                        Printcolor.print_colored_string(
+                            ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":", "computing"],
+                            ["blue",   "green", "blue", "green",          "blue", "green","blue","green","", "blue"])
+                else:
+                    Printcolor.print_colored_string(
+                        ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":", "computing"],
                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_totmass(o_outflow, detectors, masks, rewrite=False):
@@ -2371,10 +2540,12 @@ if __name__ == '__main__':
 
     # entire pipeline
     if len(glob_tasklist) == 1 and "all" in glob_tasklist:
+        # glob_tasklist = __outflowed__["tasklist"]
         v_ns = []
         for v_n in outflowed.list_corr_v_ns:
             v_ns += v_n.split()
         outflowed_correlations(outflowed, glob_detectors, glob_masks, v_ns, glob_overwrite)
+        outflowed_timecorr(outflowed, glob_detectors, glob_masks, outflowed.list_hist_v_ns, glob_overwrite)
         outflowed_historgrams(outflowed, glob_detectors, glob_masks, outflowed.list_hist_v_ns, glob_overwrite)
         outflowed_totmass(outflowed, glob_detectors, glob_masks, glob_overwrite)
         outflowed_massaverages(outflowed, glob_detectors, glob_masks, glob_overwrite)
@@ -2390,6 +2561,9 @@ if __name__ == '__main__':
         elif task == "hist":
             assert len(glob_v_ns) > 0
             outflowed_historgrams(outflowed, glob_detectors, glob_masks, glob_v_ns, glob_overwrite)
+        elif task == "timecorr":
+            assert len(glob_v_ns) > 0
+            outflowed_timecorr(outflowed, glob_detectors, glob_masks, glob_v_ns, glob_overwrite)
         elif task == "corr":
             assert len(glob_v_ns) > 0
             outflowed_correlations(outflowed, glob_detectors, glob_masks, glob_v_ns, glob_overwrite)

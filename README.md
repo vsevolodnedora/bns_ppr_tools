@@ -30,10 +30,10 @@ example:
 purpose: check and show the available data and timespans. Create an `ittime.h5` file that contains the information about timestaps and iterations of different data types, such as ascii files, .xy.h5 files and parfile.h5 files.  
 The ittime.h5 is essential for all other methods, as they do not have to scan for available data every time.  
 Options for this script:  
--s simulation_dir_name
--i /path_to_this_dir/  
--o /path_to_output/  
--t task to perform, such as: `update_status` or `print_status`, `collate`,  
+`-s` simulation_dir_name
+`-i` /path_to_this_dir/  
+`-o` /path_to_output/  
+`-t` task to perform, such as: `update_status` or `print_status`, `collate`,  
 where the last task allows to collate certain ascii files, removing the repetitions.
 
 ## outflowed.py
@@ -45,21 +45,24 @@ Purpose and usage:
 1) parse set of `outflow_surface_det_0_fluxdens.asc` files from every output-xxxx into a singular .h5 file with the same data, just reshaped onto a spherical grid with `n_theta` and `n_phi` parameters of the grid.  
 To do that for data from detector (-d), run  
 `python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t reshape -d 0`  
-2) do the comprehensive, easily extendeble analysis of this data. Available standart methods (-t otion). For that mask option (-m) has to set. For example: `-t geo` would stand for geodesic criteria to unbound material.  
--t all (to do all the below mention tasks one after another)
--t hist (creates and plot histograms of variables that speified with option -v, like -v Y_e theta vel_inf )
--t corr (creates and plots correlations (2D histograms) of pairs of variables that speified with option -v, like -v Y_e theta vel_inf theta)  
--t totflux (creates and plots total flux of the ejecta  
--t massave (creates the mass averaged quantities)  
--t ejtau (computes the 3D histogram, with Y_e, entropy and expansion timescale as axis)  
--t yeilds (computes and plots nuclesynthetic yeilds)  
--t mknprof (computes and plots angular profile of mass, Y_e and vel_inf for macrokilonova bayes code)  
-Example:
-`python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t all -m geo -d 0 --overwrite yes`  
-would perform all (-t all) the default analysis methods, for geodeiscally unbound materai (-m geo) for detector 0 (-d 0) and if the results are already present, it will overwrite them (--overwrite yes)   
 
 **Note** Running the `-t reshape` (the longest part of the outflow analysis) on a multiprocessor 
 system can be done in parallel. For that specify `-p 4` option, setting the number to a number of processors to use.  
+
+
+2) do the comprehensive, easily extendeble analysis of this data. Available standart methods (-t otion). For that mask option (-m) has to set. For example: `-t geo` would stand for geodesic criteria to unbound material.  
+`-t all` to do all the below mention tasks one after another  
+`-t hist` creates and plot histograms of variables that speified with option -v, like -v Y_e theta vel_inf  
+`-t timecorr` creates a correlation from set of histograms for different timesteps. Usefull to see the evolution  
+`-t corr` creates and plots correlations (2D histograms) of pairs of variables that speified with option -v, like -v Y_e theta vel_inf theta  
+`-t totflux` creates and plots total flux of the ejecta  
+`-t massave` creates the mass averaged quantities  
+`-t ejtau` computes the 3D histogram, with Y_e, entropy and expansion timescale as axis  
+`-t yeilds` computes and plots nuclesynthetic yeilds  
+`-t mknprof` computes and plots angular profile of mass, Y_e and vel_inf for macrokilonova bayes code  
+Example:
+`python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t all -m geo -d 0 --overwrite yes`  
+would perform all (-t all) the default analysis methods, for geodeiscally unbound materai (-m geo) for detector 0 (-d 0) and if the results are already present, it will overwrite them (--overwrite yes     
 
 # slice.py
 
@@ -97,8 +100,8 @@ on from which this file was dumped) into a single profile.h5 file
 that contains several variable data that has been mapped onto a unique 
 grid for every reflevel using `scidata`.  
 Two types of profiles can be created as of now. 
--t prof    (task for a hydro profile)
--t nuprof  (task for a neutrino M0 profile)  
+`-t` prof    (task for a hydro profile)
+`-t` nuprof  (task for a neutrino M0 profile)  
 
 First a directory `profiles/` will be created inside the output directory (-o)  
 Then, the data for every variable will be loaded and saved as a unique `variable_name.h5` file. This is done to

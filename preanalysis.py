@@ -1722,14 +1722,17 @@ class COLLATE_DATA(LOAD_ITTIME):
                     output_files.append(fpath)
                 else:
                     Printcolor.yellow("\tFile not found: {}".format(fpath))
-            assert len(output_files) > 0
-            Printcolor.blue("Located {} files of a type: {}"
-                            .format(len(output_files), fname), comma=True)
-            try:
-                self.__collate(output_files, fname, ['#'], True)
-                Printcolor.green(" collated.")
-            except:
-                Printcolor.red(" failed to collate.")
+            # assert len(output_files) > 0
+            if len(output_files) > 0:
+                Printcolor.blue("Located {} files of a type: {}"
+                                .format(len(output_files), fname), comma=True)
+                try:
+                    self.__collate(output_files, fname, ['#'], True)
+                    Printcolor.green(" collated.")
+                except:
+                    Printcolor.red(" failed to collate.")
+            else:
+                Printcolor.red("No files found fo collate for: {}".format(fname))
 
 
 
