@@ -89,6 +89,9 @@ class LOAD_STORE_DATASETS(LOAD_ITTIME):
 
     """
 
+    list_neut_v_ns = ["Q_eff_nua", "Q_eff_nue", "Q_eff_nux", "R_eff_nua", "R_eff_nue", "R_eff_nux",
+                      "optd_0_nua", "optd_0_nux", "optd_0_nue", "optd_1_nua", "optd_1_nux", "optd_1_nue"]
+
     def __init__(self, sim):
 
         LOAD_ITTIME.__init__(self, sim)
@@ -115,9 +118,8 @@ class LOAD_STORE_DATASETS(LOAD_ITTIME):
         # self.iterations = np.array(self.it_time[:, 0], dtype=int)
         # self.times =  np.array(self.it_time[:, 1], dtype=float)
 
-        self.list_v_ns = ['rho', 'Y_e', 'temperature', 's_phi', 'entropy', 'dens_unbnd',
-                          "Q_eff_nua", "Q_eff_nue", "Q_eff_nux", "R_eff_nua", "R_eff_nue", "R_eff_nux",
-                          "optd_0_nua", "optd_0_nux", "optd_0_nue", "optd_1_nua", "optd_1_nux", "optd_1_nue"]
+
+        self.list_v_ns = ['rho', 'Y_e', 'temperature', 's_phi', 'entropy', 'dens_unbnd'] + self.list_neut_v_ns
         self.list_planes=['xy', 'xz', 'xy']
 
         self.set_use_new_output_if_duplicated = False
@@ -374,7 +376,7 @@ class EXTRACT_STORE_DATA(LOAD_STORE_DATASETS):
         # self.output_it_map = {}
         # self.it_time = self.set_it_output_map()
 
-        self.data_matrix = [[[0
+        self.data_matrix = [[[np.zeros(0,)
                             for z in range(len(self.list_v_ns))]
                             for k in range(len(self.list_planes))]
                             for s in range(len(self.iterations))]
@@ -450,8 +452,8 @@ class EXTRACT_STORE_DATA(LOAD_STORE_DATASETS):
         dset = self.get_dataset(it, plane, v_n)
         try:
             data = dset.get_grid_data(self.get_grid(it, plane, v_n),
-                                     iteration=it,
-                                     variable=self.v_n_map[v_n])
+                                        iteration=it,
+                                        variable=self.v_n_map[v_n])
             self.data_matrix[self.i_it(it)][self.i_plane(plane)][self.i_v_n(v_n)] = data
         except KeyError:
             raise KeyError("Wrong Key. Data not found. dset contains:{} attmeped:{} {} {}".format(dset.metadata[0],
@@ -461,7 +463,7 @@ class EXTRACT_STORE_DATA(LOAD_STORE_DATASETS):
 
     def is_data_extracted(self, it, plane, v_n):
 
-        if isinstance(self.data_matrix[self.i_it(it)][self.i_plane(plane)][self.i_v_n(v_n)], int):
+        if len(self.data_matrix[self.i_it(it)][self.i_plane(plane)][self.i_v_n(v_n)]) == 0:
             self.extract(it, plane, v_n)
 
     def get_data(self, it, plane, v_n):
@@ -477,7 +479,7 @@ class EXTRACT_STORE_DATA(LOAD_STORE_DATASETS):
         self.check_plane(plane)
         self.check_v_n(v_n)
 
-        self.data_matrix[self.i_it(it)][self.i_plane(plane)][self.i_v_n(v_n)] = 0
+        self.data_matrix[self.i_it(it)][self.i_plane(plane)][self.i_v_n(v_n)] = np.zeros(0,)
 
     # ----------- TIME
 
@@ -1613,6 +1615,7 @@ def make_movie(v_ns, rls, rootdir, rewrite=False):
                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
                 )
 
+""" ================================================================================================================ """
 
 if __name__ == '__main__':
 
@@ -1637,6 +1640,8 @@ if __name__ == '__main__':
     glob_v_ns = args.v_ns
     glob_times =args.times
     glob_reflevels = args.reflevels
+    #
+    glob_profxyxz_path = Paths.ppr_sims+glob_sim+'/profiles/'
     #
     if not os.path.isdir(glob_simdir + glob_sim):
         raise NameError("simulation dir: {} does not exist in rootpath: {} "

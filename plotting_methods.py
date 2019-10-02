@@ -158,8 +158,15 @@ class BASIC_PARTS():
                 ax.axes.yaxis.set_ticklabels([])
 
     def plot_text(self, ax, dic):
+        """
 
-        if 'text' in dic.keys() and dic['text'] != None:
+            'text':{'coords':(0.8, 0.8), 'text':"DD2", 'color':'red', 'fs':16}
+
+        :param ax:
+        :param dic:
+        :return:
+        """
+        if 'text' in dic.keys() and dic['text'] != None and dic['text'] != {}:
             coords = dic['text']['coords']
             text = dic['text']['text']
             color = dic['text']['color']
@@ -1184,92 +1191,133 @@ class PLOT_TASK(BASIC_PARTS):
     #         raise NameError("dic['task'] is not recognized ({})".format(dic["task"]))
 
     def plot_corr2d(self, ax, dic):
-        corr = dic["data"]
-        x_arr = np.array(corr[0, 1:])  # * 6.176269145886162e+17
-        y_arr = np.array(corr[1:, 0])
-        z_arr = np.array(corr[1:, 1:])
+
+        if "data" in dic.keys():
+            corr = dic["data"]
+            x_arr = np.array(corr[0, 1:])  # * 6.176269145886162e+17
+            y_arr = np.array(corr[1:, 0])
+            z_arr = np.array(corr[1:, 1:])
+        elif "xarr" in dic.keys() and "yarr" in dic.keys() and "zarr" in dic.keys():
+            x_arr = np.array(dic["xarr"])  # * 6.176269145886162e+17
+            y_arr = np.array(dic["yarr"])
+            z_arr = np.array(dic["zarr"])
+        else:
+            raise NameError("neither 'data' nor '[x,y,z]arr' found in dic.keys(): {}"
+                            .format(dic.keys()))
 
         if "normalize" in dic.keys():
             if dic["normalize"]:
                 z_arr = z_arr / np.sum(z_arr)
         z_arr = np.maximum(z_arr, 1e-10)
-        if dic["v_n_x"] == "theta":
+        if dic["v_n_x"] in ["theta"]:
             x_arr = 90 - (x_arr * 180 / np.pi)
-        if dic["v_n_y"] == "theta":
+        if dic["v_n_y"] in ["theta"]:
             y_arr = 90 - (y_arr * 180 / np.pi)
+        if dic["v_n_x"] in ["phi"]:
+            x_arr =  (x_arr * 180 / np.pi)
+        if dic["v_n_y"] in ["phi"]:
+            y_arr = (y_arr * 180 / np.pi)
+            print(y_arr.min(),y_arr.max())
         im = self.plot_colormesh(ax, dic, x_arr, y_arr, z_arr)
         return im
 
     def plot_hist1d(self, ax, dic):
-        if dic["v_n_x"] == "theta":
+
+        if "data" in dic.keys():
             hist = dic["data"]
-            tht = hist[:, 0]
-            M = hist[:, 1]
-
-            if dic['normalize']: M /= np.sum(M)
-
-            # ax.step(90. - (tht / np.pi * 180.), M, color=dic['color'], where='mid', label=dic['label'])
-            # ax.plot(90. - (tht / np.pi * 180.), M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
-            self.plot_generic_line(ax, dic, 90. - (tht / np.pi * 180.), M)
-            dtht = tht[1] - tht[0]
-
-            # ax.set_xlim(xmin=0 - dtht / np.pi * 180, xmax=90.)
-        elif dic["v_n_x"] == "phi":
-            hist = dic["data"]
-            tht = hist[:, 0]
-            M = hist[:, 1]
-
-            if dic['normalize']: M /= np.sum(M)
-
-            # ax.step(90. - (tht / np.pi * 180.), M, color=dic['color'], where='mid', label=dic['label'])
-            # ax.plot(90. - (tht / np.pi * 180.), M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
-            self.plot_generic_line(ax, dic, (tht / np.pi * 180.), M)
-            dtht = tht[1] - tht[0]
-
-            ax.set_xlim(xmin=0 - dtht / np.pi * 180, xmax=180.)
-        elif dic["v_n_x"] == "Y_e" or dic["v_n_x"] == "Ye" or dic["v_n_x"] == "ye":
-            hist = dic['data']
-            ye = hist[:, 0]
-            M = hist[:, 1]
-
-            if dic['normalize']: M /= np.sum(M)
-
-            # ax.step(ye, M, color=dic['color'], where='mid', label=dic['label'])
-
-            # ax.plot(ye, M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
-            self.plot_generic_line(ax, dic, ye, M)
-        elif dic["v_n_x"] == "vinf" or dic["v_n_x"] == "vel_inf" or dic["v_n_x"] == "vel inf":
-            hist = dic['data']
-            vel_inf =hist[:, 0]
-            M = hist[:, 1]
-
-            if dic['normalize']: M /= np.sum(M)
-
-            # ax.step(ye, M, color=dic['color'], where='mid', label=dic['label'])
-
-            # ax.plot(ye, M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
-            self.plot_generic_line(ax, dic, vel_inf, M)
-        elif dic["v_n_x"] == "entropy" or dic["v_n_x"] == "s":
-            hist = dic['data']
-            s =hist[:, 0]
-            M = hist[:, 1]
-
-            if dic['normalize']: M /= np.sum(M)
-
-            # ax.step(ye, M, color=dic['color'], where='mid', label=dic['label'])
-
-            # ax.plot(ye, M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
-            self.plot_generic_line(ax, dic, s, M)
+            dataarr = hist[:, 0]
+            massarr = hist[:, 1]
+        elif "xarr" in dic.keys() and "yarr" in dic.keys():
+            dataarr = dic["xarr"]
+            massarr = dic["yarr"]
         else:
-            hist = dic['data']
-            s = hist[:, 0]
-            M = hist[:, 1]
+            raise NameError("neither 'data' nor 'xarr' and 'yarr' found in the dic:{}"
+                            .format(dic.keys()))
+        # normalisation
+        if dic['normalize']: massarr /= np.sum(massarr)
 
-            if dic['normalize']: M /= np.sum(M)
-
-            self.plot_generic_line(ax, dic, s, M)
-            print("\tplotting unknown histogram: v_n_x:{} v_n_y:{}".format(dic["v_n_x"], dic["v_n_y"]))
-            #raise NameError("Plotting method for hist: dic['v_n']:{} is not available".format(dic["v_n"]))
+        if dic["v_n_x"] == "theta":
+            self.plot_generic_line(ax, dic, (dataarr / np.pi * 180.), massarr)
+        elif dic["v_n_x"] == "phi":
+            self.plot_generic_line(ax, dic, (dataarr / np.pi * 180.), massarr)
+        elif dic["v_n_x"] == "Y_e" or dic["v_n_x"] == "Ye" or dic["v_n_x"] == "ye":
+            self.plot_generic_line(ax, dic, dataarr, massarr)
+        elif dic["v_n_x"] == "vinf" or dic["v_n_x"] == "vel_inf" or dic["v_n_x"] == "vel inf":
+            self.plot_generic_line(ax, dic, dataarr, massarr)
+        elif dic["v_n_x"] == "entropy" or dic["v_n_x"] == "s":
+            self.plot_generic_line(ax, dic, dataarr, massarr)
+        else:
+            self.plot_generic_line(ax, dic, dataarr, massarr)
+        #
+        # if dic["v_n_x"] == "theta":
+        #     hist = dic["data"]
+        #     tht = hist[:, 0]
+        #     M = hist[:, 1]
+        #
+        #     if dic['normalize']: M /= np.sum(M)
+        #
+        #     # ax.step(90. - (tht / np.pi * 180.), M, color=dic['color'], where='mid', label=dic['label'])
+        #     # ax.plot(90. - (tht / np.pi * 180.), M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
+        #     self.plot_generic_line(ax, dic, 90. - (tht / np.pi * 180.), M)
+        #     dtht = tht[1] - tht[0]
+        #
+        #     # ax.set_xlim(xmin=0 - dtht / np.pi * 180, xmax=90.)
+        # elif dic["v_n_x"] == "phi":
+        #     hist = dic["data"]
+        #     tht = hist[:, 0]
+        #     M = hist[:, 1]
+        #
+        #     if dic['normalize']: M /= np.sum(M)
+        #
+        #     # ax.step(90. - (tht / np.pi * 180.), M, color=dic['color'], where='mid', label=dic['label'])
+        #     # ax.plot(90. - (tht / np.pi * 180.), M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
+        #     self.plot_generic_line(ax, dic, (tht / np.pi * 180.), M)
+        #     dtht = tht[1] - tht[0]
+        #
+        #     ax.set_xlim(xmin=0 - dtht / np.pi * 180, xmax=180.)
+        # elif dic["v_n_x"] == "Y_e" or dic["v_n_x"] == "Ye" or dic["v_n_x"] == "ye":
+        #     hist = dic['data']
+        #     ye = hist[:, 0]
+        #     M = hist[:, 1]
+        #
+        #     if dic['normalize']: M /= np.sum(M)
+        #
+        #     # ax.step(ye, M, color=dic['color'], where='mid', label=dic['label'])
+        #
+        #     # ax.plot(ye, M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
+        #     self.plot_generic_line(ax, dic, ye, M)
+        # elif dic["v_n_x"] == "vinf" or dic["v_n_x"] == "vel_inf" or dic["v_n_x"] == "vel inf":
+        #     hist = dic['data']
+        #     vel_inf =hist[:, 0]
+        #     M = hist[:, 1]
+        #
+        #     if dic['normalize']: M /= np.sum(M)
+        #
+        #     # ax.step(ye, M, color=dic['color'], where='mid', label=dic['label'])
+        #
+        #     # ax.plot(ye, M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
+        #     self.plot_generic_line(ax, dic, vel_inf, M)
+        # elif dic["v_n_x"] == "entropy" or dic["v_n_x"] == "s":
+        #     hist = dic['data']
+        #     s =hist[:, 0]
+        #     M = hist[:, 1]
+        #
+        #     if dic['normalize']: M /= np.sum(M)
+        #
+        #     # ax.step(ye, M, color=dic['color'], where='mid', label=dic['label'])
+        #
+        #     # ax.plot(ye, M, color=dic['color'], ls=dic['ls'], drawstyle=dic['ds'], label=dic['label'])
+        #     self.plot_generic_line(ax, dic, s, M)
+        # else:
+        #     hist = dic['data']
+        #     s = hist[:, 0]
+        #     M = hist[:, 1]
+        #
+        #     if dic['normalize']: M /= np.sum(M)
+        #
+        #     self.plot_generic_line(ax, dic, s, M)
+        #     print("\tplotting unknown histogram: v_n_x:{} v_n_y:{}".format(dic["v_n_x"], dic["v_n_y"]))
+        #     #raise NameError("Plotting method for hist: dic['v_n']:{} is not available".format(dic["v_n"]))
         return 0
 
     def plot_task(self, ax, dic):

@@ -25,9 +25,9 @@ call python gw.py -t all -i $3$1/collated/ -o $3$1/waveforms/ || exit 1
 call python outflowed.py -s $sim -i $2 -o $3 -t reshape -d 0 -p 8 || exit 1
 
 # do outflwoed analysis for detector -d 0  and for mask -m  geo (geodesic)
-call python outflowed.py -s $sim -i $2 -o $3 -t all -m geo bern_geoend Y_e04_geoend -d 0 --overwrite yes || exit 1
+call python outflowed.py -s $sim -i $2 -o $3 -t all -m geo bern_geoend Y_e04_geoend -d 0 --overwrite no || exit 1
 
 # do profile analusis. Warning! If there are many profiles. i will take long
 call python profile.py -s $sim -i $2 -o $3 -t all --it all --overwrite no || exit 1
 
-call touch postrocessing.done
+#call touch postrocessing.done

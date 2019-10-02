@@ -1663,6 +1663,44 @@ class EJECTA_PARS(EJECTA_NORMED_NUCLEO):
 
     # ----------------------------------------------
 
+    @staticmethod
+    def compute_ave_ye(mej, hist_ye):
+        ye_ave = np.sum(hist_ye[:, 0] * hist_ye[:, 1]) / mej
+        if ye_ave > 0.6: raise ValueError("Ye_ave > 0.6 "
+                                          "det:{} mask:{} v_n:{}"
+                                          .format(det, mask, v_n))
+        value = np.float(ye_ave)
+        return value
+
+    @staticmethod
+    def compute_ave_s(mej, hist_s):
+        s_ave = np.sum(hist_s[:, 0] * hist_s[:, 1]) / mej
+        value = np.float(s_ave)
+        return value
+
+    @staticmethod
+    def compute_ave_vel_inf(mej, hist_vinf):
+        vinf_ave = np.sum(hist_vinf[:, 0] * hist_vinf[:, 1]) / mej
+        value = np.float(vinf_ave)
+        return value
+
+    @staticmethod
+    def compute_ave_ekin(mej, hist_vinf):
+        vinf_ave = EJECTA_PARS.compute_ave_vel_inf(mej, hist_vinf)
+        E_kin_ave = np.sum(0.5 * vinf_ave ** 2 * hist_vinf[:, 1]) * Constants.energy_constant
+        value = np.float(E_kin_ave)
+        return value
+
+    @staticmethod
+    def compute_ave_theta_rms(hist_theta):
+        theta, theta_M = hist_theta[:, 0], hist_theta[:, 1]
+        theta -= pi / 2
+        theta_rms = 180. / pi * sqrt(np.sum(theta_M * theta ** 2) / np.sum(theta_M))
+        value = np.float(theta_rms)
+        return value
+
+    # ----------------------------------------------
+
     def compute_ejecta_par(self, det, mask, v_n):
 
         # print("computing det:{} mask:{} v_n:{}".format(det, mask, v_n))
@@ -1742,7 +1780,7 @@ class EJECTA_PARS(EJECTA_NORMED_NUCLEO):
         data = self.matrix_ejecta_pars[self.i_det(det)][self.i_mask(mask)][self.i_ej_par(v_n)]
         return data
 
-""" ==========================================| ANALYZE OUTFLOW.h5 |================================================ """
+""" ====================================| OUTFLOW.ASC -> OUTFLOW.h5 |=============================================== """
 # for parallelasiation code
 def serial_load_reshape_save(outflow_ascii_file, outdir, grid_object):
     v_n_to_file_dic = {
@@ -2087,11 +2125,11 @@ def outflowed_timecorr(o_outflow, detectors, masks, v_ns, rewrite=False):
                         # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
                     else:
                         Printcolor.print_colored_string(
-                            ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":", "computing"],
+                            ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":", "skipping"],
                             ["blue",   "green", "blue", "green",          "blue", "green","blue","green","", "blue"])
                 else:
                     Printcolor.print_colored_string(
-                        ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":", "computing"],
+                        ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":", "failed"],
                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_totmass(o_outflow, detectors, masks, rewrite=False):
@@ -2128,7 +2166,7 @@ def outflowed_totmass(o_outflow, detectors, masks, rewrite=False):
                         'xarr': data[:,0]*1e3, 'yarr':data[:,2]*1e2,
                         'v_n_x': "time", 'v_n_y': "mass",
                         'color': "black", 'ls': '-', 'lw': 0.8, 'ds': 'default', 'alpha': 1.0,
-                        'ymin': 0, 'ymax': 2.0, 'xmin': np.array(data[:,0]*1e3).min(), 'xmax': np.array(data[:,0]*1e3).max(),
+                        'ymin': 0, 'ymax': 3.0, 'xmin': np.array(data[:,0]*1e3).min(), 'xmax': np.array(data[:,0]*1e3).max(),
                         'xlabel': Labels.labels("time"), 'ylabel': Labels.labels("ejmass"),
                         'label': None, 'yscale': 'linear',
                         'fancyticks': True, 'minorticks': True,
@@ -2418,9 +2456,10 @@ if __name__ == '__main__':
     parser.add_argument("-s", dest="sim", required=True, help="name of the simulation dir")
     parser.add_argument("-t", dest="tasklist", nargs='+', required=False, default=[], help="list of tasks to to")
     parser.add_argument("-d", dest="detectors", nargs='+', required=False, default=[], help="detectors to use (0, 1...)")
-    parser.add_argument("-v", dest="v_ns", nargs='+', required=False, default=[], help="variable names to compute")
     parser.add_argument("-m", dest="masks", nargs='+', required=False, default=[], help="mask names")
     parser.add_argument("-p", dest="num_proc", required=False, default=0, help="number of processes in parallel")
+    #
+    parser.add_argument("--v_n", dest="v_ns", nargs='+', required=False, default=[], help="variable names to compute")
     #
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
@@ -2510,13 +2549,18 @@ if __name__ == '__main__':
             exit(1)
         assert os.path.isfile(glob_eos)
         for det in glob_detectors:
-            Printcolor.print_colored_string(
-                ["Task:", "reshape", "detector:", "{}".format(det), "Executing..."],
-                ["blue", "green", "blue", "green", "blue"])
-            LOAD_RESHAPE_SAVE_PARALLEL(glob_sim, det, glob_nproc, glob_eos)
-            Printcolor.print_colored_string(
-                ["Task:", "reshape", "detector:", "{}".format(det), "DONE..."],
-                ["blue", "green", "blue", "green", "green"])
+            fname = "outflow_surface_det_%d_fluxdens.asc" % det
+            fpath = Paths.ppr_sims + glob_sim + '/' + fname.replace(".asc", ".h5")
+            if (os.path.isfile(fpath) and glob_overwrite) or not os.path.isfile(fpath):
+                if os.path.isfile(fpath): os.remove(fpath)
+                Printcolor.print_colored_string(
+                    ["Task:", "reshape", "detector:", "{}".format(det), "Executing..."],
+                    ["blue", "green", "blue", "green", "green"])
+                LOAD_RESHAPE_SAVE_PARALLEL(glob_sim, det, glob_nproc, glob_eos)
+            else:
+                Printcolor.print_colored_string(
+                    ["Task:", "reshape", "detector:", "{}".format(det), "skipping..."],
+                    ["blue", "green", "blue", "green", "blue"])
         exit(0)
 
     # prepare dir tree for other tasks output

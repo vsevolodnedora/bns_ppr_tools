@@ -108,7 +108,8 @@ __d3densitymodesfame__ = "density_modes_lap15.h5"
 # --- ploting ---
 __d3sliceplotvns__ = ["Ye", "velx", "rho", "ang_mom_flux","ang_mom","dens_unb_garch",
                       "dens_unb_bern","dens_unb_geo","vr","vphi","enthalpy",
-                        "density","temp","velz","vely","lapse","eps","press","vol","w_lorentz"]
+                        "density","temp","velz","vely","lapse","eps","press","vol","w_lorentz",
+                      "Q_eff_nua", "Q_eff_nue", "Q_eff_nux"]
 __d3sliceplotrls__ = [0, 1, 2, 3, 4, 5, 6]
 
 """ ==========================================| GRID CLASSES |====================================================== """
@@ -1550,6 +1551,29 @@ class MAINMETHODS_STORE(MASK_STORE):
                                  for y in range(len(self.list_all_v_ns))]
         instance.mask_matrix = [np.ones(0, dtype=bool) for x in range(self.nlevels)]
 
+    def delete_for_it(self, it, except_v_ns, rm_masks=True, rm_comp=True, rm_prof=True):
+        self.check_it(it)
+        # clean up mask array
+        if rm_masks:
+            for rl in range(self.nlevels):
+                self.mask_matrix[self.i_it(it)][rl] = np.ones(0, dtype=bool)
+        # clean up data
+        if rm_masks:
+            for v_n in self.list_all_v_ns:
+                if v_n not in except_v_ns:
+                    self.check_v_n(v_n)
+                    for rl in range(self.nlevels):
+                        self.data_matrix[self.i_it(it)][rl][self.i_v_n(v_n)] = np.zeros(0, )
+
+        # clean up the initial data
+        if rm_prof:
+            self.dfile_matrix[self.i_it(it)] = 0
+            self.grid_matrix[self.i_it(it)] = 0
+            for v_n in self.list_grid_v_ns:
+                if not v_n in except_v_ns:
+                    for rl in range(self.nlevels):
+                        self.grid_data_matrix[self.i_it(it)][rl][self.i_grid_v_n(v_n)] = np.zeros(0,)
+
 
 class INTERPOLATE_STORE(MAINMETHODS_STORE):
 
@@ -2484,7 +2508,8 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
         self.list_v_ns = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "eps", "lapse", "velx", "vely", "velz",
                           "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye'] + \
                          ["density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
-                          "ang_mom", "ang_mom_flux", "theta", "r", "phi" ]
+                          "ang_mom", "ang_mom_flux", "theta", "r", "phi"] + \
+                         ["Q_eff_nua", "Q_eff_nue", "Q_eff_nux"]
         self.list_planes = ["xy", "xz", "yz"]
 
         self.data_matrix = [[[[np.zeros(0,)
@@ -2796,45 +2821,69 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
         for rl in __d3sliceplotrls__:
             for v_n in v_ns:
                 #
-                data_arr = d3class.get_data(it, rl, "xz", v_n)
-                x_arr = d3class.get_data(it, rl, "xz", "x")
-                z_arr = d3class.get_data(it, rl, "xz", "z")
-                def_dic_xz = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
-                              'xarr': x_arr, "yarr": z_arr, "zarr": data_arr,
-                              'position': (1, 1),  # 'title': '[{:.1f} ms]'.format(time_),
-                              'cbar': {'location': 'right .04 .2', 'label': r'$\rho$ [geo]',  # 'fmt': '%.1e',
-                                       'labelsize': 14,
-                                       'fontsize': 14},
-                              'v_n_x': 'x', 'v_n_y': 'z', 'v_n': 'rho',
-                              'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-10, 'vmax': 1e-4,
-                              'fill_vmin': False,  # fills the x < vmin with vmin
-                              'xscale': None, 'yscale': None,
-                              'mask': None, 'cmap': 'inferno_r', 'norm': "log",
-                              'fancyticks': True,
-                              'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$'.format(0), 'fontsize': 14},
-                              'sharex': True,  # removes angular citkscitks
-                              'fontsize': 14,
-                              'labelsize': 14
-                              }
-                #
-                data_arr = d3class.get_data(it, rl, "xy", v_n)
-                x_arr = d3class.get_data(it, rl, "xy", "x")
-                y_arr = d3class.get_data(it, rl, "xy", "y")
-                def_dic_xy = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
-                              'xarr': x_arr, "yarr": y_arr, "zarr": data_arr,
-                              'position': (2, 1),  # 'title': '[{:.1f} ms]'.format(time_),
-                              'cbar': {},
-                              'v_n_x': 'x', 'v_n_y': 'y', 'v_n': 'rho',
-                              'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-10, 'vmax': 1e-4,
-                              'fill_vmin': False,  # fills the x < vmin with vmin
-                              'xscale': None, 'yscale': None,
-                              'mask': None, 'cmap': 'inferno_r', 'norm': "log",
-                              'fancyticks': True,
-                              'title': {},
-                              'sharex': False,  # removes angular citkscitks
-                              'fontsize': 14,
-                              'labelsize': 14
-                              }
+                try:
+                    data_arr = d3class.get_data(it, rl, "xz", v_n)
+                    x_arr = d3class.get_data(it, rl, "xz", "x")
+                    z_arr = d3class.get_data(it, rl, "xz", "z")
+                    def_dic_xz = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                                  'xarr': x_arr, "yarr": z_arr, "zarr": data_arr,
+                                  'position': (1, 1),  # 'title': '[{:.1f} ms]'.format(time_),
+                                  'cbar': {'location': 'right .04 .2', 'label': r'$\rho$ [geo]',  # 'fmt': '%.1e',
+                                           'labelsize': 14,
+                                           'fontsize': 14},
+                                  'v_n_x': 'x', 'v_n_y': 'z', 'v_n': 'rho',
+                                  'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-10, 'vmax': 1e-4,
+                                  'fill_vmin': False,  # fills the x < vmin with vmin
+                                  'xscale': None, 'yscale': None,
+                                  'mask': None, 'cmap': 'inferno_r', 'norm': "log",
+                                  'fancyticks': True,
+                                  'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$'.format(0), 'fontsize': 14},
+                                  'sharex': True,  # removes angular citkscitks
+                                  'fontsize': 14,
+                                  'labelsize': 14
+                                  }
+                    #
+                    data_arr = d3class.get_data(it, rl, "xy", v_n)
+                    x_arr = d3class.get_data(it, rl, "xy", "x")
+                    y_arr = d3class.get_data(it, rl, "xy", "y")
+                    def_dic_xy = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                                  'xarr': x_arr, "yarr": y_arr, "zarr": data_arr,
+                                  'position': (2, 1),  # 'title': '[{:.1f} ms]'.format(time_),
+                                  'cbar': {},
+                                  'v_n_x': 'x', 'v_n_y': 'y', 'v_n': 'rho',
+                                  'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-10, 'vmax': 1e-4,
+                                  'fill_vmin': False,  # fills the x < vmin with vmin
+                                  'xscale': None, 'yscale': None,
+                                  'mask': None, 'cmap': 'inferno_r', 'norm': "log",
+                                  'fancyticks': True,
+                                  'title': {},
+                                  'sharex': False,  # removes angular citkscitks
+                                  'fontsize': 14,
+                                  'labelsize': 14
+                                  }
+                except KeyError:
+                    print_colored_string(
+                        ["task:", "plot prof slice", "it:", "{}".format(it), "rl:", "{:d}".format(rl), "v_ns:", v_n,
+                         ":", "KeyError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    continue
+
+                # "Q_eff_nua", "Q_eff_nue", "Q_eff_nux"
+                if v_n in ["Q_eff_nua", "Q_eff_nue", "Q_eff_nux"]:
+                    dens_arr = d3class.get_data(it, rl, "xz", "density")
+                    data_arr = d3class.get_data(it, rl, "xz", v_n)
+                    data_arr = data_arr / dens_arr
+                    x_arr = d3class.get_data(it, rl, "xz", "x")
+                    z_arr = d3class.get_data(it, rl, "xz", "z")
+                    def_dic_xz['xarr'], def_dic_xz['yarr'], def_dic_xz['zarr'] = x_arr, z_arr, data_arr
+                    #
+                    dens_arr = d3class.get_data(it, rl, "xy", "density")
+                    data_arr = d3class.get_data(it, rl, "xy", v_n)
+                    data_arr = data_arr / dens_arr
+                    x_arr = d3class.get_data(it, rl, "xy", "x")
+                    y_arr = d3class.get_data(it, rl, "xy", "y")
+                    def_dic_xy['xarr'], def_dic_xy['yarr'], def_dic_xy['zarr'] = x_arr, y_arr, data_arr
+
 
                 if v_n == 'rho':
                     pass
@@ -3010,6 +3059,38 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                     def_dic_xz['vmin'] = 1e-9
                     def_dic_xz['vmax'] = 1e-5
                     # def_dic_xz['norm'] = None
+                elif v_n == 'Q_eff_nua':
+                    def_dic_xy['v_n'] = 'Q_eff_nua/D'
+                    def_dic_xy['vmin'] = 1e-7
+                    def_dic_xy['vmax'] = 1e-3
+                    # def_dic_xy['norm'] = None
+
+                    def_dic_xz['v_n'] = 'Q_eff_nua/D'
+                    def_dic_xz['vmin'] = 1e-7
+                    def_dic_xz['vmax'] = 1e-3
+                    # def_dic_xz['norm'] = None
+                elif v_n == 'Q_eff_nue':
+                    def_dic_xy['v_n'] = 'Q_eff_nue/D'
+                    def_dic_xy['vmin'] = 1e-7
+                    def_dic_xy['vmax'] = 1e-3
+                    # def_dic_xy['norm'] = None
+
+                    def_dic_xz['v_n'] = 'Q_eff_nue/D'
+                    def_dic_xz['vmin'] = 1e-7
+                    def_dic_xz['vmax'] = 1e-3
+                    # def_dic_xz['norm'] = None
+                elif v_n == 'Q_eff_nux':
+                    def_dic_xy['v_n'] = 'Q_eff_nux/D'
+                    def_dic_xy['vmin'] = 1e-10
+                    def_dic_xy['vmax'] = 1e-4
+                    # def_dic_xy['norm'] = None
+
+                    def_dic_xz['v_n'] = 'Q_eff_nux/D'
+                    def_dic_xz['vmin'] = 1e-10
+                    def_dic_xz['vmax'] = 1e-4
+                    # def_dic_xz['norm'] = None
+                    print("v_n: {} [{}->{}]".format(v_n, def_dic_xz['zarr'].min(), def_dic_xz['zarr'].max()))
+
                 else:
                     raise NameError("v_n:{} not recogmized".format(v_n))
 
@@ -3135,6 +3216,16 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                             ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
                 except KeyboardInterrupt:
                     exit(1)
+                except IOError:
+                    print_colored_string(
+                        ["task:", "plot prof slice", "it:", "{}".format(it), "rl:", "{:d}".format(rl), "v_ns:", v_n,
+                         ":", "IOError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except ValueError:
+                    print_colored_string(
+                        ["task:", "plot prof slice", "it:", "{}".format(it), "rl:", "{:d}".format(rl), "v_ns:", v_n,
+                         ":", "ValueError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
                 except:
                     print_colored_string(
                         ["task:", "plot prof slice", "it:", "{}".format(it),  "rl:", "{:d}".format(rl), "v_ns:", v_n, ":", "failed"],
@@ -3159,7 +3250,7 @@ def plot_d3_corr(d3histclass, rewrite=False):
                 'data': d3histclass,
                 'position': (1, 1),
                 'v_n_x': 'ang_mom_flux', 'v_n_y': 'dens_unb_bern', 'v_n': Labels.labels("mass"), 'normalize': True,
-                'xmin': 1e-11, 'xmax': 1e-7, 'ymin': 1e-11, 'ymax': 1e-7, 'vmin': 1e-7, 'vmax': 1e-3,
+                'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-7, 'vmax': 1e-3,
                 'xscale': 'log', 'yscale': 'log',
                 'mask_below': None, 'mask_above': None, 'cmap': 'inferno_r', 'norm': 'log', 'todo': None,
                 'cbar': {'location': 'right .03 .0', 'label': r'mass',
@@ -3249,8 +3340,8 @@ def plot_d3_corr(d3histclass, rewrite=False):
                 v_n_x = 'theta'
                 v_n_y = 'dens_unb_bern'
                 # default_dic['v_n_x'] = 'theta'
-                default_dic['xmin'] = 1.
-                default_dic['xmax'] = 1.7
+                default_dic['xmin'] = 0.
+                default_dic['xmax'] = 90.
                 default_dic['xscale'] = None
                 # default_dic['v_n_y'] = 'dens_unb_bern'
                 default_dic['ymin'] = 1e-9
@@ -3293,6 +3384,7 @@ def plot_d3_corr(d3histclass, rewrite=False):
                 # default_dic['v_n_y'] = 'dens_unb_bern'
                 default_dic['ymin'] = 1e-9
                 default_dic['ymax'] = 2e-6
+                default_dic['yscale'] = "log"
             elif vn1vn2 == "ang_mom_flux_theta":
                 v_n_x = 'ang_mom_flux'
                 v_n_y = 'theta'
@@ -3306,46 +3398,53 @@ def plot_d3_corr(d3histclass, rewrite=False):
             elif vn1vn2 == "ang_mom_flux_dens_unb_bern":
                 v_n_x = 'ang_mom_flux'
                 v_n_y = 'dens_unb_bern'
+                default_dic['xmin'] = 1e-11
+                default_dic['xmax'] = 1e-7
+                default_dic['ymin'] = 1e-11
+                default_dic['ymax'] = 1e-7
             elif vn1vn2 == "inv_ang_mom_flux_dens_unb_bern":
                 v_n_x = 'inv_ang_mom_flux'
                 v_n_y = 'dens_unb_bern'
+                default_dic['xmin'] = 1e-11
+                default_dic['xmax'] = 1e-7
+                default_dic['ymin'] = 1e-11
+                default_dic['ymax'] = 1e-7
                 # default_dic['v_n_x'] = 'inv_ang_mom_flux'
             else:
                 raise NameError("vn1vn2:{} is not recognized"
                                 .format(vn1vn2))
-
-            table = d3histclass.get_res_corr(it, v_n_x, v_n_y)
-            default_dic["data"] = table
-            default_dic["v_n_x"] = v_n_x
-            default_dic["v_n_y"] = v_n_y
-            default_dic["xlabel"] = Labels.labels(v_n_x)
-            default_dic["ylabel"] = Labels.labels(v_n_y)
-
-
             outfpath = resdir + __rootoutdir__ + str(it) + "/corr_plots/"
             if not os.path.isdir(outfpath):
                 os.mkdir(outfpath)
-
-            o_plot = PLOT_MANY_TASKS()
-            o_plot.gen_set["figdir"] = outfpath
-            o_plot.gen_set["type"] = "cartesian"
-            o_plot.gen_set["figsize"] = (4.2, 3.8)  # <->, |] # to match hists with (8.5, 2.7)
-            o_plot.gen_set["figname"] = "{}.png".format(vn1vn2)
-            o_plot.gen_set["sharex"] = False
-            o_plot.gen_set["sharey"] = False
-            o_plot.gen_set["subplots_adjust_h"] = 0.0
-            o_plot.gen_set["subplots_adjust_w"] = 0.2
-            o_plot.set_plot_dics = []
-
             fpath = outfpath + "{}.png".format(vn1vn2)
-
             try:
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
                     print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "computing"],
                                          ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+
+                    table = d3histclass.get_res_corr(it, v_n_x, v_n_y)
+                    default_dic["data"] = table
+                    default_dic["v_n_x"] = v_n_x
+                    default_dic["v_n_y"] = v_n_y
+                    default_dic["xlabel"] = Labels.labels(v_n_x)
+                    default_dic["ylabel"] = Labels.labels(v_n_y)
+
+
+                    o_plot = PLOT_MANY_TASKS()
+                    o_plot.gen_set["figdir"] = outfpath
+                    o_plot.gen_set["type"] = "cartesian"
+                    o_plot.gen_set["figsize"] = (4.2, 3.8)  # <->, |] # to match hists with (8.5, 2.7)
+                    o_plot.gen_set["figname"] = "{}.png".format(vn1vn2)
+                    o_plot.gen_set["sharex"] = False
+                    o_plot.gen_set["sharey"] = False
+                    o_plot.gen_set["subplots_adjust_h"] = 0.0
+                    o_plot.gen_set["subplots_adjust_w"] = 0.2
+                    o_plot.set_plot_dics = []
+
                     #-------------------------------
                     # tr = (t - tmerg) * 1e3  # ms
+                    t = d3histclass.get_time_for_it(it, d1d2d3prof="prof")
                     default_dic["it"] = it
                     default_dic["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t*1e3))
                     o_plot.set_plot_dics.append(default_dic)
@@ -3365,6 +3464,7 @@ def plot_d3_corr(d3histclass, rewrite=False):
             except:
                 print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "failed"],
                                      ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            default_dic = {}
 
 def plot_d3_hist(d3histclass, rewrite=False):
 
@@ -3430,7 +3530,7 @@ def plot_d3_hist(d3histclass, rewrite=False):
             try:
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
-                    print_colored_string(["task:", "p<lot hist", "it:", "{}".format(it), "v_ns:", v_n, ":", "computing"],
+                    print_colored_string(["task:", "plot hist", "it:", "{}".format(it), "v_ns:", v_n, ":", "computing"],
                                          ["blue", "green", "blue", "green", "blue", "green", "", "green"])
                     #-------------------------------
                     default_dic["it"] = it
@@ -3543,6 +3643,7 @@ def d3_main_computational_loop():
                                 'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
                                 'lapse': [0.15, 1.]}  # remove apparent horizon
 
+    # tasks for each iteration
     for it in glob_its:
         sys.stdout.flush()
         _outdir = outdir + str(it) + '/'
@@ -3557,6 +3658,7 @@ def d3_main_computational_loop():
             # else:
             #     raise NameError("d3 method is not recognized: {}".format(task))
             sys.stdout.flush()
+        d3corr_class.delete_for_it(it=it, except_v_ns=[], rm_masks=True, rm_comp=True, rm_prof=False)
         print("\n")
 
     # methods that require all iterations loaded

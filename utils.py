@@ -386,14 +386,14 @@ class Labels:
         elif v_n == 'time':
             return r'$t$ [ms]'
 
+        elif v_n == 't-tmerg':
+            return r'$t-t_{\rm{merg}}$ [ms]'
+
         elif v_n == "Y_final":
             return r'Relative final abundances'
 
         elif v_n == "A":
             return r"Mass number, A"
-
-        elif v_n == 't-tmerg':
-            return r'$t-t_{merg}$ [ms]'
 
         elif v_n == 'entropy' or v_n == 's':
             return r'$s$'
@@ -451,13 +451,13 @@ class Limits:
         if v_n in ["Y_e", "ye", "Ye"]:
             return 0., 0.5
         elif v_n in  ["vel_inf", "vinf", "velinf"]:
-            return 0, 1.
+            return 0, 0.7
         elif v_n in ["theta"]:
             return 0, 90.
         elif v_n in ["phi"]:
             return 0., 360
         elif v_n in ["entropy", "s"]:
-            return 0, 200.
+            return 0, 120.
         else:
             raise NameError("limit for v_n:{} is not found"
                             .format(v_n))
@@ -788,6 +788,7 @@ class UTILS:
         ''' Finds index of the value in the array that is the closest to the provided one '''
         idx = (np.abs(array - value)).argmin()
         return idx
+
 
 class PHYSICS:
 

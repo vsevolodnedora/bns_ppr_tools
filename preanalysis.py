@@ -1,42 +1,18 @@
 from __future__ import division
 from sys import path
 path.append('modules/')
-
-from _curses import raw
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import ticker
 import matplotlib.pyplot as plt
-from matplotlib import rc
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-import scivis.units as ut # for tmerg
-import statsmodels.formula.api as smf
-from math import pi, log10, sqrt
-import scipy.optimize as opt
-import matplotlib as mpl
 from numpy import inf
 from glob import glob
-import pandas as pd
 import numpy as np
-# import itertools-
 import os.path
-import cPickle
-import time
-import copy
 import h5py
 import csv
 import os
 from argparse import ArgumentParser
 from utils import Paths, Printcolor, Lists
-
-from scidata.utils import locate
-import scidata.carpet.hdf5 as h5
-import scidata.xgraph as xg
-
-from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
-    MultipleLocator
-from matplotlib.colors import LogNorm, Normalize
-from matplotlib.colors import Normalize, LogNorm
 
 
 """ ==============================================| SETTINGS |======================================================="""
@@ -1394,6 +1370,8 @@ class INIT_DATA:
                 tov_fname = Paths.TOVs + 'SLy4_love.dat'
             elif self.par_dic["EOS"] == 'BHBlp' or self.par_dic["EOS"] == 'BHB':
                 tov_fname = Paths.TOVs + 'BHBlp_love.dat'
+            elif self.par_dic["EOS"] == "BLh":
+                tov_fname = Paths.TOVs + "BLh_love.dat"
             else:
                 raise NameError("\tTOV sequences are not found for EOS:{} ".format(self.par_dic["EOS"]))
             self.load_tov_extract_pars(tov_fname)
@@ -1522,7 +1500,7 @@ class INIT_DATA:
         if len(viscosity) != 1:
             print("Note viscosity from simulation name is not extracted")
             viscosity = [""]
-        self.par_dic["res"] = viscosity[0]
+        self.par_dic["vis"] = viscosity[0]
 
         # q
         try:
@@ -1636,6 +1614,10 @@ class INIT_DATA:
 class LOAD_INIT_DATA:
 
     def __init__(self, sim):
+        self.list_v_ns = ["f0", "JADM", "k21", "k2T", "EOS", "M1", "M2",
+                          "CorrdSep", "k22", "res", "vis", "MADM", "C2", "C1",
+                          "Omega", "Mb1", "Mb2", "R1", "R2", "Mb", "Lambda",
+                          "lam21","lam22", "q","Mg2", "Mg1", "Orbital freq"]
         self.sim = sim
         self.par_dic = {}
         self.fname = "init_data.csv"
@@ -1660,6 +1642,10 @@ class LOAD_INIT_DATA:
         if not v_n in self.par_dic.keys():
             print("Error. v_n:{} is not in init_data.keys()\n{}"
                   .format(v_n, self.par_dic))
+        if not v_n in self.list_v_ns:
+            raise NameError("v_n:{} not in self.list_v_ns[] Update the list."
+                            .format(v_n))
+
         par = self.par_dic[v_n]
         try:
             return float(par)
@@ -1713,7 +1699,7 @@ class COLLATE_DATA(LOAD_ITTIME):
 
         ofile.close()
 
-    def collate(self):
+    def collate(self, rewrite=False):
         for fname in self.all_fnames:
             output_files = []
             for output in self.all_outputs:
@@ -1724,15 +1710,30 @@ class COLLATE_DATA(LOAD_ITTIME):
                     Printcolor.yellow("\tFile not found: {}".format(fpath))
             # assert len(output_files) > 0
             if len(output_files) > 0:
-                Printcolor.blue("Located {} files of a type: {}"
-                                .format(len(output_files), fname), comma=True)
+                fpath = self.outdir + fname
                 try:
-                    self.__collate(output_files, fname, ['#'], True)
-                    Printcolor.green(" collated.")
+                    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                        if os.path.isfile(fpath): os.remove(fpath)
+                        Printcolor.print_colored_string(
+                            ["Task:", "collate", "file:", "{}".format(fname),":", "Executing..."],
+                            ["blue", "green", "blue", "green","", "green"])
+                        # -------------------------------------------------
+                        self.__collate(output_files, fname, ['#'], True)
+                        # -------------------------------------------------
+                    else:
+                        Printcolor.print_colored_string(
+                            ["Task:", "colate", "file:", "{}".format(fname),":", "skipping..."],
+                            ["blue", "green", "blue", "green","", "blue"])
+                except KeyboardInterrupt:
+                    exit(1)
                 except:
-                    Printcolor.red(" failed to collate.")
+                    Printcolor.print_colored_string(
+                        ["Task:", "colate", "file:", "{}".format(fname),":", "failed..."],
+                        ["blue", "green", "blue", "green","", "red"])
             else:
-                Printcolor.red("No files found fo collate for: {}".format(fname))
+                Printcolor.print_colored_string(
+                    ["Task:", "colate", "file:", "{}".format(fname), ":", "no files found..."],
+                    ["blue", "green", "blue", "green", "", "red"])
 
 
 

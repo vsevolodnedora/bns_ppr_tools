@@ -52,7 +52,7 @@ system can be done in parallel. For that specify `-p 4` option, setting the numb
 
 2) do the comprehensive, easily extendeble analysis of this data. Available standart methods (-t otion). For that mask option (-m) has to set. For example: `-t geo` would stand for geodesic criteria to unbound material.  
 `-t all` to do all the below mention tasks one after another  
-`-t hist` creates and plot histograms of variables that speified with option -v, like -v Y_e theta vel_inf  
+`-t hist` creates and plot histograms of variables that speified with option -v, like --v_n Y_e theta vel_inf  
 `-t timecorr` creates a correlation from set of histograms for different timesteps. Usefull to see the evolution  
 `-t corr` creates and plots correlations (2D histograms) of pairs of variables that speified with option -v, like -v Y_e theta vel_inf theta  
 `-t totflux` creates and plots total flux of the ejecta  
