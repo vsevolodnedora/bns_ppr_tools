@@ -415,8 +415,24 @@ class SIM_STATUS:
                         if not self.clean:
                             print("Warning d2 data. it:{} is not in the itd1 list"
                                   .format(it))
-                        from scipy import interpolate
-                        _t_ = interpolate.interp1d(d1iterations, d1times, bounds_error=False)(it)
+
+                        if it > d1iterations.max():
+                            print("Warning: d2 it:{} is above d1.max():{}"
+                                  .format(it, d1iterations.max()))
+                            _t_ = self.linear_fit(it, d1iterations[0], d1iterations[-1], d1times[0], d1times[-1])
+                        elif it < d1iterations.min():
+                            print("Warning: d2 it:{} is below d1.max():{}"
+                                  .format(it, d1iterations.max()))
+                            _t_ = self.linear_fit(it, d1iterations[0], d1iterations[-1], d1times[0], d1times[-1])
+                        else:
+                            from scipy import interpolate
+                            _t_ = interpolate.interp1d(d1iterations, d1times, bounds_error=False)(it)
+
+                        #
+                        #
+                        #
+                        # from scipy import interpolate
+                        # _t_ = interpolate.interp1d(d1iterations, d1times, bounds_error=False)(it)
                         timesteps.append(_t_)
                     else:
                         timesteps.append(d1times[listd1iterations.index(int(it))])
@@ -1320,10 +1336,15 @@ class INIT_DATA:
                           .format(Paths.gw170817 + sim + "/output-0003/parfile.par",
                                   Paths.ppr_sims + sim + "/"))
 
+        self.par_dic = {}
 
         self.init_data_dir = Paths.ppr_sims+sim+'/initial_data/'
         if not os.path.isdir(self.init_data_dir):
-            self.copy_extract_initial_data()
+            run, pizza_fname, hydro_fname, weak_fname = self.copy_extract_initial_data()
+            self.par_dic["run"] = run
+            self.par_dic["pizza_eos"] = pizza_fname
+            self.par_dic["hydro_eos"] = hydro_fname
+            self.par_dic["weak_eos"] = weak_fname
         if self.is_init_data_available:
             assert os.path.isdir(self.init_data_dir)
             # Printcolor.blue("\tinitial_data directory is found.")
@@ -1352,7 +1373,6 @@ class INIT_DATA:
             self.init_data_dir = Paths.ppr_sims+sim+'/initial_data/'
             assert os.path.isdir(self.init_data_dir)
 
-            self.par_dic = {}
             self.get_pars_from_sim_name()
             Printcolor.blue("\tSelf data from the sim name is parsed")
             self.load_calcul_extract_pars()
@@ -1387,12 +1407,26 @@ class INIT_DATA:
         if not os.path.isfile(Paths.ppr_sims + self.sim + '/parfile.par'):
             print("Error. parfile in ppr directory is not found. ")
 
-
         initial_data = ""
+        pizza_eos_fname = ""
+        hydro_eos_fname = ""
+        weak_eos_fname = ""
         lines = open(Paths.ppr_sims + self.sim + '/parfile.par', "r").readlines()
         for line in lines:
+
+            if line.__contains__("PizzaIDBase::eos_file"):
+                pizza_eos_fname = line.split()[-1]
+
             if line.__contains__("LoreneID::lorene_bns_file"):
                 initial_data = line
+
+            if line.__contains__("EOS_Thermal_Table3d::eos_filename"):
+                hydro_eos_fname = line.split()[-1]
+
+            if line.__contains__("WeakRates::table_filename"):
+                weak_eos_fname = line.split()[-1]
+
+            if not "" in [initial_data, pizza_eos_fname, hydro_eos_fname, weak_eos_fname]:
                 break
 
         assert initial_data != ""
@@ -1400,7 +1434,20 @@ class INIT_DATA:
         run = initial_data.split("/")[-3]
         initial_data_dirname = initial_data.split("/")[-2]
 
-        return run, initial_data_dirname
+        pizza_fname = str(pizza_eos_fname.split("/")[-1])
+        pizza_fname = pizza_fname[:-1]
+
+        hydro_fname = str(hydro_eos_fname[1:-1])
+
+        weak_fname = str(weak_eos_fname.split("/")[-1])
+        weak_fname = weak_fname[:-1]
+
+        # print(weak_fname)
+        # print(hydro_fname)
+        # print(pizza_fname)
+        # exit(1)
+
+        return run, initial_data_dirname, pizza_fname, hydro_fname, weak_fname
 
     def copy_extract_initial_data(self, finaldir='initial_data'):
 
@@ -1408,7 +1455,7 @@ class INIT_DATA:
 
         if self.lor_archive_fpath == None:
 
-            run, dirnmame = self.get_fname_for_init_data_from_parfile()
+            run, dirnmame, pizza_fname, hydro_fname, weak_fname = self.get_fname_for_init_data_from_parfile()
 
             if not os.path.isdir(Paths.lorene + run + '/'):
                 self.is_init_data_available = False
@@ -1445,7 +1492,9 @@ class INIT_DATA:
                 Printcolor.blue("Initial data {} ({}) has been extracted and moved"
                                 .format(dirnmame, run))
         else:
-            raise IOError("Method to override the lor. data path is not witten yet... ")
+            raise IOError("Method to override the lor. data path is not written yet... ")
+
+        return run, pizza_fname, hydro_fname, weak_fname
 
         # else:
         #     Printcolor.blue("\tinitial_data directory is found.")
@@ -1472,6 +1521,11 @@ class INIT_DATA:
         try:
             m1 = float(''.join(m1m2[:4])) / 1000
             m2 = float(''.join(m1m2[4:])) / 1000
+            if m1 < m2:
+                _m1 = m1
+                _m2 = m2
+                m1 = _m2
+                m2 = _m1
         except:
             print("Error in extracting m1m2 from sim name"
                   "({} is not separated into floats)"
@@ -1504,7 +1558,7 @@ class INIT_DATA:
 
         # q
         try:
-            self.par_dic["q"] = self.par_dic["M1"] / self.par_dic["M2"]
+            self.par_dic["q"] = float(self.par_dic["M1"]) / float(self.par_dic["M2"])
         except:
             print("Error in computing 'q' = m1/m2")
             self.par_dic["q"] = 0.
@@ -1522,7 +1576,20 @@ class INIT_DATA:
                 self.par_dic["Mb1"] = float(line.split()[0]) # Msun
 
             if line.__contains__("Baryon mass required for star 2"):
-                self.par_dic["Mb2"] = float(line.split()[0]) # Msun
+                try:
+                    self.par_dic["Mb2"] = float(line.split()[0]) # Msun
+                except ValueError:
+                    try:
+                        self.par_dic["Mb2"] = float(line.split()[0][:5])
+                    except ValueError:
+                        try:
+                            self.par_dic["Mb2"] = float(line.split()[0][:4])
+                        except ValueError:
+                            try:
+                                self.par_dic["Mb2"] = float(line.split()[0][:3])
+                            except:
+                                raise ValueError("failed to extract Mb2")
+
 
             if line.__contains__("Omega") and line.__contains__("Orbital frequency"):
                 self.par_dic["Omega"] = float(line.split()[2]) # rad/s
@@ -1539,9 +1606,15 @@ class INIT_DATA:
             if line.__contains__("Total angular momentum"):
                 self.par_dic["JADM"] = float(line.split()[4]) # [GMsun^2/c]
 
+        if float(self.par_dic["Mb1"]) < float(self.par_dic["Mb2"]):
+            _m1 = self.par_dic["Mb1"]
+            _m2 = self.par_dic["Mb2"]
+            self.par_dic["Mb1"] = _m2
+            self.par_dic["Mb2"] = _m1
+
         # print(data_dic)
-        self.par_dic["Mb"] = self.par_dic["Mb1"] + self.par_dic["Mb2"]
-        self.par_dic["f0"] = self.par_dic["Omega"] / (2* np.pi)
+        self.par_dic["Mb"] = float(self.par_dic["Mb1"]) + float(self.par_dic["Mb2"])
+        self.par_dic["f0"] = float(self.par_dic["Omega"]) / (2. * np.pi)
 
         # return data_dic
 
@@ -1614,10 +1687,13 @@ class INIT_DATA:
 class LOAD_INIT_DATA:
 
     def __init__(self, sim):
+
+
         self.list_v_ns = ["f0", "JADM", "k21", "k2T", "EOS", "M1", "M2",
                           "CorrdSep", "k22", "res", "vis", "MADM", "C2", "C1",
                           "Omega", "Mb1", "Mb2", "R1", "R2", "Mb", "Lambda",
-                          "lam21","lam22", "q","Mg2", "Mg1", "Orbital freq"]
+                          "lam21","lam22", "q","Mg2", "Mg1", "Orbital freq",
+                          "run", "weak_eos", "hydro_eos", "pizza_eos"]
         self.sim = sim
         self.par_dic = {}
         self.fname = "init_data.csv"
@@ -1625,7 +1701,8 @@ class LOAD_INIT_DATA:
 
     def load_csv(self, fname):
         # import csv
-        assert os.path.isfile(Paths.ppr_sims+self.sim+'/'+fname)
+        if not os.path.isfile(Paths.ppr_sims+self.sim+'/'+fname):
+            print("Error: initial data is not extracted for: {}".format(self.sim))
         # reader = csv.DictReader(open(Paths.ppr_sims+self.sim+'/'+fname))
         # for row in reader:
         #     print(row)
@@ -1643,8 +1720,8 @@ class LOAD_INIT_DATA:
             print("Error. v_n:{} is not in init_data.keys()\n{}"
                   .format(v_n, self.par_dic))
         if not v_n in self.list_v_ns:
-            raise NameError("v_n:{} not in self.list_v_ns[] Update the list."
-                            .format(v_n))
+            raise NameError("v_n:{} not in self.list_v_ns[] {} \n\nUpdate the list."
+                            .format(v_n, self.list_v_ns))
 
         par = self.par_dic[v_n]
         try:

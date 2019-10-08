@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-import scivis.units as ut # for tmerg
+# import scivis.units as ut # for tmerg
 import statsmodels.formula.api as smf
 import scipy.optimize as opt
 from math import pi, sqrt
@@ -91,7 +91,7 @@ from utils import *
 
 """ ==============================================| SETTINGS |====================================================== """
 __rootoutdir__ = "profiles/"
-__profile__ = {"tasklist": ["all", "corr", "hist", "slice", "mass", "densmode",
+__profile__ = {"tasklist": ["all", "corr", "hist", "slice", "mass", "densmode", "vtk",
                             "plotall", "plotcorr", "plothist", "plotslice", "plotmass", "plotdensmode"]}
 __d3slicesvns__ = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "eps", "lapse", "velx", "vely", "velz",
                     "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye'] + \
@@ -981,6 +981,8 @@ class COMPUTE_STORE(LOAD_PROFILE):
         else:
             raise NameError("Grid variable {} not recognized".format(v_n))
 
+    # ---
+
     def compute_data(self, it, rl, v_n):
 
         if v_n == 'density':
@@ -1087,6 +1089,8 @@ class COMPUTE_STORE(LOAD_PROFILE):
                             .format(v_n, rl, it))
 
         self.data_matrix[self.i_it(it)][rl][self.i_v_n(v_n)] = arr
+
+    # ---
 
     def is_available(self, it, rl, v_n):
         self.check_it(it)
@@ -1628,6 +1632,8 @@ class INTERPOLATE_STORE(MAINMETHODS_STORE):
         self.int_data_matrix[self.i_it(it)][self.i_int_v_n(v_n)] = \
             self.new_grid.get_int_grid(v_n)
 
+    # ---
+
     def do_interpolate(self, it, v_n):
 
         tmp = []
@@ -1645,6 +1651,8 @@ class INTERPOLATE_STORE(MAINMETHODS_STORE):
         arr = F(xi).reshape(shape)
 
         self.int_data_matrix[self.i_it(it)][self.i_int_v_n(v_n)] = arr
+
+    # ----
 
     def is_data_interpolated(self, it, v_n):
 
@@ -2509,7 +2517,8 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
                           "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye'] + \
                          ["density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
                           "ang_mom", "ang_mom_flux", "theta", "r", "phi"] + \
-                         ["Q_eff_nua", "Q_eff_nue", "Q_eff_nux"]
+                         ["Q_eff_nua", "Q_eff_nue", "Q_eff_nux", "R_eff_nua", "R_eff_nue", "R_eff_nux",
+                          "optd_0_nua", "optd_0_nue", "optd_0_nux", "optd_1_nua", "optd_1_nue", "optd_1_nux"]
         self.list_planes = ["xy", "xz", "yz"]
 
         self.data_matrix = [[[[np.zeros(0,)
@@ -2557,7 +2566,11 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
         dfile = h5py.File(fpath, "r")
         for rl in np.arange(start=0, stop=self.nlevels, step=1):
             for v_n in self.list_v_ns:
-                data = np.array(dfile["reflevel=%d" % rl][v_n], dtype=np.float32)
+                try:
+                    data = np.array(dfile["reflevel=%d" % rl][v_n], dtype=np.float32)
+                except KeyError:
+                    # print("\tKeyerror: v_n:{} not in file:{}".format(v_n, fpath))
+                    data = np.zeros(0,)
                 self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)] = data
         dfile.close()
 
@@ -2565,6 +2578,11 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
         data = self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)]
         if len(data) == 0:
             self.loaded_extract(it, plane)
+
+        data = self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)]
+        if len(data) == 0:
+            raise NameError("failed tp extract data. it:{} rl:{} plane:{} v_n:{}"
+                             .format(it, rl, plane, v_n))
 
     def get_data(self, it, rl, plane, v_n):
         self.check_v_n(v_n)
@@ -2607,15 +2625,33 @@ def print_colored_string(parts, colors, comma=False):
 
     for part, color in zip(parts, colors):
         if color == "":
-            print(part),
+            if isinstance(part, list):
+                for _part in part: print(_part),
+            else: print(part),
         elif color == "blue":
-            Printcolor.blue(part, comma=True)
+            if isinstance(part, list):
+                for _part in part:
+                    Printcolor.blue(_part, comma=True)
+            else:
+                Printcolor.blue(part, comma=True)
         elif color == "green":
-            Printcolor.green(part, comma=True)
+            if isinstance(part, list):
+                for _part in part:
+                    Printcolor.green(_part, comma=True)
+            else:
+                Printcolor.green(part, comma=True)
         elif color == "red":
-            Printcolor.red(part, comma=True)
+            if isinstance(part, list):
+                for _part in part:
+                    Printcolor.red(_part, comma=True)
+            else:
+                Printcolor.red(part, comma=True)
         elif color == "yellow":
-            Printcolor.yellow(part, comma=True)
+            if isinstance(part, list):
+                for _part in part:
+                    Printcolor.yellow(_part, comma=True)
+            else:
+                Printcolor.yellow(part, comma=True)
         else:
             raise NameError("wrong color: {}".format(color))
     if comma:
@@ -2807,6 +2843,89 @@ def d3_dens_modes(d3corrclass, outdir, rewrite=False):
         print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
                              ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
+def d3_int_data_to_vtk(d3intclass, outdir, rewrite=False):
+    private_dir = "vtk/"
+
+    selected_v_ns = select_string(glob_v_ns, __d3slicesvns__)
+
+    try:
+        from evtk.hl import gridToVTK
+    except ImportError:
+        raise ImportError("Error importing gridToVTK. Is evtk installed? \n"
+                          "If not, do: hg clone https://bitbucket.org/pauloh/pyevtk PyEVTK ")
+
+    for it in glob_its:
+        # assert that path exists
+        path = outdir + str(it) + '/'
+        if not os.path.isdir(path):
+            os.mkdir(path)
+        if private_dir != None and private_dir != '':
+            path = path + private_dir
+        if not os.path.isdir(path):
+            os.mkdir(path)
+        fname = "iter_" + str(it).zfill(10)
+        fpath = path + fname
+
+        # preparing the data
+        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+            if os.path.isfile(fpath): os.remove(fpath)
+            print_colored_string(
+                ["task:", "vtk", "grid:", d3intclass.new_grid.grid_type, "it:", str(it), "v_ns:", selected_v_ns, ":", "computing"],
+                ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+            #
+            celldata = {}
+            for v_n in selected_v_ns:
+                #try:
+                Printcolor.green("\tInterpolating. grid: {} it: {} v_n: {} ".format(d3intclass.new_grid.grid_type, it, v_n))
+                celldata[str(v_n)] = d3intclass.get_int(it, v_n)
+                # except:
+                #     celldata[str(v_n)] = np.empty(0,)
+                #     Printcolor.red("\tFailed to interpolate. grid: {} it: {}v_n: {} ".format(d3intclass.new_grid.type, it, v_n))
+
+            xf = d3intclass.new_grid.get_int_grid("xf")
+            yf = d3intclass.new_grid.get_int_grid("yf")
+            zf = d3intclass.new_grid.get_int_grid("zf")
+            Printcolor.green("\tProducing vtk. it: {} v_ns: {} ".format(it, selected_v_ns))
+            gridToVTK(fpath, xf, yf, zf, cellData=celldata)
+            Printcolor.blue("\tDone. File is saved: {}".format(fpath))
+        else:
+            print_colored_string(
+                ["task:", "vtk", "grid:", d3intclass.new_grid.grid_type, "it:", str(it), "v_ns:", selected_v_ns, ":",
+                 "skipping"],
+                ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
+        #
+        #     celldata = {}
+        #     for v_n in selected_v_ns:
+        #         try:
+        #             print_colored_string(["task:", "int", "grid:", d3intclass.new_grid.type, "it:", str(it), "v_n:", v_n, ":", "interpolating"],
+        #                                  ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+        #             celldata[str(v_n)] = d3intclass.get_int(it, v_n)
+        #         except:
+        #             print_colored_string(
+        #                 ["task:", "int", "grid:", d3intclass.new_grid.type, "it:", str(it), "v_n:", v_n, ":",
+        #                  "failed"],
+        #                 ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+        #     Printcolor.green("Data for v_ns:{} is interpolated and preapred".format(selected_v_ns))
+        #     # producing the vtk file
+        #     try:
+        #         print_colored_string(
+        #             ["task:", "vtk", "grid:", d3intclass.new_grid.type, "it:", str(it), "v_ns:", selected_v_ns, ":", "computing"],
+        #             ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+        #         xf = d3intclass.new_grid.get_int_grid("xf")
+        #         yf = d3intclass.new_grid.get_int_grid("yf")
+        #         zf = d3intclass.new_grid.get_int_grid("zf")
+        #
+        #         gridToVTK(fpath, xf, yf, zf, cellData=celldata)
+        #     except:
+        #         print_colored_string(
+        #             ["task:", "int", "grid:", d3intclass.new_grid.type, "it:", str(it), "v_ns:", selected_v_ns, ":",
+        #              "failed"],
+        #             ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+        # else:
+        #     print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "skipping"],
+        #                          ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+
+
 """ ==============================================| D3 PLOTS |======================================================="""
 
 def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
@@ -2821,6 +2940,7 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
         for rl in __d3sliceplotrls__:
             for v_n in v_ns:
                 #
+                # print("v_n:{}".format(v_n))
                 try:
                     data_arr = d3class.get_data(it, rl, "xz", v_n)
                     x_arr = d3class.get_data(it, rl, "xz", "x")
@@ -2842,7 +2962,18 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                                   'fontsize': 14,
                                   'labelsize': 14
                                   }
-                    #
+                except KeyError:
+                    print_colored_string(
+                        ["task:", "plot prof slice", "it:", "{}".format(it), "rl:", "{:d}".format(rl), "v_ns:", v_n,
+                         ":", "KeyError in getting xz {}".format(v_n)],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except NameError:
+                    print_colored_string(
+                        ["task:", "plot prof slice", "it:", "{}".format(it), "rl:", "{:d}".format(rl), "v_ns:", v_n,
+                         ":", "NameError in getting xz {}".format(v_n)],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    continue
+                try:
                     data_arr = d3class.get_data(it, rl, "xy", v_n)
                     x_arr = d3class.get_data(it, rl, "xy", "x")
                     y_arr = d3class.get_data(it, rl, "xy", "y")
@@ -2864,7 +2995,13 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                 except KeyError:
                     print_colored_string(
                         ["task:", "plot prof slice", "it:", "{}".format(it), "rl:", "{:d}".format(rl), "v_ns:", v_n,
-                         ":", "KeyError"],
+                         ":", "KeyError in getting xy {} ".format(v_n)],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    continue
+                except NameError:
+                    print_colored_string(
+                        ["task:", "plot prof slice", "it:", "{}".format(it), "rl:", "{:d}".format(rl), "v_ns:", v_n,
+                         ":", "NameError in getting xy {} ".format(v_n)],
                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
                     continue
 
@@ -3637,7 +3774,19 @@ def d3_main_computational_loop():
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
 
+    # methods that required inteprolation [No masks used!]
+    if "vtk" in glob_tasklist:
+        o_grid = CARTESIAN_GRID()
+        o_d3int = INTMETHODS_STORE(glob_sim, o_grid, glob_symmetry)
 
+        d3_int_data_to_vtk(o_d3int, outdir=outdir, rewrite=glob_overwrite)
+
+        for it in glob_its:
+            sys.stdout.flush()
+            o_d3int.save_vtk_file(it, glob_v_ns, glob_overwrite, outdir="profiles/", private_dir="vtk/")
+            sys.stdout.flush()
+
+    # methods that do not require interplation [Use masks for reflevels and lapse]
     d3corr_class = MAINMETHODS_STORE(glob_sim)
     d3corr_class.mask_setup = {'rm_rl': True, # REMOVE previouse ref. level from the next
                                 'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
@@ -3781,7 +3930,7 @@ if __name__ == '__main__':
         for t in glob_times:
             idx = UTILS.find_nearest_index(tprof, t)
             _t =  tprof[idx]
-            _it = ittime.get_it_for_time(_t, "prof")
+            _it = ittime.get_it_for_time(_t, "d1")
             _glob_its = np.append(_glob_its, _it)
             _glob_times = np.append(_glob_times, _t)
         glob_its = np.unique(_glob_its)

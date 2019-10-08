@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-import scivis.units as ut # for tmerg
+import units as ut # for tmerg
 import statsmodels.formula.api as smf
 from math import pi, log10, sqrt
 import scipy.optimize as opt
@@ -693,6 +693,36 @@ class LOAD_OUTFLOW_SURFACE_H5(LOAD_ITTIME):
 
         self.matrix_grid_pars = [{} for d in range(len(self.list_detectors))]
 
+    def update_det(self, new_det=None):
+
+        if new_det != None:
+            if not new_det in self.list_detectors:
+                self.list_detectors.append(new_det)
+
+                self.matrix_data = [[np.empty(0, )
+                                     for v in range(len(self.list_v_ns) + len(self.list_grid_v_ns))]
+                                    for d in range(len(self.list_detectors))]
+
+                self.matrix_grid_pars = [{} for d in range(len(self.list_detectors))]
+
+    def update_grid_v_n(self, new_grid_v_n = None):
+        if new_grid_v_n != None:
+            if not new_grid_v_n in self.list_grid_v_ns:
+                self.list_grid_v_ns.append(new_grid_v_n)
+                self.matrix_data = [[np.empty(0, )
+                                     for v in range(len(self.list_v_ns) + len(self.list_grid_v_ns))]
+                                    for d in range(len(self.list_detectors))]
+
+    def update_v_n(self, new_v_n=None):
+        if new_v_n != None:
+            if not new_v_n in self.list_v_ns:
+                self.list_v_ns.append(v_n)
+
+                self.matrix_data = [[np.empty(0, )
+                                     for v in range(len(self.list_v_ns) + len(self.list_grid_v_ns))]
+                                    for d in range(len(self.list_detectors))]
+
+
     def check_v_n(self, v_n):
         if not v_n in self.list_v_ns:
             raise NameError("v_n:{} not in the list of v_ns: {}"
@@ -765,6 +795,15 @@ class COMPUTE_OUTFLOW_SURFACE_H5(LOAD_OUTFLOW_SURFACE_H5):
                                   for v in self.list_comp_v_ns]
                                   for d in self.list_detectors]
 
+    def update_comp_v_ns(self, new_v_n = None):
+        if new_v_n != None:
+            if not new_v_n in self.list_comp_v_ns:
+                self.list_comp_v_ns.append(new_v_n)
+
+                self.matrix_comp_data = [[np.empty(0, )
+                                          for v in self.list_comp_v_ns]
+                                         for d in self.list_detectors]
+
     def check_comp_v_n(self, v_n):
         if not v_n in self.list_comp_v_ns:
             raise NameError("v_n: {} is not in the list v_ns: {}"
@@ -825,17 +864,32 @@ class COMPUTE_OUTFLOW_SURFACE_H5(LOAD_OUTFLOW_SURFACE_H5):
 
 class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
 
-    def __init__(self, sim):
+    def __init__(self, sim, add_mask=None):
 
         COMPUTE_OUTFLOW_SURFACE_H5.__init__(self, sim)
 
-        self.list_masks = ["geo", "bern", "bern_geoend", "Y_e04_geoend"]
+        self.list_masks = ["geo", "bern", "bern_geoend"]
+        if add_mask != None and not add_mask in self.list_masks:
+            self.list_masks.append(add_mask)
+
+
+        # "Y_e04_geoend"
         self.mask_matrix = [[np.zeros(0,)
                             for i in range(len(self.list_masks))]
                             for j in range(len(self.list_detectors))]
 
         self.set_min_eninf = 0.
         self.set_min_enthalpy = 1.0022
+
+    def update_mask(self, new_mask=None):
+        if new_mask != None:
+            if not new_mask in self.list_masks:
+                self.list_masks.append(new_mask)
+
+                self.mask_matrix = [[np.zeros(0, )
+                                     for i in range(len(self.list_masks))]
+                                    for j in range(len(self.list_detectors))]
+
 
     def check_mask(self, mask):
         if not mask in self.list_masks:
@@ -846,7 +900,7 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
         return int(self.list_masks.index(mask))
 
     # ----------------------------------------------
-    def __time_mask_end_geo(self, det):
+    def __time_mask_end_geo(self, det, length=0.):
 
         fluxdens = self.get_full_arr(det, "fluxdens")
         da = self.get_full_arr(det, "surface_element")
@@ -862,8 +916,29 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
         fraction = 0.98
         i_t98mass = int(np.where(tot_mass >= fraction * tot_mass[-1])[0][0])
         # print(i_t98mass)
-        assert i_t98mass < len(t)
-        i_mask = t > t[i_t98mass]
+        # assert i_t98mass < len(t)
+
+        if length > 0.:
+            if length > t[-1]:
+                raise ValueError("length:{} is > t[-1]:{} [ms]".format(length*Constants.time_constant,
+                                                                  t[-1]*Constants.time_constant))
+            if t[i_t98mass] + length > t[-1]:
+                # because of bloody numerics it can > but just by a tiny bit. So I added this shit.
+                if np.abs(t[i_t98mass] - length > t[-1]) < 10: # 10 is a rundomly chosen number
+                    length = length - 10
+                else:
+                    raise ValueError("t[i_t98mass] + length > t[-1] : {} > {}"
+                                     .format((t[i_t98mass] + length),
+                                             t[-1]))
+
+            i_mask = (t > t[i_t98mass]) & (t < t[i_t98mass] + length)
+        else:
+            i_mask = t > t[i_t98mass]
+        # saving time at 98% mass for future use
+        # fpath = Paths.ppr_sims + self.sim + '/outflow_{}/t98mass.dat'.format(det)
+        # try: open(fpath, "w").write("{}\n".format(float(t[i_t98mass])))
+        # except IOError: Printcolor.yellow("\tFailed to save t98mass.dat")
+        # continuing with mask
         newmask = np.zeros(fluxdens.shape)
         for i in range(len(newmask[:, 0, 0])):
             newmask[i, :, :].fill(i_mask[i])
@@ -874,47 +949,89 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
         self.check_mask(mask)
 
         if mask == "geo":
+            # 1 - if geodeisc is true
             einf = self.get_full_arr(det, "eninf")
             res = (einf >= self.set_min_eninf)
         elif mask == "bern":
+            # 1 - if Bernulli is true
             enthalpy = self.get_full_comp_arr(det, "enthalpy")
             einf = self.get_full_arr(det, "eninf")
             res = ((enthalpy * (einf + 1) - 1) > self.set_min_eninf) & (enthalpy >= self.set_min_enthalpy)
         elif mask == "bern_geoend":
-            # have to compute mass flux here...
-            # fluxdens = self.get_full_arr(det, "fluxdens")
-            # da = self.get_full_arr(det, "surface_element")
-            # t = self.get_full_arr(det, "times")
-            # dt = np.diff(t)
-            # dt = np.insert(dt, 0, 0)
-            # mask = self.get_mask(det, "geo").astype(int)
-            # fluxdens = fluxdens * mask
-            # flux_arr = np.sum(np.sum(fluxdens * da, axis=1), axis=1)  # sum over theta and phi
-            # tot_mass = np.cumsum(flux_arr * dt)  # sum over time
-            # tot_flux = np.cumsum(flux_arr)  # sum over time
-            # # print("totmass:{}".format(tot_mass[-1]))
-            # fraction = 0.98
-            # i_t98mass = int(np.where(tot_mass >=fraction*tot_mass[-1])[0][0])
-            # print(i_t98mass)
-            # assert i_t98mass < len(t)
-            # i_mask = t > t[i_t98mass]
-            # print(i_mask)
-            # newmask = np.zeros(fluxdens.shape)
-            # for i in range(len(newmask[:, 0, 0])):
-            #     newmask[i, :, :].fill(i_mask[i])
-                # print(mask)
-            # print(newmask)
+            # 1 - data above 98% of GeoMass and if Bernoulli true and 0 if not
             mask2 = self.get_mask(det, "bern")
             newmask = self.__time_mask_end_geo(det)
 
             res = newmask & mask2
-
         elif mask == "Y_e04_geoend":
+            # 1 - data above Ye=0.4 and 0 - below
             ye = self.get_full_arr(det, "Y_e")
             mask_ye = ye > 0.4
             mask_bern = self.get_mask(det, "bern")
             mask_geo_end = self.__time_mask_end_geo(det)
             return mask_ye & mask_bern & mask_geo_end
+        elif str(mask).__contains__("_tmax"):
+            # 1 - data below tmax and 0 - above
+            base_mask_name = str(str(mask).split("_tmax")[0])
+            base_mask = self.get_mask(det, base_mask_name)
+            #
+            tmax = float(str(mask).split("_tmax")[-1])
+            tmax = tmax / Constants.time_constant # Msun
+            # tmax loaded is postmerger tmax. Thus it need to be added to merger time
+            fpath = Paths.ppr_sims+self.sim+"/waveforms/tmerger.dat"
+            try:
+                tmerg = float(np.loadtxt(fpath, unpack=True)) # Msun
+                Printcolor.yellow("\tWarning! using defauled M_Inf=2.748, R_GW=400.0 for retardet time")
+                ret_time = PHYSICS.get_retarded_time(tmerg, M_Inf=2.748, R_GW=400.0)
+                tmerg = ret_time
+                # tmerg = ut.conv_time(ut.cactus, ut.cgs, ret_time)
+                # tmerg = tmerg / (Constants.time_constant *1e-3)
+            except IOError:
+                raise IOError("For the {} mask, the tmerger.dat is needed at {}"
+                              .format(mask, fpath))
+            except:
+                raise ValueError("failed to extract tmerg for outflow tmax mask analysis")
+
+            t = self.get_full_arr(det, "times") # Msun
+            # tmax = tmax + tmerg       # Now tmax is absolute time (from the begniing ofthe simulation
+            print("t[-1]:{} tmax:{} tmerg:{} -> {}".format(t[-1]*Constants.time_constant*1e-3,
+                                            tmax*Constants.time_constant*1e-3,
+                                            tmerg*Constants.time_constant*1e-3,
+                                            (tmax+tmerg)*Constants.time_constant*1e-3))
+            tmax = tmax + tmerg
+            if tmax > t[-1]:
+                raise ValueError("tmax:{} for the mask is > t[-1]:{}".format(tmax*Constants.time_constant*1e-3,
+                                                                             t[-1]*Constants.time_constant*1e-3))
+            if tmax < t[0]:
+                raise ValueError("tmax:{} for the mask is < t[0]:{}".format(tmax * Constants.time_constant * 1e-3,
+                                                                             t[0] * Constants.time_constant * 1e-3))
+            fluxdens = self.get_full_arr(det, "fluxdens")
+            i_mask = t < t[UTILS.find_nearest_index(t, tmax)]
+            newmask = np.zeros(fluxdens.shape)
+            for i in range(len(newmask[:, 0, 0])):
+                newmask[i, :, :].fill(i_mask[i])
+
+            # print(base_mask.shape,newmask.shape)
+
+            return base_mask & newmask.astype(bool)
+        elif str(mask).__contains__("_length"):
+            base_mask_name = str(str(mask).split("_length")[0])
+            base_mask = self.get_mask(det, base_mask_name)
+            delta_t = float(str(mask).split("_length")[-1])
+            delta_t = (delta_t / 1e5) / (Constants.time_constant * 1e-3) # Msun
+            t = self.get_full_arr(det, "times")  # Msun
+            print("\t t[0]: {}\n\t t[-1]: {}\n\t delta_t: {}\n\t mask: {}"
+                  .format(t[0] * Constants.time_constant * 1e-3,
+                          t[-1] * Constants.time_constant * 1e-3,
+                          delta_t * Constants.time_constant * 1e-3,
+                          mask))
+            assert delta_t < t[-1]
+            assert delta_t > t[0]
+            mask2 = self.get_mask(det, "bern")
+            newmask = self.__time_mask_end_geo(det, length=delta_t)
+
+            res = newmask & mask2
+
         else:
             raise NameError("No method found for computing mask:{}"
                             .format(mask))
@@ -941,8 +1058,8 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
 
 class EJECTA(ADD_MASK):
 
-    def __init__(self, sim):
-        ADD_MASK.__init__(self, sim)
+    def __init__(self, sim, add_mask=None):
+        ADD_MASK.__init__(self, sim, add_mask)
 
         self.list_hist_v_ns = ["Y_e", "theta", "phi", "vel_inf", "entropy"]
 
@@ -963,6 +1080,22 @@ class EJECTA(ADD_MASK):
 
         self.set_skynet_densmap_fpath = Paths.skynet + "densmap.h5"
         self.set_skyent_grid_fpath = Paths.skynet + "grid.h5"
+
+    def update_mask(self, new_mask=None):
+        if new_mask != None:
+            if not new_mask in self.list_masks:
+                self.list_masks.append(new_mask)
+
+                self.mask_matrix = [[np.zeros(0, )
+                                     for i in range(len(self.list_masks))]
+                                    for j in range(len(self.list_detectors))]
+
+                self.matrix_ejecta = [[[np.zeros(0, )
+                                        for k in range(len(self.list_ejecta_v_ns))]
+                                       for j in range(len(self.list_masks))]
+                                      for i in range(len(self.list_detectors))]
+
+    # ---
 
     def check_ej_v_n(self, v_n):
         if not v_n in self.list_ejecta_v_ns:
@@ -1366,8 +1499,8 @@ class EJECTA(ADD_MASK):
 
 class EJECTA_NUCLEO(EJECTA):
 
-    def __init__(self, sim):
-        EJECTA.__init__(self, sim)
+    def __init__(self, sim, add_mask=None):
+        EJECTA.__init__(self, sim, add_mask)
 
 
         self._list_tab_nuc_v_ns = ["Y_final", "A", "Z"]
@@ -1384,6 +1517,26 @@ class EJECTA_NUCLEO(EJECTA):
 
         self.set_table_solar_r_fpath = Paths.skynet + "solar_r.dat"
         self.set_tabulated_nuc_fpath = Paths.skynet + "tabulated_nucsyn.h5"
+
+    def update_mask(self, new_mask=None):
+        if new_mask != None:
+            if not new_mask in self.list_masks:
+                self.list_masks.append(new_mask)
+
+                self.mask_matrix = [[np.zeros(0, )
+                                     for i in range(len(self.list_masks))]
+                                    for j in range(len(self.list_detectors))]
+
+                self.matrix_ejecta = [[[np.zeros(0, )
+                                        for k in range(len(self.list_ejecta_v_ns))]
+                                       for j in range(len(self.list_masks))]
+                                      for i in range(len(self.list_detectors))]
+
+                self.matrix_ejecta_nucleo = [[[np.zeros(0, )
+                                               for i in range(len(self.list_nucleo_v_ns))]
+                                              for j in range(len(self.list_masks))]
+                                             for k in range(len(self.list_detectors))]
+    # ---
 
     def check_nucleo_v_n(self, v_n):
         if not v_n in self.list_nucleo_v_ns:
@@ -1512,8 +1665,8 @@ class EJECTA_NUCLEO(EJECTA):
 
 
 class EJECTA_NORMED_NUCLEO(EJECTA_NUCLEO):
-    def __init__(self, sim):
-        EJECTA_NUCLEO.__init__(self, sim)
+    def __init__(self, sim, add_mask=None):
+        EJECTA_NUCLEO.__init__(self, sim, add_mask)
 
         self.list_nucleo_norm_methods = [
             "sum", "Asol=195"
@@ -1526,6 +1679,30 @@ class EJECTA_NORMED_NUCLEO(EJECTA_NUCLEO):
 
         self.matrix_normed_sol = [np.zeros(0,) for z in range(len(self.list_nucleo_norm_methods))]
 
+    def update_mask(self, new_mask=None):
+        if new_mask != None:
+            if not new_mask in self.list_masks:
+                self.list_masks.append(new_mask)
+
+                self.mask_matrix = [[np.zeros(0, )
+                                     for i in range(len(self.list_masks))]
+                                    for j in range(len(self.list_detectors))]
+
+                self.matrix_ejecta = [[[np.zeros(0, )
+                                        for k in range(len(self.list_ejecta_v_ns))]
+                                       for j in range(len(self.list_masks))]
+                                      for i in range(len(self.list_detectors))]
+
+                self.matrix_ejecta_nucleo = [[[np.zeros(0, )
+                                               for i in range(len(self.list_nucleo_v_ns))]
+                                              for j in range(len(self.list_masks))]
+                                             for k in range(len(self.list_detectors))]
+
+                self.matrix_normed_sim = [[[np.zeros(0, )
+                                            for x in range(len(self.list_detectors))]
+                                           for y in range(len(self.list_masks))]
+                                          for z in range(len(self.list_nucleo_norm_methods))]
+    #
 
     def check_method(self, method):
         if not method in self.list_nucleo_norm_methods:
@@ -1638,8 +1815,8 @@ class EJECTA_NORMED_NUCLEO(EJECTA_NUCLEO):
 
 class EJECTA_PARS(EJECTA_NORMED_NUCLEO):
 
-    def __init__(self, sim):
-        EJECTA_NORMED_NUCLEO.__init__(self, sim)
+    def __init__(self, sim, add_mask=None):
+        EJECTA_NORMED_NUCLEO.__init__(self, sim, add_mask)
 
         self.list_ejecta_pars_v_n = [
             "Mej_tot", "Ye_ave", "s_ave", "vel_inf_ave",
@@ -1651,7 +1828,40 @@ class EJECTA_PARS(EJECTA_NORMED_NUCLEO):
                                  for z in range(len(self.list_masks))]
                                  for y in range(len(self.list_detectors))]
 
+
+
         self.energy_constant = 1787.5521500932314
+
+    def update_mask(self, new_mask=None):
+
+        if new_mask != None:
+            if not new_mask in self.list_masks:
+                self.list_masks.append(new_mask)
+
+                self.mask_matrix = [[np.zeros(0, )
+                                     for i in range(len(self.list_masks))]
+                                    for j in range(len(self.list_detectors))]
+
+                self.matrix_ejecta = [[[np.zeros(0, )
+                                        for k in range(len(self.list_ejecta_v_ns))]
+                                       for j in range(len(self.list_masks))]
+                                      for i in range(len(self.list_detectors))]
+
+                self.matrix_ejecta_nucleo = [[[np.zeros(0, )
+                                               for i in range(len(self.list_nucleo_v_ns))]
+                                              for j in range(len(self.list_masks))]
+                                             for k in range(len(self.list_detectors))]
+
+                self.matrix_normed_sim = [[[np.zeros(0, )
+                                            for x in range(len(self.list_detectors))]
+                                           for y in range(len(self.list_masks))]
+                                          for z in range(len(self.list_nucleo_norm_methods))]
+
+                self.matrix_ejecta_pars = [[[123456789.1
+                                             for x in range(len(self.list_ejecta_pars_v_n))]
+                                            for z in range(len(self.list_masks))]
+                                           for y in range(len(self.list_detectors))]
+    #
 
     def check_ej_par_v_n(self, v_n):
         if not v_n in self.list_ejecta_pars_v_n:
@@ -2523,7 +2733,9 @@ if __name__ == '__main__':
         # check if EOS file is correclty set
         if not glob_eos == None: o_os.eos_fname = glob_eos
         else: o_os.eos_fname = Paths.get_eos_fname_from_curr_dir(glob_sim)
-        if click.confirm('Is the EOS fname correct? {}'.format(o_os.eos_fname), default=True):
+        if os.path.isfile(glob_eos) and glob_eos.__contains__(glob_sim.split('_')[0]): # is sim EOS is in eosfname
+            "Initializing serial reshape..."
+        elif click.confirm('Is the EOS fname correct? {}'.format(o_os.eos_fname), default=True):
             print("Initializing serial reshape...")
         else:
             exit(1)
@@ -2543,7 +2755,9 @@ if __name__ == '__main__':
         # check if EOS file is correclty set
         if not glob_eos == None: pass
         else: glob_eos = Paths.get_eos_fname_from_curr_dir(glob_sim)
-        if click.confirm('Is the EOS fname correct? {}'.format(glob_eos), default=True):
+        if os.path.isfile(glob_eos) and glob_eos.__contains__(glob_sim.split('_')[0]): # is sim EOS is in eosfname
+            "Initializing parallel reshape..."
+        elif click.confirm('Is the EOS fname correct? {}'.format(glob_eos), default=True):
             print("Initializing parallel reshape...")
         else:
             exit(1)

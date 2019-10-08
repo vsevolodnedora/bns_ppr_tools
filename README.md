@@ -155,6 +155,7 @@ This would perform the complete analysis for every `profile.h5`. For every profi
 3) `-t corr` computes correlations for all available variables, saving the `corr_v_n1_v_n2.h5` files in the aforementioned subdirectories.  
 4) `-t hist` computes histograms for some variables, saving the `hist_v_n.dat` files in the aforementioned subdirectories.  
 5) `-t mass` computes mass of the disk using the present masks  
+6) `-t vtk` computes a .vtr file for visit visualisation. The data for given `v_n` and `it` (or `time`) is first inteprolated onto a cartesian grid and then parsed into `gridToVTK()` function from PyEVTK library. Requires preinstallation of `https://bitbucket.org/pauloh/pyevtk`. 
 
 **Note** that tor last three tasks, the mask for all data is used. Default is lapse>0.15 and 6e4<rho<1e13 (cgs)
 

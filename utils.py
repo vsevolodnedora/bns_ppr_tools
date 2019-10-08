@@ -832,3 +832,4 @@ class PHYSICS:
         R = R_GW * (1 + M_Inf / (2 * R_GW)) ** 2
         rstar = R + 2 * M_Inf * log(R / (2 * M_Inf) - 1)
         return t - rstar
+
