@@ -53,7 +53,7 @@ from plotting_methods import PLOT_MANY_TASKS
 __slices__ = {
     "name": "slices",
     "outdir": "slices",
-    "tasklist": ["plot", "movie"],
+    "tasklist": ["plot", "movie", "addm0"],
     "reflevels": [0, 1, 2, 3, 4, 5, 6]
 }
 
@@ -1309,10 +1309,12 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
         def_dic_xz['vmin'] = 1e-10
         def_dic_xz['vmax'] = 1e-4
         def_dic_xz['cbar']['label'] = r'$\rho$ [geo]'
+        def_dic_xz['cmap'] = 'Greys_r'
 
         def_dic_xy['v_n'] = 'rho'
         def_dic_xy['vmin'] = 1e-10
         def_dic_xy['vmax'] = 1e-4
+        def_dic_xy['cmap'] = 'Greys_r'
     elif v_n == "dens_unbnd":
         def_dic_xz['v_n'] = 'rho'
         def_dic_xz['vmin'] = 1e-13
@@ -1458,6 +1460,7 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
     o_plot.gen_set["sharey"] = False
     o_plot.gen_set["subplots_adjust_h"] = -0.35
     o_plot.gen_set["subplots_adjust_w"] = 0.2
+    o_plot.gen_set['style'] = 'dark_background'
     o_plot.set_plot_dics = []
 
     def_dic_xz["it"] = int(it)
@@ -1615,6 +1618,78 @@ def make_movie(v_ns, rls, rootdir, rewrite=False):
                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
                 )
 
+def add_q_r_t_to_prof_xyxz(v_ns, rls):
+    # glob_sim = "LS220_M14691268_M0_LK_SR"
+    glob_profxyxz_path = Paths.ppr_sims+glob_sim+'/profiles/'
+    glob_nlevels = 7
+    # glob_overwrite = False
+
+    from preanalysis import LOAD_ITTIME
+    ititme = LOAD_ITTIME(glob_sim)
+    ifprof, profit, proft = ititme.get_ittime("profiles", d1d2d3prof="prof")
+
+    if len(profit) == 0:
+        Printcolor.yellow("No profiles found. Q R T values are not added to prof.xy.h5")
+        return 0
+
+    # from slices import COMPUTE_STORE, LOAD_STORE_DATASETS
+    # from profile import LOAD_PROFILE_XYXZ
+    # locate prof.xy and prof xz:
+    d2data = COMPUTE_STORE(glob_sim)
+    # d3data = LOAD_PROFILE_XYXZ(glob_sim)
+    #
+    # nu_arr = d2data.get_data(1425408, "xz", "Q_eff_nua")[3]
+    # hydro_arr = d3data.get_data(1425408, 3, "xz", "rho")
+    # print(nu_arr.shape, hydro_arr.shape)
+    # exit(1)
+
+    for it in profit:
+        for plane in ["xy", "xz"]:
+            fpath = glob_profxyxz_path + str(int(it)) + '/' + "profile.{}.h5".format(plane)
+            if os.path.isfile(fpath):
+                try:
+                    dfile = h5py.File(glob_profxyxz_path + str(int(it)) + '/' + "profile.{}.h5".format(plane), "a")
+
+                    Printcolor.print_colored_string(
+                        ["task:", "adding neutrino data to prof. slice", "it:", "{}".format(it), ':', "Adding"],
+                        ["blue", "green",                                "blue", "green",        "", "green"]
+                    )
+                    for rl in rls:
+                        gname = "reflevel=%d" % rl
+                        for v_n in v_ns:
+                            if (v_n in dfile[gname] and glob_overwrite) or not v_n in dfile[gname]:
+                                nu_arr = d2data.get_data(it, plane, v_n)[rl]
+                                # hydro_arr = d3data.get_data(it, rl, plane, "rho")
+                                # assert nu_arr.shape == hydro_arr.shape
+                                gname = "reflevel=%d" % rl
+                                dfile[gname].create_dataset(v_n, data=np.array(nu_arr, dtype=np.float32))
+                            else:
+                                pass
+                    dfile.close()
+                except KeyboardInterrupt:
+                    exit(1)
+                except ValueError:
+                    Printcolor.print_colored_string(
+                        ["task:", "adding neutrino data to prof. slice", "it:", "{}".format(it), ':', "ValueError"],
+                        ["blue", "green", "blue", "green", "", "red"]
+                    )
+                except IOError:
+                    Printcolor.print_colored_string(
+                        ["task:", "adding neutrino data to prof. slice", "it:", "{}".format(it), ':', "IOError"],
+                        ["blue", "green", "blue", "green", "", "red"]
+                    )
+                except:
+                    pass
+            else:
+                Printcolor.print_colored_string(
+                    ["task:", "adding neutrino data to prof. slice", "it:", "{}".format(it), ':', "IOError: profile.{}.h5 does not exist".format(plane)],
+                    ["blue", "green", "blue", "green", "", "red"]
+                )
+    # for it in profit:
+    #     #
+    #     fpathxy = glob_profxyxz_path + str(int(it)) + '/' + "profile.xy.h5"
+    #     fpathxz = glob_profxyxz_path + str(int(it)) + '/' + "profile.xz.h5"
+
 """ ================================================================================================================ """
 
 if __name__ == '__main__':
@@ -1625,6 +1700,8 @@ if __name__ == '__main__':
     #
     parser.add_argument("--v_n", dest="v_ns", nargs='+', required=False, default=[], help="variable names to compute")
     parser.add_argument("--time", dest="times", nargs='+', required=False, default=[], help="times to iterate over [ms]")
+    parser.add_argument("--it", dest="it", nargs='+', required=False, default=[],
+                        help="iterations to use ")
     parser.add_argument("--rl", dest="reflevels", nargs='+', required=False, default=[], help="reflevels to use")
     #
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
@@ -1639,6 +1716,7 @@ if __name__ == '__main__':
     glob_overwrite = args.overwrite
     glob_v_ns = args.v_ns
     glob_times =args.times
+    glob_it = args.it
     glob_reflevels = args.reflevels
     #
     glob_profxyxz_path = Paths.ppr_sims+glob_sim+'/profiles/'
@@ -1677,28 +1755,43 @@ if __name__ == '__main__':
     #
     o_slice = COMPUTE_STORE(glob_sim)
     #
-
     do_all_iterations = False
-    if len(glob_times) == 1 and "all" in glob_times:
-        glob_times = o_slice.times
+    if len(glob_it) == 0 and len(glob_times) == 0:
+        raise IOError("please specify timesteps to use '--time' or iterations '--it' ")
+    elif len(glob_it) != 0 and len(glob_times) != 0:
+        raise IOError("please specify Either timesteps to use '--time' or iterations '--it' (not both)")
+    elif len(glob_times) == 0 and len(glob_it) == 1 and "all" in glob_it:
         do_all_iterations = True
+        glob_times = o_slice.times
+    elif len(glob_it) == 0 and len(glob_times) == 1 and "all" in glob_times:
+        do_all_iterations = True
+        glob_times = o_slice.times
+    elif len(glob_it) > 0 and not "all" in glob_it and len(glob_times) == 0:
+        glob_it = np.array(glob_it, dtype=int) # array of iterations
+        glob_times = []
+        for it in glob_it:
+            glob_times.append(o_slice.get_time_for_it(it, "d2"))
+        glob_times = np.array(glob_times, dtype=float)
+    elif len(glob_times) > 0 and not "all" in glob_times and len(glob_it) == 0:
+        glob_times = np.array(glob_times, dtype=float) / 1e3  # back to seconds
     else:
-        glob_times = np.array(glob_times, dtype=float) / 1e3 # back to seconds
-
+        raise IOError("input times and iterations are not recognized: --time {} --it {}"
+                      .format(glob_times, glob_it))
+    #
     do_all_reflevels = False
     if len(glob_reflevels) == 1 and "all" in glob_reflevels:
         glob_reflevels = __slices__["reflevels"]
         do_all_reflevels = True
     else:
         glob_reflevels = np.array(glob_reflevels, dtype=int)
-
+    #
     do_all_v_ns = False
     if len(glob_v_ns) == 1 and "all" in glob_v_ns:
         glob_v_ns=o_slice.list_v_ns
         do_all_v_ns = True
     else:
         pass
-
+    #
     if do_all_v_ns or do_all_iterations or do_all_reflevels:
         Printcolor.yellow("Selected all", comma=True)
         if do_all_iterations:
@@ -1747,3 +1840,8 @@ if __name__ == '__main__':
             outdir += 'movie/'
 
             make_movie(glob_v_ns, glob_reflevels, outdir, rewrite=glob_overwrite)
+
+        if task == "addm0":
+            if len(glob_v_ns) == len(o_slice.list_v_ns):
+                glob_v_ns = o_slice.list_neut_v_ns
+            add_q_r_t_to_prof_xyxz(glob_v_ns, glob_reflevels)

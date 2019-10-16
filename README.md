@@ -78,6 +78,7 @@ This will plot rest mass density (--v_n rho) for reflevel (--rl 3) and time (--t
 The plot will be located in:  
 `/path_to_output/simulation_name/slice/plot/rho/rl_3/00000.png`  
 with the name of the plot, corresponding to iteration for the plotted timestep.  
+Data to use can be specified with either moments in time `--time` or iterations `--it`  
 
 2) To make 2D movie of the variable evolution.
 For that use task `-t movie`
@@ -88,6 +89,10 @@ After all plots are made, movies will be created, using `ffmpeg`.
 These plots and the final movie will be located in:  
 `/path_to_output/simulation_name/slice/movie/rho/rl_3/rho_rl3.mp4`  
 To redo the movie without recomputing all the plots, -- remove the `rho_rl3.mp4` and relaunch the script with `--overwrite no` flag.  
+
+3) Other:  
+`-t` addm0 adds m0 quantities (such as Q_eff, R_eff) if available to the `profile.xy/xz.h5` (see profile.py for descriptions) 
+the profile.xy/xz.h5 are expected to be in `/path_to_sim_dir/profiles/123456/`, where 12345 is the directory name corresponding to the profile iteration  
 
 As movie creation takes a considerable time (for long simulations) this is not a part of a pipeline. To be run separately.  
 

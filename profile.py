@@ -409,21 +409,21 @@ class CARTESIAN_GRID:
 
         self.gen_set = {
             "reflecting_xy": True,   # Apply reflection symmetry across the xy-plane
-            "xmin": -100.0,          # Include region with x >= xmin
-            "xmax": 100.0,           # Include region with x <= xmax
+            "xmin": -150.0,          # Include region with x >= xmin
+            "xmax": 150.0,           # Include region with x <= xmax
             "xix": 0.2,              # Stretch factor for the grid in the x-direction
-            "nlinx": 80,             # Number of grid points in the linear portion of the x-grid
-            "nlogx": 160,            # Number of grid points in the log portion of the x-grid
-            "ymin": -100,            # Include region with y >= ymin
-            "ymax": 100,             # Include region with y <= ymax
+            "nlinx": 120,            # Number of grid points in the linear portion of the x-grid
+            "nlogx": 200,            # Number of grid points in the log portion of the x-grid
+            "ymin": -150,            # Include region with y >= ymin
+            "ymax": 150,             # Include region with y <= ymax
             "xiy": 0.2,              # Stretch factor for the grid in the y-direction
-            "nliny": 80,             # Number of grid points in the linear portion of the y-grid
-            "nlogy": 160,            # Number of grid points in the log portion of the y-grid
-            "zmin": -10.0,           # Include region with z >= zmin
-            "zmax": 10.0,            # Include region with z <= zmax
+            "nliny": 120,            # Number of grid points in the linear portion of the y-grid
+            "nlogy": 200,            # Number of grid points in the log portion of the y-grid
+            "zmin": -100.0,           # Include region with z >= zmin
+            "zmax": 100.0,            # Include region with z <= zmax
             "xiz": 0.2,              # Stretch factor for the grid in the z-direction
-            "nlinz": 80,             # Number of grid points in the linear portion of the z-grid
-            "nlogz": 160,            # Number of grid points in the log portion of the z-grid
+            "nlinz": 120,            # Number of grid points in the linear portion of the z-grid
+            "nlogz": 200,            # Number of grid points in the log portion of the z-grid
         }
 
         self.list_int_grid_v_ns = ["xc", "yc", "zc",
@@ -2925,7 +2925,6 @@ def d3_int_data_to_vtk(d3intclass, outdir, rewrite=False):
         #     print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "skipping"],
         #                          ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
 
-
 """ ==============================================| D3 PLOTS |======================================================="""
 
 def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
@@ -3763,6 +3762,8 @@ def plot_density_modes(dmclass, rewrite=False):
         print_colored_string(["task:", "plot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "failed"],
                              ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
+""" ==============================================| D3 OTHER |======================================================="""
+
 """ ===============================================| D3 ALL |======================================================= """
 
 def d3_main_computational_loop():
@@ -3878,6 +3879,7 @@ if __name__ == '__main__':
         raise NameError("tasklist is empty. Set what tasks to perform with '-t' option")
     elif len(glob_tasklist) == 1 and "all" in glob_tasklist:
         glob_tasklist = __profile__["tasklist"]
+        glob_tasklist.remove("vtk")
         Printcolor.print_colored_string(["Set", "All", "tasks"],
                                         ["blue", "green", "blue"])
     else:

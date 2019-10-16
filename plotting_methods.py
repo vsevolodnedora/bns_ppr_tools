@@ -1359,7 +1359,8 @@ class PLOT_MANY_TASKS(PLOT_TASK):
             "invert_y": False,
             "invert_x": False,
             "sharex": False,
-            "sharey": False
+            "sharey": False,
+            'style':None,
         }
 
         self.set_plot_dics = []
@@ -1739,6 +1740,8 @@ class PLOT_MANY_TASKS(PLOT_TASK):
             raise ValueError("No plot dics have been passed. Exiting")
 
         self.figure = plt.figure(figsize=self.gen_set['figsize'])
+        if not self.gen_set['style'] == None:
+            plt.style.use(self.gen_set['style'])
         # initializing the n_cols, n_rows
         self.n_rows, self.n_cols = self.set_ncols_nrows()
         # initializing the matrix of dictionaries of the
