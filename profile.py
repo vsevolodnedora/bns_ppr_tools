@@ -2507,10 +2507,11 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
         self.set_rootdir = __rootoutdir__
 
         self.list_iterations = Paths.get_list_iterations_from_res_3d(sim, self.set_rootdir)
+        # isprof, itprof, tprof = self.get_ittime("profiles", "")
         # self.times = interpoate_time_form_it(self.list_iterations, Paths.gw170817+sim+'/')
         self.times = []
         for it in self.list_iterations:
-            self.times.append(self.get_time_for_it(it, d1d2d3prof="prof"))
+            self.times.append(self.get_time_for_it(it, d1d2d3prof="prof")) # prof
         self.times = np.array(self.times)
 
         self.list_v_ns = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "eps", "lapse", "velx", "vely", "velz",
@@ -3890,6 +3891,7 @@ if __name__ == '__main__':
     # check if there any profiles to use
     ittime = LOAD_ITTIME(glob_sim)
     isprof, itprof, tprof = ittime.get_ittime("profiles", d1d2d3prof="prof")
+    #
     if len(itprof) == 0:
         Printcolor.red("No profiles found. Please, extract profiles for {} "
                          "and save them in /sim_dir/profiles/3d/".format(glob_sim))
@@ -3960,6 +3962,7 @@ if __name__ == '__main__':
     Paths.ppr_sims = glob_outdir
 
     # tasks
+
     d3_main_computational_loop()
 
     Printcolor.blue("Done.")

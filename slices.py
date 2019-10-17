@@ -1643,6 +1643,9 @@ def add_q_r_t_to_prof_xyxz(v_ns, rls):
     # print(nu_arr.shape, hydro_arr.shape)
     # exit(1)
 
+    assert len(glob_reflevels) > 0
+    assert len(v_ns) > 0
+
     for it in profit:
         for plane in ["xy", "xz"]:
             fpath = glob_profxyxz_path + str(int(it)) + '/' + "profile.{}.h5".format(plane)
@@ -1664,7 +1667,11 @@ def add_q_r_t_to_prof_xyxz(v_ns, rls):
                                 gname = "reflevel=%d" % rl
                                 dfile[gname].create_dataset(v_n, data=np.array(nu_arr, dtype=np.float32))
                             else:
-                                pass
+                                Printcolor.print_colored_string(
+                                    ["\trl:", str(rl), "v_n:", v_n, ':',
+                                     "skipping"],
+                                    ["blue", "green","blue", "green", "", "blue"]
+                                )
                     dfile.close()
                 except KeyboardInterrupt:
                     exit(1)

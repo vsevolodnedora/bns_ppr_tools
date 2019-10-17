@@ -741,8 +741,14 @@ class LOAD_ITTIME:
             raise ValueError("it:{} is below min:{} or above max:{} in d1d2d3:{}"
                              .format(it, allit[0], allit[-1], d1d2d3prof))
         if not it in allit:
-            raise ValueError("it:{} is not in alliterations:{} for d1d2d3:{}"
-                             .format(it, allit, d1d2d3prof))
+            print("\tWarning it:{} is not in the list of it for d1d2d3: {}".format(it, d1d2d3prof))
+
+            from scipy import interpolate
+            f = interpolate.interp1d(allit, alltimes, kind="linear")
+            t = f(it)
+            return float(t)
+            # raise ValueError("it:{} is not in alliterations:{} for d1d2d3:{}"
+            #                  .format(it, allit, d1d2d3prof))
 
         if isdata:
             return float(alltimes[self.find_nearest_index(allit, it)])
