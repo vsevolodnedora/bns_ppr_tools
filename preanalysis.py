@@ -11,6 +11,7 @@ import os.path
 import h5py
 import csv
 import os
+import re
 from argparse import ArgumentParser
 from utils import Paths, Printcolor, Lists
 
@@ -852,7 +853,7 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
         self.print_ititme_status("overall", d1d2d3prof="d3", start=tstart, stop=tend, tstep=tstep, precision=prec)
         self.print_ititme_status("profiles", d1d2d3prof="prof", start=tstart, stop=tend, tstep=tstep, precision=prec)
         self.print_ititme_status("nuprofiles", d1d2d3prof="nuprof", start=tstart, stop=tend, tstep=tstep, precision=prec)
-
+        self.print_prof_ittime()
         # self.print_gw_ppr_time(comma=True)
         # self.print_assert_collated_data()
         #
@@ -924,6 +925,27 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
         profiles = glob(self.prof_in_data + "*{}.h5".format(extra))
         # print(profiles)
         return profiles
+
+    def get_profile_its(self, extra=""):
+
+        profiles = glob(self.prof_in_data + "*.h5")
+        fnames = []
+        for profile in profiles:
+            fname = str(profile.split('/')[-1]).split('.h5')[0]
+            if extra != "":
+                if str(fname).__contains__(extra):
+                    fnames.append(fname.replace(extra,''))
+                # else:
+                #     print(fname, extra)
+            else:
+                fnames.append(fname)
+        #
+        if len(fnames) == 0:
+            return np.empty(0,)
+        #
+        list_iterations = np.array(
+            np.sort(np.array(list([int(itdir) for itdir in fnames if re.match("^[-+]?[0-9]+$", itdir)]))))
+        return list_iterations
 
     def assert_ittime(self):
 
@@ -1301,6 +1323,41 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
                 n = n + 1
         print(']'),
         Printcolor.green("{:.1f}ms".format(td2[-1]), comma=False)
+
+    def print_prof_ittime(self):
+
+        _, itprof, tprof = self.get_ittime("profiles", "prof")
+        _, itnu, tnu = self.get_ittime("nuprofiles", "nuprof")
+
+        all_it = sorted(list(set(list(itprof) + list(itprof))))
+
+
+
+        for it in all_it:
+            time_ = self.get_time_for_it(it, "prof")
+            is_prof = False
+            if int(it) in np.array(itprof, dtype=int):
+                is_prof = True
+            is_nu = False
+            if int(it) in np.array(itnu, dtype=int):
+                is_nu = True
+
+            Printcolor.print_colored_string(
+                ["\tit", str(it), "[", "{:.1f}".format(time_*1e3), "ms]"],["blue", "green", "blue", "green", "blue"], comma=True
+            )
+
+            print("["),
+
+            if is_prof: Printcolor.green("prof", comma=True)
+            else: Printcolor.red("prof", comma=True)
+
+            if is_nu:Printcolor.green("nuprof", comma=True)
+            else: Printcolor.red("nuprof", comma=True)
+
+            print("]")
+
+
+
 
     # def print_assert_outflowed_data(self, criterion):
     #

@@ -44,6 +44,7 @@ from preanalysis import LOAD_INIT_DATA
 from outflowed import EJECTA_PARS
 from preanalysis import LOAD_ITTIME
 from plotting_methods import PLOT_MANY_TASKS
+from profile import LOAD_PROFILE_XYXZ, LOAD_RES_CORR
 import units as ut # for tmerg
 from utils import *
 #
@@ -4127,14 +4128,334 @@ def plot_histograms_lk_off_resolution(mask):
 # plot_histograms_lk_off_resolution("geo")
 # plot_histograms_lk_off_resolution("bern_geoend")
 
-''' --- '''
+''' neutrino driven wind '''
+
+def plot_several_q_eff(v_n, sims, iterations, figname):
+
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots+"all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (12., 3.2)  # <->, |] # to match hists with (8.5, 2.7)
+    o_plot.gen_set["figname"] = figname
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = False
+    o_plot.gen_set["subplots_adjust_h"] = 0.2
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+
+    rl = 3
+    # v_n = "Q_eff_nua"
+
+    # sims = ["LS220_M14691268_M0_LK_SR"]
+    # iterations = [1302528, 1515520, 1843200]
+
+    i_x_plot = 1
+    i_y_plot = 1
+    for sim in sims:
+
+        d3class = LOAD_PROFILE_XYXZ(sim)
+        d1class = ADD_METHODS_ALL_PAR(sim)
+
+        for it in iterations:
+
+            tmerg = d1class.get_par("tmerg")
+            time_ = d3class.get_time_for_it(it, "prof")
+
+            dens_arr = d3class.get_data(it, rl, "xz", "density")
+            data_arr = d3class.get_data(it, rl, "xz", v_n)
+            data_arr = data_arr / dens_arr
+            x_arr = d3class.get_data(it, rl, "xz", "x")
+            z_arr = d3class.get_data(it, rl, "xz", "z")
+
+            def_dic_xz = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                          'xarr': x_arr, "yarr": z_arr, "zarr": data_arr,
+                          'position': (i_y_plot, i_x_plot),  # 'title': '[{:.1f} ms]'.format(time_),
+                          'cbar': {},
+                          'v_n_x': 'x', 'v_n_y': 'z', 'v_n': v_n,
+                          'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-10, 'vmax': 1e-4,
+                          'fill_vmin': False,  # fills the x < vmin with vmin
+                          'xscale': None, 'yscale': None,
+                          'mask': None, 'cmap': 'inferno_r', 'norm': "log",
+                          'fancyticks': True,
+                          'minorticks': True,
+                          'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$'.format((time_-tmerg)*1e3), 'fontsize': 14},
+                          # 'sharex': True,  # removes angular citkscitks
+                          'fontsize': 14,
+                          'labelsize': 14,
+                          'sharex': False,
+                          'sharey': True,
+                          }
+
+            def_dic_xz["xmin"], def_dic_xz["xmax"], _, _, def_dic_xz["ymin"], def_dic_xz["ymax"] \
+                = UTILS.get_xmin_xmax_ymin_ymax_zmin_zmax(rl)
+
+            if v_n == 'Q_eff_nua':
+
+                def_dic_xz['v_n'] = 'Q_eff_nua/D'
+                def_dic_xz['vmin'] = 1e-7
+                def_dic_xz['vmax'] = 1e-3
+                # def_dic_xz['norm'] = None
+            elif v_n == 'Q_eff_nue':
+
+                def_dic_xz['v_n'] = 'Q_eff_nue/D'
+                def_dic_xz['vmin'] = 1e-7
+                def_dic_xz['vmax'] = 1e-3
+                # def_dic_xz['norm'] = None
+            elif v_n == 'Q_eff_nux':
+
+                def_dic_xz['v_n'] = 'Q_eff_nux/D'
+                def_dic_xz['vmin'] = 1e-10
+                def_dic_xz['vmax'] = 1e-4
+                # def_dic_xz['norm'] = None
+                # print("v_n: {} [{}->{}]".format(v_n, def_dic_xz['zarr'].min(), def_dic_xz['zarr'].max()))
+            elif v_n == "R_eff_nua":
+
+                def_dic_xz['v_n'] = 'R_eff_nua/D'
+                def_dic_xz['vmin'] = 1e2
+                def_dic_xz['vmax'] = 1e6
+                # def_dic_xz['norm'] = None
+
+                print("v_n: {} [{}->{}]".format(v_n, def_dic_xz['zarr'].min(), def_dic_xz['zarr'].max()))
+                # exit(1)
+
+            if it == iterations[0]:
+                def_dic_xz["sharey"] = False
+
+            if it == iterations[-1]:
+                def_dic_xz['cbar'] = {'location': 'right .02 0.', 'label': Labels.labels(v_n) + "/D",  # 'right .02 0.' 'fmt': '%.1e',
+                                   'labelsize': 14, 'aspect': 6.,
+                                   'fontsize': 14}
+
+            o_plot.set_plot_dics.append(def_dic_xz)
+
+            i_x_plot = i_x_plot + 1
+        i_y_plot = i_y_plot + 1
+    o_plot.main()
+    exit(0)
+
+''' disk histogram evolution0000 '''
+
+def plot_disk_hist_evol_one_v_n(v_n, sim, figname):
+
+    # sim = "LS220_M13641364_M0_LK_SR_restart"
+    # v_n = "Ye"
+    # figname = "ls220_ye_disk_hist.png"
+    print(v_n)
+
+    d3_corr = LOAD_RES_CORR(sim)
+    iterations = d3_corr.list_iterations
+    times = []
+    bins = []
+    values = []
+    for it in iterations:
+        fpath = Paths.ppr_sims + sim + "/" + "profiles/" + str(it) + "/" + "hist_{}.dat".format(v_n)
+        if os.path.isfile(fpath):
+            times.append(d3_corr.get_time_for_it(it, "prof"))
+            print("\tLoading it:{} t:{}".format(it, times[-1]))
+            data = np.loadtxt(fpath, unpack=False)
+            bins = data[:, 0]
+            values.append(data[:, 1])
+        else:
+            print("\tFile not found it:{}".format(fpath))
+    assert len(times) > 0
+    times = np.array(times) * 1e3
+    bins = np.array(bins)
+    values = np.reshape(np.array(values), newshape=(len(iterations),len(bins))).T
+    #
+    d1class = ADD_METHODS_ALL_PAR(sim)
+    tmerg = d1class.get_par("tmerg") * 1e3
+    times = times - tmerg
+    #
+    values = values / np.sum(values)
+    values = np.maximum(values, 1e-10)
+    #
+    if v_n in ["theta"]:
+        bins = bins / np.pi * 180.
+    #
+    def_dic = {'task': 'colormesh', 'ptype': 'cartesian', # 'aspect': 1.,
+                  'xarr': times, "yarr": bins, "zarr": values,
+                  'position': (1, 1),  # 'title': '[{:.1f} ms]'.format(time_),
+                  'cbar': {'location': 'right .02 0.', 'label': Labels.labels("mass"),  # 'right .02 0.' 'fmt': '%.1e',
+                                   'labelsize': 14, #'aspect': 6.,
+                                   'fontsize': 14},
+                  'v_n_x': 'x', 'v_n_y': 'z', 'v_n': v_n,
+                  'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels(v_n),
+                  'xmin': times.min(), 'xmax': times.max(), 'ymin': bins.min(), 'ymax': bins.max(), 'vmin': 1e-6, 'vmax': 1e-2,
+                  'fill_vmin': False,  # fills the x < vmin with vmin
+                  'xscale': None, 'yscale': None,
+                  'mask': None, 'cmap': 'Greys', 'norm': "log",
+                  'fancyticks': True,
+                  'minorticks': True,
+                  'title': {}, # "text": r'$t-t_{merg}:$' + r'${:.1f}$'.format((time_ - tmerg) * 1e3), 'fontsize': 14
+                  # 'sharex': True,  # removes angular citkscitks
+                  'fontsize': 14,
+                  'labelsize': 14,
+                  'sharex': False,
+                  'sharey': False,
+                  }
+    #
+    tcoll = d1class.get_par("tcoll_gw")
+    if not np.isnan(tcoll):
+        tcoll = (tcoll * 1e3) - tmerg
+        tcoll_dic = {'task':'line', 'ptype': 'cartesian',
+                     'position': (1,1),
+                     'xarr':[tcoll, tcoll], 'yarr':[bins.min(), bins.max()],
+                     'color': 'black', 'ls': '-', 'lw': 0.6, 'ds': 'default', 'alpha': 1.0,
+                     }
+        print(tcoll)
+    else:
+        print("No tcoll")
+
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |] # to match hists with (8.5, 2.7)
+    o_plot.gen_set["figname"] = figname
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = False
+    o_plot.gen_set["subplots_adjust_h"] = 0.2
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+    #
+    if not np.isnan(tcoll):
+        o_plot.set_plot_dics.append(tcoll_dic)
+    o_plot.set_plot_dics.append(def_dic)
+    #
+    if v_n in ["temp", "dens_unb_bern", "rho"]:
+        def_dic["yscale"] = "log"
+    #
+    o_plot.main()
+
+
+    exit(1)
+
+def plot_disk_hist_evol(sim, figname):
+
+    # v_ns = ["r", "theta", "Ye", "temp", "velz", "rho", "dens_unb_bern"]
+
+    v_ns = ["velz"]#, "temp", "rho", "dens_unb_bern"]
+
+    d3_corr = LOAD_RES_CORR(sim)
+    iterations = d3_corr.list_iterations
+
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (len(v_ns)*3., 2.7)  # <->, |] # to match hists with (8.5, 2.7)
+    o_plot.gen_set["figname"] = figname
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = False
+    o_plot.gen_set["subplots_adjust_h"] = 0.2
+    o_plot.gen_set["subplots_adjust_w"] = 0.3
+    o_plot.set_plot_dics = []
+
+    i_plot = 1
+    for v_n in v_ns:
+        print("v_n:{}".format(v_n))
+        times = []
+        bins = []
+        values = []
+        for it in iterations:
+            fpath = Paths.ppr_sims + sim + "/" + "profiles/" + str(it) + "/" + "hist_{}.dat".format(v_n)
+            if os.path.isfile(fpath):
+                times.append(d3_corr.get_time_for_it(it, "prof"))
+                print("\tLoading it:{} t:{}".format(it, times[-1]))
+                data = np.loadtxt(fpath, unpack=False)
+                bins = data[:, 0]
+                values.append(data[:, 1])
+            else:
+                print("\tFile not found it:{}".format(fpath))
+
+        assert len(times) > 0
+        times = np.array(times) * 1e3
+        bins = np.array(bins)
+        values = np.reshape(np.array(values), newshape=(len(iterations), len(bins))).T
+        #
+        d1class = ADD_METHODS_ALL_PAR(sim)
+        tmerg = d1class.get_par("tmerg") * 1e3
+        times = times - tmerg
+        #
+        values = values / np.sum(values)
+        values = np.maximum(values, 1e-10)
+        #
+        if v_n in ["theta"]:
+            bins = bins / np.pi * 180.
+        #
+        def_dic = {'task': 'colormesh', 'ptype': 'cartesian',  # 'aspect': 1.,
+                   'xarr': times, "yarr": bins, "zarr": values,
+                   'position': (1, i_plot),  # 'title': '[{:.1f} ms]'.format(time_),
+                   'cbar': {},
+                   'v_n_x': 'x', 'v_n_y': 'z', 'v_n': v_n,
+                   'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels(v_n),
+                   'xmin': times.min(), 'xmax': times.max(), 'ymin': bins.min(), 'ymax': bins.max(), 'vmin': 1e-6,
+                   'vmax': 1e-2,
+                   'fill_vmin': False,  # fills the x < vmin with vmin
+                   'xscale': None, 'yscale': None,
+                   'mask': None, 'cmap': 'Greys', 'norm': "log",
+                   'fancyticks': True,
+                   'minorticks': True,
+                   'title': {},  # "text": r'$t-t_{merg}:$' + r'${:.1f}$'.format((time_ - tmerg) * 1e3), 'fontsize': 14
+                   # 'sharex': True,  # removes angular citkscitks
+                   'fontsize': 14,
+                   'labelsize': 14,
+                   'sharex': False,
+                   'sharey': False,
+                   }
+        if v_n == v_ns[-1]:
+            def_dic['cbar'] = {'location': 'right .02 0.', 'label': Labels.labels("mass"),  # 'right .02 0.' 'fmt': '%.1e',
+                            'labelsize': 14,  # 'aspect': 6.,
+                            'fontsize': 14}
+        # if v_n == "velz":
+        #     def_dic['ymin'] = -.3
+        #     def_dic['ymax'] = .3
+        #
+        tcoll = d1class.get_par("tcoll_gw")
+        if not np.isnan(tcoll):
+            tcoll = (tcoll * 1e3) - tmerg
+            tcoll_dic = {'task': 'line', 'ptype': 'cartesian',
+                         'position': (1, i_plot),
+                         'xarr': [tcoll, tcoll], 'yarr': [bins.min(), bins.max()],
+                         'color': 'black', 'ls': '-', 'lw': 0.6, 'ds': 'default', 'alpha': 1.0,
+                         }
+            print(tcoll)
+        else:
+            print("No tcoll")
+
+        #
+        if not np.isnan(tcoll):
+            o_plot.set_plot_dics.append(tcoll_dic)
+        o_plot.set_plot_dics.append(def_dic)
+        #
+        if v_n in ["temp", "dens_unb_bern", "rho"]:
+            def_dic["yscale"] = "log"
+        #
+        i_plot = i_plot + 1
+    o_plot.main()
+
+
 if __name__ == '__main__':
+
+    ''' --- neutrinos --- '''
+    # plot_several_q_eff("Q_eff_nua", ["LS220_M14691268_M0_LK_SR"], [1302528, 1515520, 1843200], "ls220_q_eff.png")
+    # plot_several_q_eff("Q_eff_nua", ["DD2_M15091235_M0_LK_SR"], [1277952, 1425408, 1540096], "dd2_q_eff.png")
+    #
+    # plot_several_q_eff("R_eff_nua", ["LS220_M14691268_M0_LK_SR"], [1302528, 1515520, 1843200], "ls220_r_eff.png")
+    # plot_several_q_eff("R_eff_nua", ["DD2_M15091235_M0_LK_SR"], [1277952, 1425408, 1540096], "dd2_r_eff.png")
+
+    ''' disk properties '''
+
+    plot_disk_hist_evol("LS220_M13641364_M0_LK_SR_restart", "ls220_disk_hists.png")
+
+    plot_disk_hist_evol_one_v_n("Ye", "LS220_M13641364_M0_LK_SR_restart", "ls220_ye_disk_hist.png")
+    plot_disk_hist_evol_one_v_n("temp", "LS220_M13641364_M0_LK_SR_restart", "ls220_temp_disk_hist.png")
+    plot_disk_hist_evol_one_v_n("rho", "LS220_M13641364_M0_LK_SR_restart", "ls220_rho_disk_hist.png")
+    plot_disk_hist_evol_one_v_n("dens_unb_bern", "LS220_M13641364_M0_LK_SR_restart", "ls220_dens_unb_bern_disk_hist.png")
+    plot_disk_hist_evol_one_v_n("velz", "LS220_M13641364_M0_LK_SR_restart", "ls220_velz_disk_hist.png")
 
     # o_err = ErrorEstimation("DD2_M15091235_M0_LK_SR","DD2_M14971245_M0_SR")
     # o_err.main(rewrite=False)
     # # plot_total_fluxes_lk_on_off("bern_geoend")
     # exit(1)
-
     ''' --- COMPARISON TABLE --- '''
     tbl = COMPARISON_TABLE()
 

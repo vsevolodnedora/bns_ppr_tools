@@ -8,6 +8,7 @@ from matplotlib.colors import LogNorm, Normalize
 from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
     MultipleLocator
 import numpy as np
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import warnings
 import matplotlib.cbook
@@ -1609,14 +1610,16 @@ class PLOT_MANY_TASKS(PLOT_TASK):
                 shift_w = float(cdic["location"].split(' ')[2])
                 cbar_width = 0.02
 
-
                 if location == 'right':
                     ax_to_use = self.sbplot_matrix[n_col][n_row]
                     pos1 = ax_to_use.get_position()
                     pos2 = [pos1.x0 + pos1.width + shift_h,
                             pos1.y0 + shift_w,
                             cbar_width,
-                            pos1.height]
+                            pos1.height] # 0.5
+                    if 'aspect' in cdic.keys() and cdic['aspect'] != None:
+                        cax1 = self.figure.add_axes(pos2, aspect = cdic['aspect'])
+                    else: cax1 = self.figure.add_axes(pos2)
                 elif location == 'left':
                     ax_to_use = self.sbplot_matrix[n_col][n_row]
                     pos1 = ax_to_use.get_position()
@@ -1624,6 +1627,10 @@ class PLOT_MANY_TASKS(PLOT_TASK):
                             pos1.y0 + shift_w,
                             cbar_width,
                             pos1.height]
+                    if 'aspect' in cdic.keys() and cdic['aspect'] != None:
+                        cax1 = self.figure.add_axes(pos2, aspect=cdic['aspect'])
+                    else:
+                        cax1 = self.figure.add_axes(pos2)
                 elif location == 'bottom':
                     cbar_width = 0.02
                     ax_to_use = self.sbplot_matrix[n_col][n_row]
@@ -1632,11 +1639,24 @@ class PLOT_MANY_TASKS(PLOT_TASK):
                             pos1.y0 + shift_h,
                             pos1.width,
                             cbar_width]
+                    if 'aspect' in cdic.keys() and cdic['aspect'] != None:
+                        cax1 = self.figure.add_axes(pos2, aspect=cdic['aspect'])
+                    else:
+                        cax1 = self.figure.add_axes(pos2)
+                elif location == "right_auto":
+                    ax_to_use = self.sbplot_matrix[n_col][n_row]
+                    divider = make_axes_locatable(ax_to_use)
+                    pos1 = ax_to_use.get_position()
+                    pos2 = [pos1.x0 + shift_w,
+                            pos1.y0 + shift_h,
+                            pos1.width,
+                            cbar_width]
+                    cax1 = divider.append_axes("right", size="5%", pad=0.05)
+
                 else:
                     raise NameError("cbar location {} not recognized. Use 'right' or 'bottom' "
                                     .format(location))
 
-                cax1 = self.figure.add_axes(pos2)
                 if location == 'right':
                     if 'fmt' in cdic.keys() and cdic['fmt'] != None:
                         cbar = plt.colorbar(im, cax=cax1, extend='both', format=cdic['fmt'])
@@ -1656,11 +1676,17 @@ class PLOT_MANY_TASKS(PLOT_TASK):
                         cbar = plt.colorbar(im, cax=cax1, orientation="horizontal", extend='both')
                     cax1.yaxis.set_ticks_position('left')
                     cax1.yaxis.set_label_position('left')
-
+                elif location == "right_auto":
+                    pass
+                    # if 'fmt' in cdic.keys() and cdic['fmt'] != None:
+                    #     cbar = plt.colorbar(im, cax=cax1, extend='both', format=cdic['fmt'])
+                    # else:
+                    #     cbar = plt.colorbar(im, cax=cax1, extend='both')  # , format='%.1e')
                 else:
                     raise NameError("cbar location {} not recognized. Use 'right' or 'bottom' "
                                     .format(location))
                 if 'label' in cdic.keys() and cdic['label'] != None:
+
                     if location != "bottom":
                         cbar.ax.set_title(cdic['label'], fontsize=cdic["fontsize"])
                     else:
@@ -1673,7 +1699,7 @@ class PLOT_MANY_TASKS(PLOT_TASK):
                         cbar.set_label(r"{}".format(str(cdic["v_n"]).replace('_', '\_')), fontsize=cdic["fontsize"])
 
                 cbar.ax.tick_params(labelsize=cdic["labelsize"])
-
+    #
     def plot_colobars(self):
 
         for n_row in range(self.n_rows):

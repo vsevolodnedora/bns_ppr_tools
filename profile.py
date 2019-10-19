@@ -101,7 +101,7 @@ __d3corrs__ = ["rho_r", "rho_Ye", "temp_Ye", "rho_theta", "velz_theta", "rho_ang
                     "rho_ang_mom_flux", "rho_dens_unb_bern", "ang_mom_flux_theta",
                     "ang_mom_flux_dens_unb_bern", "inv_ang_mom_flux_dens_unb_bern",
                     "velz_dens_unb_bern", "Ye_dens_unb_bern", "theta_dens_unb_bern"]
-__d3histvns__      = ["r", "theta", "Ye"]
+__d3histvns__      = ["r", "theta", "Ye", "temp", "velz", "rho", "dens_unb_bern"]
 __d3slicesplanes__ = ["xy", "xz"]
 __d3diskmass__ = "disk_mass.txt"
 __d3densitymodesfame__ = "density_modes_lap15.h5"
@@ -1309,8 +1309,12 @@ class MAINMETHODS_STORE(MASK_STORE):
         # hist
 
         self.hist_task_dic_r = {"v_n": "r", "edges": np.linspace(10, 200, 500)}
-        self.hist_task_dic_theta = {"v_n": "theta", "edges": np.linspace(0., 4*np.pi, 500)}
+        self.hist_task_dic_theta = {"v_n": "theta", "edges": np.linspace(0., np.pi, 500)}
         self.hist_task_dic_ye = {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}
+        self.hist_task_dic_temp = {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)}
+        self.hist_task_dic_velz = {"v_n": "velz", "edges": np.linspace(-1,1, 500)}
+        self.hist_task_dic_rho = {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const}
+        self.hist_task_dens_unb_bern = {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
 
     def get_min_max(self, it, v_n):
         self.check_it(it)
@@ -1379,17 +1383,18 @@ class MAINMETHODS_STORE(MASK_STORE):
 
         v_n = hist_task_dic["v_n"]
         edge = self.get_edges(it, hist_task_dic)
+        # print(edge); exit(1)
         histogram = np.zeros(len(edge) - 1)
         _edge = []
         for rl in range(self.nlevels):
             weights = self.get_masked_data(it, rl, "density").flatten() * \
                       np.prod(self.get_grid_data(it, rl, "delta")) * multiplier
             data = self.get_masked_data(it, rl, v_n)
-            tmp1, _edge = np.histogram(data, bins=edge, weights=weights)
-            histogram+=tmp1
+            tmp1, _ = np.histogram(data, bins=edge, weights=weights)
+            histogram = histogram + tmp1
         # print(len(histogram), len(_edge), len(edge))
-        # assert len(histogram) == len(edge)
-        outarr = np.vstack((0.5*(edge[1:]+edge[:1]), histogram)).T
+        # assert len(histogram) == len(edge)# 0.5 * (edge_x[1:] + edge_x[:-1])
+        outarr = np.vstack((0.5*(edge[1:]+edge[:-1]), histogram)).T
         return outarr
 
     def get_correlation(self, it, list_corr_task_dic, multiplier=2.):
@@ -2720,6 +2725,10 @@ def d3_hist_for_it(it, d3corrclass, outdir, rewrite=False):
         if v_n == "r":       hist_dic = d3corrclass.hist_task_dic_r
         elif v_n == "theta": hist_dic = d3corrclass.hist_task_dic_theta
         elif v_n == "Ye":    hist_dic = d3corrclass.hist_task_dic_ye
+        elif v_n == "velz":  hist_dic = d3corrclass.hist_task_dic_velz
+        elif v_n == "temp":  hist_dic = d3corrclass.hist_task_dic_temp
+        elif v_n == "rho":   hist_dic = d3corrclass.hist_task_dic_rho
+        elif v_n == "dens_unb_bern": hist_dic = d3corrclass.hist_task_dens_unb_bern
         else:raise NameError("hist v_n:{} is not recognized".format(v_n))
         #
         fpath = outdir + "hist_{}.dat".format(v_n)
@@ -3644,6 +3653,29 @@ def plot_d3_hist(d3histclass, rewrite=False):
                 default_dic['xlabel'] = 'Ye'
                 default_dic['xmin'] = 0.
                 default_dic['xmax'] = 0.5
+            elif v_n == "temp":
+                default_dic['v_n_x'] = "temp"
+                default_dic["xlabel"] = "temp"
+                default_dic['xmin'] = 1e-2
+                default_dic['xmax'] = 1e2
+                default_dic['xscale'] = "log"
+            elif v_n == "velz":
+                default_dic['v_n_x'] = "velz"
+                default_dic["xlabel"] = "velz"
+                default_dic['xmin'] = -0.7
+                default_dic['xmax'] = 0.7
+            elif v_n == "rho":
+                default_dic['v_n_x'] = "rho"
+                default_dic["xlabel"] = "rho"
+                default_dic['xmin'] = 1e-10
+                default_dic['xmax'] = 1e-6
+                default_dic['xscale'] = "log"
+            elif v_n == "dens_unb_bern":
+                default_dic['v_n_x'] = "temp"
+                default_dic["xlabel"] = "temp"
+                default_dic['xmin'] = 1e-10
+                default_dic['xmax'] = 1e-6
+                default_dic['xscale'] = "log"
             else:
                 raise NameError("hist v_n:{} is not recognized".format(v_n))
 
