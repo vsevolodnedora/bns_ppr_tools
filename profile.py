@@ -1309,7 +1309,7 @@ class MAINMETHODS_STORE(MASK_STORE):
         # hist
 
         self.hist_task_dic_r = {"v_n": "r", "edges": np.linspace(10, 200, 500)}
-        self.hist_task_dic_theta = {"v_n": "theta", "edges": np.linspace(0., np.pi, 500)}
+        self.hist_task_dic_theta = {"v_n": "theta", "edges": np.linspace(0., np.pi / 2., 500)}
         self.hist_task_dic_ye = {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}
         self.hist_task_dic_temp = {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)}
         self.hist_task_dic_velz = {"v_n": "velz", "edges": np.linspace(-1,1, 500)}

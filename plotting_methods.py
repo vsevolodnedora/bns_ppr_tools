@@ -1191,6 +1191,21 @@ class PLOT_TASK(BASIC_PARTS):
     #     else:
     #         raise NameError("dic['task'] is not recognized ({})".format(dic["task"]))
 
+    def plot_mkn_obs_data(self, ax, dic):
+
+        data = dic['data']
+        data_list = data.get_obs_data(dic["band"], fname="AT2017gfo.h5")
+
+        for i_, arr in enumerate(data_list):
+            if dic["label"] == None:
+                self.plot_generic_errorbar(ax, dic, arr[:, 0], arr[:, 1], yerr=arr[:, 2])
+            else:
+                if i_ == 0:
+                    self.plot_generic_errorbar(ax, dic, arr[:, 0], arr[:, 1], yerr=arr[:, 2])
+                else:
+                    dic['label'] = None
+                    self.plot_generic_errorbar(ax, dic, arr[:, 0], arr[:, 1], yerr=arr[:, 2])
+
     def plot_corr2d(self, ax, dic):
 
         if "data" in dic.keys():
@@ -1336,6 +1351,8 @@ class PLOT_TASK(BASIC_PARTS):
             assert "yarr" in dic.keys()
             assert "zarr" in dic.keys()
             return self.plot_colormesh(ax, dic, dic["xarr"], dic["yarr"], dic["zarr"])
+        elif dic['task'] == 'mkn obs':
+            return self.plot_mkn_obs_data(ax, dic)
         else:
             raise NameError("dic['task'] is not recognized ({})".format(dic["task"]))
 

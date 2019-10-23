@@ -27,8 +27,8 @@ class Paths:
     skynet =    '/data01/numrel/vsevolod.nedora/Data/skynet/'
     output =    '/data01/numrel/vsevolod.nedora/output/'
     plots =     '/data01/numrel/vsevolod.nedora/figs/'
-    mkn =       '/data01/numrel/vsevolod.nedora/macrokilonova_bayes/mk_source/source/'
-    home =      '/data01/numrel/vsevolod.nedora/bns_ppr_scripts/'
+    mkn =       '/data01/numrel/vsevolod.nedora/macrokilonova_bayes/source/'
+    home =      '/data01/numrel/vsevolod.nedora/bns_ppr_tools/'
     SLy4_hydo=  '/data01/numrel/vsevolod.nedora/Data/EOS/SLy4/SLy4_hydro_14-Dec-2017.h5'
     # skynet =   '/data01/numrel/vsevolod.nedora/scripts_server/ejecta/skynet/'
 
@@ -367,6 +367,9 @@ class Labels:
 
         elif v_n == 'mass':
             return r'normed $M_{\rm{ej}}$'
+
+        elif v_n == 'diskmass':
+            return r'$M_{\rm{disk}}$ $[M_{\odot}]$'
 
         elif v_n == 'ejmass':
             return r'$M_{\rm{ej}}$ $[10^{-2}M_{\odot}]$'
@@ -825,6 +828,42 @@ class UTILS:
 
         return xmin, xmax, ymin, ymax, zmin, zmax
 
+    @staticmethod
+    def x_y_z_sort(x_arr, y_arr, z_arr=np.empty(0, ), sort_by_012=0):
+        '''
+        RETURNS x_arr, y_arr, (z_arr) sorted as a matrix by a row, given 'sort_by_012'
+        :param x_arr:
+        :param y_arr:
+        :param z_arr:
+        :param sort_by_012:
+        :return:
+        '''
+
+        if len(z_arr) == 0 and sort_by_012 < 2:
+            if len(x_arr) != len(y_arr):
+                raise ValueError('len(x)[{}]!= len(y)[{}]'.format(len(x_arr), len(y_arr)))
+
+            x_y_arr = []
+            for i in range(len(x_arr)):
+                x_y_arr = np.append(x_y_arr, [x_arr[i], y_arr[i]])
+
+            x_y_sort = np.sort(x_y_arr.view('float64, float64'), order=['f{}'.format(sort_by_012)], axis=0).view(
+                np.float)
+            x_y_arr_shaped = np.reshape(x_y_sort, (int(len(x_y_sort) / 2), 2))
+            return x_y_arr_shaped[:, 0], x_y_arr_shaped[:, 1]
+
+        if len(z_arr) > 0 and len(z_arr) == len(y_arr):
+            if len(x_arr) != len(y_arr) or len(x_arr) != len(z_arr):
+                raise ValueError('len(x)[{}]!= len(y)[{}]!=len(z_arr)[{}]'.format(len(x_arr), len(y_arr), len(z_arr)))
+
+            x_y_z_arr = []
+            for i in range(len(x_arr)):
+                x_y_z_arr = np.append(x_y_z_arr, [x_arr[i], y_arr[i], z_arr[i]])
+
+            x_y_z_sort = np.sort(x_y_z_arr.view('float64, float64, float64'), order=['f{}'.format(sort_by_012)],
+                                 axis=0).view(np.float)
+            x_y_z_arr_shaped = np.reshape(x_y_z_sort, (int(len(x_y_z_sort) / 3), 3))
+            return x_y_z_arr_shaped[:, 0], x_y_z_arr_shaped[:, 1], x_y_z_arr_shaped[:, 2]
 
 class PHYSICS:
 

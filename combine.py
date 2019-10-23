@@ -1,6 +1,9 @@
 #
 from __future__ import division
 from sys import path
+
+from dask.array.ma import masked_array
+
 path.append('modules/')
 
 from _curses import raw
@@ -633,12 +636,13 @@ class TWO_SIMS():
             Printcolor.red("tend2:{} < t98geomass2:{}".format(tend2, t98geomass2))
             return np.nan
 
-        if tend1 < t98geomass2:
-            Printcolor.red("Delta t does not overlap tend1:{} < t98geomass2:{}".format(tend1, t98geomass2))
-            return np.nan
-        if tend2 < t98geomass1:
-            Printcolor.red("Delta t does not overlap tend2:{} < t98geomass1:{}".format(tend2, t98geomass1))
-            return np.nan
+        Printcolor.yellow("Relaxing the time limits criteria")
+        # if tend1 < t98geomass2:
+        #     Printcolor.red("Delta t does not overlap tend1:{} < t98geomass2:{}".format(tend1, t98geomass2))
+        #     return np.nan
+        # if tend2 < t98geomass1:
+        #     Printcolor.red("Delta t does not overlap tend2:{} < t98geomass1:{}".format(tend2, t98geomass1))
+        #     return np.nan
         # assert tmerg1 < t98geomass1
         # assert tmerg2 < t98geomass2
 
@@ -1786,434 +1790,434 @@ class COMPARISON_TABLE:
 """ ================================================================================================================ """
 
 
-class ErrorTexTables:
-
-    def __init__(self, ind_dic, comb_dic):
-
-
-        # sims:[sim1, sim2], masks:[mask1,mask2], ...
-        self.ind_dic = dict(ind_dic)
-
-        # mask:{v_n1:[val1, val2, err], v_n2:[val1, val2, err]...} mask2:{}...
-        self.comb_dic = dict(comb_dic)
-
-    @staticmethod
-    def get_lbl(v_n, mask=""):
-
-        if mask == "":
-            if v_n == "Mdisk3D":
-                return r"$M_{\text{disk}} ^{\text{last}}$"
-            elif v_n == "Mdisk":
-                return r"$M_{\text{disk}} ^{\text{BH}}$"
-            elif v_n == "M1":
-                return "$M_a$"
-            elif v_n == "M2":
-                return "$M_b$"
-            elif v_n == "tcoll_gw" or v_n == "tcoll":
-                return r"$t_{\text{BH}}$"
-            elif v_n == "tend":
-                return r"$t_{\text{end}}$"
-            elif v_n == "tdisk3D":
-                return r"$t_{\text{disk}}$"
-            elif v_n == "q":
-                return r"$M_a/M_b$"
-            elif v_n == "EOS":
-                return r"EOS"
-            elif v_n == "res":
-                return r"res"
-            elif v_n == "vis":
-                return "LK"
-            elif v_n == "note":
-                return r"note"
-        else:
-            if mask == "geo":
-                if v_n == "theta_rms":
-                    return "$\\langle \\theta_{\\text{ej}} \\rangle$"
-                elif v_n == "Mej_tot":
-                    return "$M_{\\text{ej}}$"
-                elif v_n == "Ye_ave":
-                    return "$\\langle Y_e \\rangle$"
-                elif v_n == "vel_inf_ave":
-                    return "$\\langle \\upsilon_{\\text{ej}} \\rangle$"
-                else:
-                    return v_n
-            elif mask.__contains__("bern_"):
-                if v_n == "theta_rms": return "$\\langle \\theta_{\\text{ej}}^{\\text{w}} \\rangle$"
-                elif v_n == "Mej_tot": return "$M_{\\text{ej}}^{\\text{w}}$"
-                elif v_n == "Ye_ave": return "$\\langle Y_e ^{\\text{w}}  \\rangle$"
-                elif v_n == "vel_inf_ave": return "$\\langle \\upsilon_{\\text{ej}}^{\\text{w}} \\rangle$"
-                else: return v_n
-            else:
-                raise NameError("No label for v_n: {} and mask: {}"
-                                .format(v_n, mask))
-
-    @staticmethod
-    def get_unit_lbl(v_n):
-        if v_n in ["M1", "M2"]: return "$[M_{\odot}]$"
-        elif v_n in ["Mej_tot"]: return "$[10^{-2} M_{\odot}]$"
-        elif v_n in ["Mdisk3D", "Mdisk"]: return "$[M_{\odot}]$"
-        elif v_n in ["vel_inf_ave"]: return "$[c]$"
-        elif v_n in ["tcoll_gw", "tmerg_gw", "tmerg", "tcoll", "tend", "tdisk3D"]: return "[ms]"
-        else:
-            return " "
-
-
-    def print_table(self):
-
-
-
-        comb_cols = ["sims", "t98mass"]
-        ind_cols = []
-
-        for mask in self.comb_dic.keys():
-            for v_n in self.comb_dic[mask].keys():
-                ind_cols.append(self.comb_dic[mask][v_n])
-        cols = comb_cols + ind_cols
-        #
-        masks = ["" for i in range(len(cols))]
-        for mask in self.comb_dic.keys():
-            for v_n in self.comb_dic[mask].keys():
-                ind_cols.append(self.comb_dic[mask][v_n])
-
-        size = '{'
-        head = ''
-        for i, v_n in enumerate(cols):
-            v_n =  self.get_lbl(v_n)
-            size = size + 'c'
-            head = head + '{}'.format(v_n)
-            if v_n != cols[-1]: size = size + ' '
-            if i != len(cols) - 1: head = head + ' & '
-        size = size + '}'
-
-        unit_bar = ''
-        for v_n in cols:
-            unit = self.get_unit_lbl(v_n)
-            unit_bar = unit_bar + '{}'.format(unit)
-            if v_n != cols[-1]: unit_bar = unit_bar + ' & '
-
-        head = head + ' \\\\'  # = \\
-        unit_bar = unit_bar + ' \\\\ '
-
-        print('\n')
-
-        print('\\begin{table*}[t]')
-        print('\\begin{center}')
-        print('\\begin{tabular}' + '{}'.format(size))
-        print('\\hline')
-        print(head)
-        print(unit_bar)
-        print('\\hline\\hline')
-
-
-
-def __err_lk_onoff(mask, det = 0):
-
-    simdic = sims_err_lk_onoff
-
-    errs = {}
-    for sim1, mask1, sim2, mask2 in zip(simdic["def"], mask, simdic["comp"], mask):
-
-        errs[sim1] = {}
-
-        print(" --------------| {} |---------------- ".format(sim1.split('_')[0]))
-
-        # loading times
-        fpath1 = Paths.ppr_sims + sim1 + "/" + "outflow_{}/".format(det) + mask1 + '/' + "total_flux.dat"
-        if not os.path.isfile(fpath1):
-            raise IOError("File does not exist: {}".format(fpath1))
-
-        timearr1, massarr1 = np.loadtxt(fpath1, usecols=(0, 2), unpack=True)
-
-        # loading tmerg
-        fpath1 = Paths.ppr_sims + sim1 + "/" + "waveforms/" + "tmerger.dat"
-        if not os.path.isfile(fpath1):
-            raise IOError("File does not exist: {}".format(fpath1))
-        tmerg1 = np.float(np.loadtxt(fpath1, unpack=True))
-        timearr1 = timearr1 - (tmerg1 * Constants.time_constant * 1e-3)
-
-        # loading times
-        fpath2 = Paths.ppr_sims + sim2 + "/" + "outflow_{}/".format(det) + mask2 + '/' + "total_flux.dat"
-        if not os.path.isfile(fpath2):
-            raise IOError("File does not exist: {}".format(fpath2))
-
-        timearr2, massarr2 = np.loadtxt(fpath2, usecols=(0, 2), unpack=True)
-
-        # loading tmerg
-        fpath2 = Paths.ppr_sims + sim2 + "/" + "waveforms/" + "tmerger.dat"
-        if not os.path.isfile(fpath2):
-            raise IOError("File does not exist: {}".format(fpath2))
-        tmerg2 = np.float(np.loadtxt(fpath2, unpack=True))
-        timearr2 = timearr2 - (tmerg2 * Constants.time_constant * 1e-3)
-
-        # estimating tmax
-        tmax = np.array([timearr1[-1], timearr2[-1]]).min()
-        assert tmax <= timearr1.max()
-        assert tmax <= timearr2.max()
-        m1 = massarr1[UTILS.find_nearest_index(timearr1, tmax)]
-        m2 = massarr2[UTILS.find_nearest_index(timearr2, tmax)]
-
-        # print(" --------------| {} |---------------- ".format(sim1.split('_')[0]))
-        print(" tmax:         {:.1f} [ms]".format(tmax*1e3))
-        # print(" \n")
-        print(" sim1:         {} ".format(sim1))
-        print(" timearr1[-1]: {:.1f} [ms]".format(timearr1[-1]*1e3))
-        print(" mass1[-1]     {:.2f} [1e-2Msun]".format(massarr1[-1]*1e2))
-        print(" m1[tmax]      {:.2f} [1e-2Msun]".format(m1 * 1e2))
-        # print(" \n")
-        print(" sim1:         {} ".format(sim2))
-        print(" timearr1[-1]: {:.1f} [ms]".format(timearr2[-1]*1e3))
-        print(" mass1[-1]     {:.2f} [1e-2Msun]".format(massarr2[-1]*1e2))
-        print(" m2[tmax]      {:.2f} [1e-2Msun]".format(m2 * 1e2))
-        # print(" \n")
-        print(" abs(m1-m2)/m1 {:.1f} [%]".format(100 * np.abs(m1 - m2) / m1))
-        print(" ---------------------------------------- ")
-
-        errs[sim1]["sim1"] = sim1
-        errs[sim1]["sim2"] = sim2
-        errs[sim1]["tmax"] = tmax*1e3
-        errs[sim1]["m1"] = m1*1e2
-        errs[sim1]["m2"] = m2*1e2
-        errs[sim1]["err"] = 100 * np.abs(m1 - m2) / m1
-
-    return errs
-
-def err_lk_onoff(det=0):
-
-    geo_errs = __err_lk_onoff("geo", det)
-    bern_errs = __err_lk_onoff("bern_geoend", det)
-
-    cols = ["sim1", "sim2", "m1_geo", "m2_geo", "tmax_geo", "err_geo",  "m1_bern", "m2_bern", "tmax_bern", "err_bern"]
-    units_dic = {"sim1": "", "sim2": "", "m1_geo": "$[10^{-2} M_{\odot}]$", "m2_geo": "$[10^{-2} M_{\odot}]$", "tmax_geo": "[ms]",
-                 "err_geo": r"[\%]", "m1_bern": "$[10^{-2} M_{\odot}]$", "m2_bern": "$[10^{-2} M_{\odot}]$", "tmax_bern": "[ms]",
-                 "err_bern": r"[\%]"}
-
-    lbl_dic = {"sim1": "Default Run", "sim2": "Comparison Run", "m1_geo": r"$M_{\text{ej}}^a$", "m2_geo": r"$M_{\text{ej}}^b$",
-               "tmax_geo": r"$t_{\text{max}}$", "err_geo": r"$\Delta$", "m1_bern": r"$M_{\text{ej}}^a$", "m2_bern": r"$M_{\text{ej}}^b$",
-               "tmax_bern": r"$t_{\text{max}}$", "err_bern": r"$\Delta$"}
-    precs = ["", "", ".2f", ".2f", ".1f", "d"]
-
-    size = '{'
-    head = ''
-    for i, v_n in enumerate(cols):
-        v_n = lbl_dic[v_n]
-        size = size + 'c'
-        head = head + '{}'.format(v_n)
-        if v_n != cols[-1]: size = size + ' '
-        if i != len(cols) - 1: head = head + ' & '
-    size = size + '}'
-
-    unit_bar = ''
-    for v_n in cols:
-        if v_n in units_dic.keys():
-            unit = units_dic[v_n]
-        else:
-            unit = v_n
-        unit_bar = unit_bar + '{}'.format(unit)
-        if v_n != cols[-1]: unit_bar = unit_bar + ' & '
-
-    head = head + ' \\\\'  # = \\
-    unit_bar = unit_bar + ' \\\\ '
-
-
-    print('\n')
-
-    print('\\begin{table*}[t]')
-    print('\\begin{center}')
-    print('\\begin{tabular}' + '{}'.format(size))
-    print('\\hline')
-    print(head)
-    print(unit_bar)
-    print('\\hline\\hline')
-
-    for sim1, mask1, sim2, mask2 in zip(simdic["def"], mask, simdic["comp"], mask):
-        row = ''
-        for v_n, prec in zip(cols, precs):
-
-            if prec != "":
-                val = "%{}".format(prec) % errs[sim1][v_n]
-            else:
-                val = errs[sim1][v_n].replace("_", "\_")
-            row = row + val
-            if v_n != cols[-1]: row = row + ' & '
-        row = row + ' \\\\'  # = \\
-        print(row)
-
-    print(r'\hline')
-    print(r'\end{tabular}')
-    print(r'\end{center}')
-    print(r'\caption{' + r'Viscosity effect on the ejected material total cumulative mass. Criterion {} '
-          .format(mask.replace('_', '\_')) +
-          r'$\Delta = |M_{\text{ej}}^a - M_{\text{ej}}^b| / M_{\text{ej}}^a |_{tmax} $ }')
-    print(r'\label{tbl:1}')
-    print(r'\end{table*}')
-
-    exit(1)
-
-
-
-
-
-def table_err_total_fluxes_lk_on_off(mask, det=0):
-
-    sims = ["DD2_M13641364_M0_LK_SR_R04", "DD2_M15091235_M0_LK_SR", "LS220_M14691268_M0_LK_SR",
-            "SFHo_M14521283_M0_LK_SR"]
-    lbls = ["DD2 136 136 LK", "DD2 151 123 LK", "LS220 147 127 LK", "SFHo 145 128 LK"]
-    masks = [mask, mask, mask, mask]
-    colors = ["black", 'gray', 'red', "green"]
-    lss = ["-", '-', '-', '-']
-    # minus LK
-    sims2 = ["DD2_M13641364_M0_SR_R04", "DD2_M14971245_M0_SR", "LS220_M14691268_M0_SR", "SFHo_M14521283_M0_SR"]
-    lbls2 = ["DD2 136 136", "DD2 150 125", "LS220 147 127", "SFHo 145 128"]
-    masks2 = [mask, mask, mask, mask]
-    colors2 = ["black", 'gray', 'red', "green"]
-    lss2 = ["--", '--', '--', '--']
-
-    sims += sims2
-    lbls += lbls2
-    masks += masks2
-    colors += colors2
-    lss += lss2
-
-    # ---------------------
-
-    errs = {}
-
-    for sim1, mask1, sim2, mask2 in zip(sims, masks, sims2, masks2):
-
-        errs[sim1] = {}
-
-        print(" --------------| {} |---------------- ".format(sim1.split('_')[0]))
-
-        # loading times
-        fpath1 = Paths.ppr_sims + sim1 + "/" + "outflow_{}/".format(det) + mask1 + '/' + "total_flux.dat"
-        if not os.path.isfile(fpath1):
-            raise IOError("File does not exist: {}".format(fpath1))
-
-        timearr1, massarr1 = np.loadtxt(fpath1, usecols=(0, 2), unpack=True)
-
-        # loading tmerg
-        fpath1 = Paths.ppr_sims + sim1 + "/" + "waveforms/" + "tmerger.dat"
-        if not os.path.isfile(fpath1):
-            raise IOError("File does not exist: {}".format(fpath1))
-        tmerg1 = np.float(np.loadtxt(fpath1, unpack=True))
-        timearr1 = timearr1 - (tmerg1 * Constants.time_constant * 1e-3)
-
-        # loading times
-        fpath2 = Paths.ppr_sims + sim2 + "/" + "outflow_{}/".format(det) + mask2 + '/' + "total_flux.dat"
-        if not os.path.isfile(fpath2):
-            raise IOError("File does not exist: {}".format(fpath2))
-
-        timearr2, massarr2 = np.loadtxt(fpath2, usecols=(0, 2), unpack=True)
-
-        # loading tmerg
-        fpath2 = Paths.ppr_sims + sim2 + "/" + "waveforms/" + "tmerger.dat"
-        if not os.path.isfile(fpath2):
-            raise IOError("File does not exist: {}".format(fpath2))
-        tmerg2 = np.float(np.loadtxt(fpath2, unpack=True))
-        timearr2 = timearr2 - (tmerg2 * Constants.time_constant * 1e-3)
-
-        # estimating tmax
-        tmax = np.array([timearr1[-1], timearr2[-1]]).min()
-        assert tmax <= timearr1.max()
-        assert tmax <= timearr2.max()
-        m1 = massarr1[UTILS.find_nearest_index(timearr1, tmax)]
-        m2 = massarr2[UTILS.find_nearest_index(timearr2, tmax)]
-
-        # print(" --------------| {} |---------------- ".format(sim1.split('_')[0]))
-        print(" tmax:         {:.1f} [ms]".format(tmax*1e3))
-        # print(" \n")
-        print(" sim1:         {} ".format(sim1))
-        print(" timearr1[-1]: {:.1f} [ms]".format(timearr1[-1]*1e3))
-        print(" mass1[-1]     {:.2f} [1e-2Msun]".format(massarr1[-1]*1e2))
-        print(" m1[tmax]      {:.2f} [1e-2Msun]".format(m1 * 1e2))
-        # print(" \n")
-        print(" sim1:         {} ".format(sim2))
-        print(" timearr1[-1]: {:.1f} [ms]".format(timearr2[-1]*1e3))
-        print(" mass1[-1]     {:.2f} [1e-2Msun]".format(massarr2[-1]*1e2))
-        print(" m2[tmax]      {:.2f} [1e-2Msun]".format(m2 * 1e2))
-        # print(" \n")
-        print(" abs(m1-m2)/m1 {:.1f} [%]".format(100 * np.abs(m1 - m2) / m1))
-        print(" ---------------------------------------- ")
-
-        errs[sim1]["sim1"] = sim1
-        errs[sim1]["sim2"] = sim2
-        errs[sim1]["tmax"] = tmax*1e3
-        errs[sim1]["m1"] = m1*1e2
-        errs[sim1]["m2"] = m2*1e2
-        errs[sim1]["err"] = 100 * np.abs(m1 - m2) / m1
-
-    return errs
-
-    # table
-
-    # sims = ['DD2_M13641364_M0_SR', 'LS220_M13641364_M0_SR', 'SLy4_M13641364_M0_SR']
-    # v_ns = ["EOS", "M1", "M2", 'Mdisk3D', 'Mej', 'Yeej', 'vej', 'Mej_bern', 'Yeej_bern', 'vej_bern']
-    # precs = ["str", "1.2", "1.2", ".4", ".4", ".4", ".4", ".4", ".4", ".4"]
-
-    print('\n')
-
-    cols = ["sim1", "sim2", "m1", "m2", "tmax", "err"]
-    units_dic = {"sim1": "", "sim2": "", "m1":"$[10^{-2} M_{\odot}]$", "m2":"$[10^{-2} M_{\odot}]$", "tmax":"[ms]", "err":r"[\%]"}
-    lbl_dic = {"sim1": "Default Run", "sim2": "Comparison Run", "m1": r"$M_{\text{ej}}^a$", "m2": r"$M_{\text{ej}}^b$", "tmax":r"$t_{\text{max}}$", "err":r"$\Delta$"}
-    precs = ["", "", ".2f", ".2f", ".1f", "d"]
-
-    size = '{'
-    head = ''
-    for i, v_n in enumerate(cols):
-        v_n = lbl_dic[v_n]
-        size = size + 'c'
-        head = head + '{}'.format(v_n)
-        if v_n != cols[-1]: size = size + ' '
-        if i != len(cols) - 1: head = head + ' & '
-    size = size + '}'
-
-    unit_bar = ''
-    for v_n in cols:
-        if v_n in units_dic.keys():
-            unit = units_dic[v_n]
-        else:
-            unit = v_n
-        unit_bar = unit_bar + '{}'.format(unit)
-        if v_n != cols[-1]: unit_bar = unit_bar + ' & '
-
-    head = head + ' \\\\'  # = \\
-    unit_bar = unit_bar + ' \\\\ '
-
-    print(errs[sims[0]])
-
-    print('\n')
-
-    print('\\begin{table*}[t]')
-    print('\\begin{center}')
-    print('\\begin{tabular}' + '{}'.format(size))
-    print('\\hline')
-    print(head)
-    print(unit_bar)
-    print('\\hline\\hline')
-
-    for sim1, mask1, sim2, mask2 in zip(sims, masks, sims2, masks2):
-        row = ''
-        for v_n, prec in zip(cols, precs):
-
-            if prec != "":
-                val = "%{}".format(prec) % errs[sim1][v_n]
-            else:
-                val = errs[sim1][v_n].replace("_", "\_")
-            row = row + val
-            if v_n != cols[-1]: row = row + ' & '
-        row = row + ' \\\\'  # = \\
-        print(row)
-
-    print(r'\hline')
-    print(r'\end{tabular}')
-    print(r'\end{center}')
-    print(r'\caption{'+r'Viscosity effect on the ejected material total cumulative mass. Criterion {} '
-          .format(mask.replace('_', '\_')) +
-          r'$\Delta = |M_{\text{ej}}^a - M_{\text{ej}}^b| / M_{\text{ej}}^a |_{tmax} $ }')
-    print(r'\label{tbl:1}')
-    print(r'\end{table*}')
-
-    exit(1)
+# class ErrorTexTables:
+#
+#     def __init__(self, ind_dic, comb_dic):
+#
+#
+#         # sims:[sim1, sim2], masks:[mask1,mask2], ...
+#         self.ind_dic = dict(ind_dic)
+#
+#         # mask:{v_n1:[val1, val2, err], v_n2:[val1, val2, err]...} mask2:{}...
+#         self.comb_dic = dict(comb_dic)
+#
+#     @staticmethod
+#     def get_lbl(v_n, mask=""):
+#
+#         if mask == "":
+#             if v_n == "Mdisk3D":
+#                 return r"$M_{\text{disk}} ^{\text{last}}$"
+#             elif v_n == "Mdisk":
+#                 return r"$M_{\text{disk}} ^{\text{BH}}$"
+#             elif v_n == "M1":
+#                 return "$M_a$"
+#             elif v_n == "M2":
+#                 return "$M_b$"
+#             elif v_n == "tcoll_gw" or v_n == "tcoll":
+#                 return r"$t_{\text{BH}}$"
+#             elif v_n == "tend":
+#                 return r"$t_{\text{end}}$"
+#             elif v_n == "tdisk3D":
+#                 return r"$t_{\text{disk}}$"
+#             elif v_n == "q":
+#                 return r"$M_a/M_b$"
+#             elif v_n == "EOS":
+#                 return r"EOS"
+#             elif v_n == "res":
+#                 return r"res"
+#             elif v_n == "vis":
+#                 return "LK"
+#             elif v_n == "note":
+#                 return r"note"
+#         else:
+#             if mask == "geo":
+#                 if v_n == "theta_rms":
+#                     return "$\\langle \\theta_{\\text{ej}} \\rangle$"
+#                 elif v_n == "Mej_tot":
+#                     return "$M_{\\text{ej}}$"
+#                 elif v_n == "Ye_ave":
+#                     return "$\\langle Y_e \\rangle$"
+#                 elif v_n == "vel_inf_ave":
+#                     return "$\\langle \\upsilon_{\\text{ej}} \\rangle$"
+#                 else:
+#                     return v_n
+#             elif mask.__contains__("bern_"):
+#                 if v_n == "theta_rms": return "$\\langle \\theta_{\\text{ej}}^{\\text{w}} \\rangle$"
+#                 elif v_n == "Mej_tot": return "$M_{\\text{ej}}^{\\text{w}}$"
+#                 elif v_n == "Ye_ave": return "$\\langle Y_e ^{\\text{w}}  \\rangle$"
+#                 elif v_n == "vel_inf_ave": return "$\\langle \\upsilon_{\\text{ej}}^{\\text{w}} \\rangle$"
+#                 else: return v_n
+#             else:
+#                 raise NameError("No label for v_n: {} and mask: {}"
+#                                 .format(v_n, mask))
+#
+#     @staticmethod
+#     def get_unit_lbl(v_n):
+#         if v_n in ["M1", "M2"]: return "$[M_{\odot}]$"
+#         elif v_n in ["Mej_tot"]: return "$[10^{-2} M_{\odot}]$"
+#         elif v_n in ["Mdisk3D", "Mdisk"]: return "$[M_{\odot}]$"
+#         elif v_n in ["vel_inf_ave"]: return "$[c]$"
+#         elif v_n in ["tcoll_gw", "tmerg_gw", "tmerg", "tcoll", "tend", "tdisk3D"]: return "[ms]"
+#         else:
+#             return " "
+#
+#
+#     def print_table(self):
+#
+#
+#
+#         comb_cols = ["sims", "t98mass"]
+#         ind_cols = []
+#
+#         for mask in self.comb_dic.keys():
+#             for v_n in self.comb_dic[mask].keys():
+#                 ind_cols.append(self.comb_dic[mask][v_n])
+#         cols = comb_cols + ind_cols
+#         #
+#         masks = ["" for i in range(len(cols))]
+#         for mask in self.comb_dic.keys():
+#             for v_n in self.comb_dic[mask].keys():
+#                 ind_cols.append(self.comb_dic[mask][v_n])
+#
+#         size = '{'
+#         head = ''
+#         for i, v_n in enumerate(cols):
+#             v_n =  self.get_lbl(v_n)
+#             size = size + 'c'
+#             head = head + '{}'.format(v_n)
+#             if v_n != cols[-1]: size = size + ' '
+#             if i != len(cols) - 1: head = head + ' & '
+#         size = size + '}'
+#
+#         unit_bar = ''
+#         for v_n in cols:
+#             unit = self.get_unit_lbl(v_n)
+#             unit_bar = unit_bar + '{}'.format(unit)
+#             if v_n != cols[-1]: unit_bar = unit_bar + ' & '
+#
+#         head = head + ' \\\\'  # = \\
+#         unit_bar = unit_bar + ' \\\\ '
+#
+#         print('\n')
+#
+#         print('\\begin{table*}[t]')
+#         print('\\begin{center}')
+#         print('\\begin{tabular}' + '{}'.format(size))
+#         print('\\hline')
+#         print(head)
+#         print(unit_bar)
+#         print('\\hline\\hline')
+#
+#
+#
+# def __err_lk_onoff(mask, det = 0):
+#
+#     simdic = sims_err_lk_onoff
+#
+#     errs = {}
+#     for sim1, mask1, sim2, mask2 in zip(simdic["def"], mask, simdic["comp"], mask):
+#
+#         errs[sim1] = {}
+#
+#         print(" --------------| {} |---------------- ".format(sim1.split('_')[0]))
+#
+#         # loading times
+#         fpath1 = Paths.ppr_sims + sim1 + "/" + "outflow_{}/".format(det) + mask1 + '/' + "total_flux.dat"
+#         if not os.path.isfile(fpath1):
+#             raise IOError("File does not exist: {}".format(fpath1))
+#
+#         timearr1, massarr1 = np.loadtxt(fpath1, usecols=(0, 2), unpack=True)
+#
+#         # loading tmerg
+#         fpath1 = Paths.ppr_sims + sim1 + "/" + "waveforms/" + "tmerger.dat"
+#         if not os.path.isfile(fpath1):
+#             raise IOError("File does not exist: {}".format(fpath1))
+#         tmerg1 = np.float(np.loadtxt(fpath1, unpack=True))
+#         timearr1 = timearr1 - (tmerg1 * Constants.time_constant * 1e-3)
+#
+#         # loading times
+#         fpath2 = Paths.ppr_sims + sim2 + "/" + "outflow_{}/".format(det) + mask2 + '/' + "total_flux.dat"
+#         if not os.path.isfile(fpath2):
+#             raise IOError("File does not exist: {}".format(fpath2))
+#
+#         timearr2, massarr2 = np.loadtxt(fpath2, usecols=(0, 2), unpack=True)
+#
+#         # loading tmerg
+#         fpath2 = Paths.ppr_sims + sim2 + "/" + "waveforms/" + "tmerger.dat"
+#         if not os.path.isfile(fpath2):
+#             raise IOError("File does not exist: {}".format(fpath2))
+#         tmerg2 = np.float(np.loadtxt(fpath2, unpack=True))
+#         timearr2 = timearr2 - (tmerg2 * Constants.time_constant * 1e-3)
+#
+#         # estimating tmax
+#         tmax = np.array([timearr1[-1], timearr2[-1]]).min()
+#         assert tmax <= timearr1.max()
+#         assert tmax <= timearr2.max()
+#         m1 = massarr1[UTILS.find_nearest_index(timearr1, tmax)]
+#         m2 = massarr2[UTILS.find_nearest_index(timearr2, tmax)]
+#
+#         # print(" --------------| {} |---------------- ".format(sim1.split('_')[0]))
+#         print(" tmax:         {:.1f} [ms]".format(tmax*1e3))
+#         # print(" \n")
+#         print(" sim1:         {} ".format(sim1))
+#         print(" timearr1[-1]: {:.1f} [ms]".format(timearr1[-1]*1e3))
+#         print(" mass1[-1]     {:.2f} [1e-2Msun]".format(massarr1[-1]*1e2))
+#         print(" m1[tmax]      {:.2f} [1e-2Msun]".format(m1 * 1e2))
+#         # print(" \n")
+#         print(" sim1:         {} ".format(sim2))
+#         print(" timearr1[-1]: {:.1f} [ms]".format(timearr2[-1]*1e3))
+#         print(" mass1[-1]     {:.2f} [1e-2Msun]".format(massarr2[-1]*1e2))
+#         print(" m2[tmax]      {:.2f} [1e-2Msun]".format(m2 * 1e2))
+#         # print(" \n")
+#         print(" abs(m1-m2)/m1 {:.1f} [%]".format(100 * np.abs(m1 - m2) / m1))
+#         print(" ---------------------------------------- ")
+#
+#         errs[sim1]["sim1"] = sim1
+#         errs[sim1]["sim2"] = sim2
+#         errs[sim1]["tmax"] = tmax*1e3
+#         errs[sim1]["m1"] = m1*1e2
+#         errs[sim1]["m2"] = m2*1e2
+#         errs[sim1]["err"] = 100 * np.abs(m1 - m2) / m1
+#
+#     return errs
+#
+# def err_lk_onoff(det=0):
+#
+#     geo_errs = __err_lk_onoff("geo", det)
+#     bern_errs = __err_lk_onoff("bern_geoend", det)
+#
+#     cols = ["sim1", "sim2", "m1_geo", "m2_geo", "tmax_geo", "err_geo",  "m1_bern", "m2_bern", "tmax_bern", "err_bern"]
+#     units_dic = {"sim1": "", "sim2": "", "m1_geo": "$[10^{-2} M_{\odot}]$", "m2_geo": "$[10^{-2} M_{\odot}]$", "tmax_geo": "[ms]",
+#                  "err_geo": r"[\%]", "m1_bern": "$[10^{-2} M_{\odot}]$", "m2_bern": "$[10^{-2} M_{\odot}]$", "tmax_bern": "[ms]",
+#                  "err_bern": r"[\%]"}
+#
+#     lbl_dic = {"sim1": "Default Run", "sim2": "Comparison Run", "m1_geo": r"$M_{\text{ej}}^a$", "m2_geo": r"$M_{\text{ej}}^b$",
+#                "tmax_geo": r"$t_{\text{max}}$", "err_geo": r"$\Delta$", "m1_bern": r"$M_{\text{ej}}^a$", "m2_bern": r"$M_{\text{ej}}^b$",
+#                "tmax_bern": r"$t_{\text{max}}$", "err_bern": r"$\Delta$"}
+#     precs = ["", "", ".2f", ".2f", ".1f", "d"]
+#
+#     size = '{'
+#     head = ''
+#     for i, v_n in enumerate(cols):
+#         v_n = lbl_dic[v_n]
+#         size = size + 'c'
+#         head = head + '{}'.format(v_n)
+#         if v_n != cols[-1]: size = size + ' '
+#         if i != len(cols) - 1: head = head + ' & '
+#     size = size + '}'
+#
+#     unit_bar = ''
+#     for v_n in cols:
+#         if v_n in units_dic.keys():
+#             unit = units_dic[v_n]
+#         else:
+#             unit = v_n
+#         unit_bar = unit_bar + '{}'.format(unit)
+#         if v_n != cols[-1]: unit_bar = unit_bar + ' & '
+#
+#     head = head + ' \\\\'  # = \\
+#     unit_bar = unit_bar + ' \\\\ '
+#
+#
+#     print('\n')
+#
+#     print('\\begin{table*}[t]')
+#     print('\\begin{center}')
+#     print('\\begin{tabular}' + '{}'.format(size))
+#     print('\\hline')
+#     print(head)
+#     print(unit_bar)
+#     print('\\hline\\hline')
+#
+#     for sim1, mask1, sim2, mask2 in zip(simdic["def"], mask, simdic["comp"], mask):
+#         row = ''
+#         for v_n, prec in zip(cols, precs):
+#
+#             if prec != "":
+#                 val = "%{}".format(prec) % errs[sim1][v_n]
+#             else:
+#                 val = errs[sim1][v_n].replace("_", "\_")
+#             row = row + val
+#             if v_n != cols[-1]: row = row + ' & '
+#         row = row + ' \\\\'  # = \\
+#         print(row)
+#
+#     print(r'\hline')
+#     print(r'\end{tabular}')
+#     print(r'\end{center}')
+#     print(r'\caption{' + r'Viscosity effect on the ejected material total cumulative mass. Criterion {} '
+#           .format(mask.replace('_', '\_')) +
+#           r'$\Delta = |M_{\text{ej}}^a - M_{\text{ej}}^b| / M_{\text{ej}}^a |_{tmax} $ }')
+#     print(r'\label{tbl:1}')
+#     print(r'\end{table*}')
+#
+#     exit(1)
+#
+#
+#
+#
+#
+# def table_err_total_fluxes_lk_on_off(mask, det=0):
+#
+#     sims = ["DD2_M13641364_M0_LK_SR_R04", "DD2_M15091235_M0_LK_SR", "LS220_M14691268_M0_LK_SR",
+#             "SFHo_M14521283_M0_LK_SR"]
+#     lbls = ["DD2 136 136 LK", "DD2 151 123 LK", "LS220 147 127 LK", "SFHo 145 128 LK"]
+#     masks = [mask, mask, mask, mask]
+#     colors = ["black", 'gray', 'red', "green"]
+#     lss = ["-", '-', '-', '-']
+#     # minus LK
+#     sims2 = ["DD2_M13641364_M0_SR_R04", "DD2_M14971245_M0_SR", "LS220_M14691268_M0_SR", "SFHo_M14521283_M0_SR"]
+#     lbls2 = ["DD2 136 136", "DD2 150 125", "LS220 147 127", "SFHo 145 128"]
+#     masks2 = [mask, mask, mask, mask]
+#     colors2 = ["black", 'gray', 'red', "green"]
+#     lss2 = ["--", '--', '--', '--']
+#
+#     sims += sims2
+#     lbls += lbls2
+#     masks += masks2
+#     colors += colors2
+#     lss += lss2
+#
+#     # ---------------------
+#
+#     errs = {}
+#
+#     for sim1, mask1, sim2, mask2 in zip(sims, masks, sims2, masks2):
+#
+#         errs[sim1] = {}
+#
+#         print(" --------------| {} |---------------- ".format(sim1.split('_')[0]))
+#
+#         # loading times
+#         fpath1 = Paths.ppr_sims + sim1 + "/" + "outflow_{}/".format(det) + mask1 + '/' + "total_flux.dat"
+#         if not os.path.isfile(fpath1):
+#             raise IOError("File does not exist: {}".format(fpath1))
+#
+#         timearr1, massarr1 = np.loadtxt(fpath1, usecols=(0, 2), unpack=True)
+#
+#         # loading tmerg
+#         fpath1 = Paths.ppr_sims + sim1 + "/" + "waveforms/" + "tmerger.dat"
+#         if not os.path.isfile(fpath1):
+#             raise IOError("File does not exist: {}".format(fpath1))
+#         tmerg1 = np.float(np.loadtxt(fpath1, unpack=True))
+#         timearr1 = timearr1 - (tmerg1 * Constants.time_constant * 1e-3)
+#
+#         # loading times
+#         fpath2 = Paths.ppr_sims + sim2 + "/" + "outflow_{}/".format(det) + mask2 + '/' + "total_flux.dat"
+#         if not os.path.isfile(fpath2):
+#             raise IOError("File does not exist: {}".format(fpath2))
+#
+#         timearr2, massarr2 = np.loadtxt(fpath2, usecols=(0, 2), unpack=True)
+#
+#         # loading tmerg
+#         fpath2 = Paths.ppr_sims + sim2 + "/" + "waveforms/" + "tmerger.dat"
+#         if not os.path.isfile(fpath2):
+#             raise IOError("File does not exist: {}".format(fpath2))
+#         tmerg2 = np.float(np.loadtxt(fpath2, unpack=True))
+#         timearr2 = timearr2 - (tmerg2 * Constants.time_constant * 1e-3)
+#
+#         # estimating tmax
+#         tmax = np.array([timearr1[-1], timearr2[-1]]).min()
+#         assert tmax <= timearr1.max()
+#         assert tmax <= timearr2.max()
+#         m1 = massarr1[UTILS.find_nearest_index(timearr1, tmax)]
+#         m2 = massarr2[UTILS.find_nearest_index(timearr2, tmax)]
+#
+#         # print(" --------------| {} |---------------- ".format(sim1.split('_')[0]))
+#         print(" tmax:         {:.1f} [ms]".format(tmax*1e3))
+#         # print(" \n")
+#         print(" sim1:         {} ".format(sim1))
+#         print(" timearr1[-1]: {:.1f} [ms]".format(timearr1[-1]*1e3))
+#         print(" mass1[-1]     {:.2f} [1e-2Msun]".format(massarr1[-1]*1e2))
+#         print(" m1[tmax]      {:.2f} [1e-2Msun]".format(m1 * 1e2))
+#         # print(" \n")
+#         print(" sim1:         {} ".format(sim2))
+#         print(" timearr1[-1]: {:.1f} [ms]".format(timearr2[-1]*1e3))
+#         print(" mass1[-1]     {:.2f} [1e-2Msun]".format(massarr2[-1]*1e2))
+#         print(" m2[tmax]      {:.2f} [1e-2Msun]".format(m2 * 1e2))
+#         # print(" \n")
+#         print(" abs(m1-m2)/m1 {:.1f} [%]".format(100 * np.abs(m1 - m2) / m1))
+#         print(" ---------------------------------------- ")
+#
+#         errs[sim1]["sim1"] = sim1
+#         errs[sim1]["sim2"] = sim2
+#         errs[sim1]["tmax"] = tmax*1e3
+#         errs[sim1]["m1"] = m1*1e2
+#         errs[sim1]["m2"] = m2*1e2
+#         errs[sim1]["err"] = 100 * np.abs(m1 - m2) / m1
+#
+#     return errs
+#
+#     # table
+#
+#     # sims = ['DD2_M13641364_M0_SR', 'LS220_M13641364_M0_SR', 'SLy4_M13641364_M0_SR']
+#     # v_ns = ["EOS", "M1", "M2", 'Mdisk3D', 'Mej', 'Yeej', 'vej', 'Mej_bern', 'Yeej_bern', 'vej_bern']
+#     # precs = ["str", "1.2", "1.2", ".4", ".4", ".4", ".4", ".4", ".4", ".4"]
+#
+#     print('\n')
+#
+#     cols = ["sim1", "sim2", "m1", "m2", "tmax", "err"]
+#     units_dic = {"sim1": "", "sim2": "", "m1":"$[10^{-2} M_{\odot}]$", "m2":"$[10^{-2} M_{\odot}]$", "tmax":"[ms]", "err":r"[\%]"}
+#     lbl_dic = {"sim1": "Default Run", "sim2": "Comparison Run", "m1": r"$M_{\text{ej}}^a$", "m2": r"$M_{\text{ej}}^b$", "tmax":r"$t_{\text{max}}$", "err":r"$\Delta$"}
+#     precs = ["", "", ".2f", ".2f", ".1f", "d"]
+#
+#     size = '{'
+#     head = ''
+#     for i, v_n in enumerate(cols):
+#         v_n = lbl_dic[v_n]
+#         size = size + 'c'
+#         head = head + '{}'.format(v_n)
+#         if v_n != cols[-1]: size = size + ' '
+#         if i != len(cols) - 1: head = head + ' & '
+#     size = size + '}'
+#
+#     unit_bar = ''
+#     for v_n in cols:
+#         if v_n in units_dic.keys():
+#             unit = units_dic[v_n]
+#         else:
+#             unit = v_n
+#         unit_bar = unit_bar + '{}'.format(unit)
+#         if v_n != cols[-1]: unit_bar = unit_bar + ' & '
+#
+#     head = head + ' \\\\'  # = \\
+#     unit_bar = unit_bar + ' \\\\ '
+#
+#     print(errs[sims[0]])
+#
+#     print('\n')
+#
+#     print('\\begin{table*}[t]')
+#     print('\\begin{center}')
+#     print('\\begin{tabular}' + '{}'.format(size))
+#     print('\\hline')
+#     print(head)
+#     print(unit_bar)
+#     print('\\hline\\hline')
+#
+#     for sim1, mask1, sim2, mask2 in zip(sims, masks, sims2, masks2):
+#         row = ''
+#         for v_n, prec in zip(cols, precs):
+#
+#             if prec != "":
+#                 val = "%{}".format(prec) % errs[sim1][v_n]
+#             else:
+#                 val = errs[sim1][v_n].replace("_", "\_")
+#             row = row + val
+#             if v_n != cols[-1]: row = row + ' & '
+#         row = row + ' \\\\'  # = \\
+#         print(row)
+#
+#     print(r'\hline')
+#     print(r'\end{tabular}')
+#     print(r'\end{center}')
+#     print(r'\caption{'+r'Viscosity effect on the ejected material total cumulative mass. Criterion {} '
+#           .format(mask.replace('_', '\_')) +
+#           r'$\Delta = |M_{\text{ej}}^a - M_{\text{ej}}^b| / M_{\text{ej}}^a |_{tmax} $ }')
+#     print(r'\label{tbl:1}')
+#     print(r'\end{table*}')
+#
+#     exit(1)
 
 """=================================================================================================================="""
 
@@ -2240,464 +2244,464 @@ def get_ms(q, qmin=1, qmax = 1.4, msmin = 5., msmax = 10.):
 
 """ =================================================| DUMPSTER |===================================================="""
 
-class ErrorEstimation_old:
-
-    def __init__(self, sim1, sim2):
-
-        self.det = 0
-
-        self.sim1 = sim1
-        self.sim2 = sim2
-
-        pass
-
-    # --------------------| Preparation |--------------------------- #
-
-    def get_tmax(self):
-
-        o_par1 = ALL_PAR(self.sim1)
-        o_par2 = ALL_PAR(self.sim2)
-
-        tmerg1 = o_par1.get_par("tmerger")
-        tmerg2 = o_par2.get_par("tmerger")
-
-        t98geomass1 = o_par1.get_outflow_par(self.det, "geo", "t98mass")
-        t98geomass2 = o_par2.get_outflow_par(self.det, "geo", "t98mass")
-
-        tend1 = o_par1.get_outflow_par(self.det, "geo", "tend")
-        tend2 = o_par2.get_outflow_par(self.det, "geo", "tend")
-
-        assert tend1 > t98geomass1
-        assert tend2 > t98geomass2
-        assert tmerg1 < t98geomass1
-        assert tmerg2 < t98geomass2
-
-        tend1 = tend1 - tmerg1
-        tend2 = tend2 - tmerg2
-        t98geomass1 = t98geomass1 - tmerg1
-        t98geomass2 = t98geomass2 - tmerg2
-
-        delta_t1 = tend1 - t98geomass1
-        delta_t2 = tend2 - t98geomass2
-
-        print("Time window for bernoulli ")
-        print("\t{} {:.2f} [ms]".format(self.sim1, delta_t1*1e3))
-        print("\t{} {:.2f} [ms]".format(self.sim2, delta_t2*1e3))
-        exit(1)
-
-        delta_t = np.min([delta_t1, delta_t2])
-
-        return delta_t
-        #
-        #
-        # assert tend1 > tmerg1
-        # assert tend2 > tmerg2
-        #
-        # print("tend1:{} tmerg1:{} -> {}".format(tend1, tmerg1, tend1-tmerg1))
-        # print("tend2:{} tmerg2:{} -> {}".format(tend2, tmerg2, tend2-tmerg2))
-        # # print("tmax:{}".format)
-        #
-        # tend1 = tend1 - tmerg1
-        # tend2 = tend2 - tmerg2
-        #
-        # tmax = np.min([tend1, tend2])
-        # print("get_tmax = tmax:{}".format(tmax))
-        #
-        #
-        # return tmax
-
-    def compute_outflow_new_mask(self, sim, tasks, new_mask, rewrite):
-
-        # get_tmax60 # ms
-        print("\tAdding mask:{}".format(new_mask))
-        o_outflow = EJECTA_PARS(sim, add_mask=new_mask)
-
-        if not os.path.isdir(Paths.ppr_sims+sim+"/"+"outflow_{:d}/".format(self.det)+new_mask+'/'):
-            os.mkdir(Paths.ppr_sims+sim+"/"+"outflow_{:d}/".format(self.det)+new_mask+'/')
-
-        for task in tasks:
-            if task == "hist":
-                from outflowed import outflowed_historgrams
-                outflowed_historgrams(o_outflow, [self.det], [new_mask], o_outflow.list_hist_v_ns, rewrite=rewrite)
-            elif task == "corr":
-                from outflowed import outflowed_correlations
-                outflowed_correlations(o_outflow, [self.det], [new_mask], o_outflow.list_corr_v_ns, rewrite=rewrite)
-            elif task == "totflux":
-                from outflowed import outflowed_totmass
-                outflowed_totmass(o_outflow, [self.det], [new_mask], rewrite=rewrite)
-            elif task == "timecorr":
-                from outflowed import outflowed_timecorr
-                outflowed_timecorr(o_outflow, [self.det], [new_mask], o_outflow.list_hist_v_ns, rewrite=rewrite)
-            else:
-                raise NameError("method for computing outflow with new mask is not setup for task:{}".format(task))
-
-    def main_prepare_outflow_data(self, new_mask, rewrite=False):
-
-        # get new mask for a maximum time (postmerger)
-        # compute outflow data for this new mask
-        tasks = ["totflux", "hist"]
-        self.compute_outflow_new_mask(self.sim1, tasks, new_mask, rewrite=rewrite)
-        self.compute_outflow_new_mask(self.sim2, tasks, new_mask, rewrite=rewrite)
-
-        return new_mask
-
-    # --------------------| Data Comparison |--------------------------- #
-
-    def get_outflow_par_err(self, new_mask, v_n):
-
-        o_par1 = ALL_PAR(self.sim1, add_mask=new_mask)
-        o_par2 = ALL_PAR(self.sim2, add_mask=new_mask)
-
-        val1 = o_par1.get_outflow_par(self.det, new_mask, v_n)
-        val2 = o_par2.get_outflow_par(self.det, new_mask, v_n)
-
-        err = np.abs(val1 - val2) / val1
-
-        return val1, val2, err
-
-    def main(self, v_ns, rewrite):
-
-        base_masks = ["geo", "bern_geoend"]
-        new_masks = []
-        ind_res_dic = {}
-        comb_res_dic = {}
-
-        tmax = self.get_tmax()
-
-        # preparing data
-        for base_mask in base_masks:
-            __new_mask = base_mask + "_length{:.0f}".format(tmax * 1e5)  # 100ms
-            Printcolor.print_colored_string(
-                ["task:", "outflow", "det:", "{}".format(self.det), "mask:", __new_mask, ":", "starting"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-            # try:
-            new_mask = self.main_prepare_outflow_data(__new_mask, rewrite=rewrite)
-            new_masks.append(new_mask)
-            # except AssertionError:
-            #     Printcolor.print_colored_string(
-            #         ["task:", "outflow", "det:", "{}".format(self.det), "mask:", __new_mask, ":", "Assertion Error"],
-            #         ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-            #     break
-
-        if len(new_masks) == 0:
-            raise ValueError("non of the given base_masks:{} succeeded".format(base_masks))
-
-        # writing resukts
-
-        o_par1 = ALL_PAR(self.sim1)
-        o_par2 = ALL_PAR(self.sim2)
-
-        ind_res_dic["sims"] = [self.sim1, self.sim2]
-        ind_res_dic["base_masks"] = base_masks
-        ind_res_dic["new_masks"] = new_masks
-
-        for mask in base_masks:
-            if mask.__contains__("bern_"):
-                t98mass1 = o_par1.get_outflow_par(self.det, "geo", "t98mass")
-                t98mass2 = o_par2.get_outflow_par(self.det, "geo", "t98mass")
-
-                tmerg1 = o_par1.get_par("tmerger")
-                tmerg2 = o_par2.get_par("tmerger")
-
-                ind_res_dic["t98mass"] = [t98mass1-tmerg1, t98mass2-tmerg2]
-
-
-        # loading results
-        for new_mask in new_masks:
-            comb_res_dic[new_mask] = {}
-            for v_n in v_ns:
-                val1, val2, err = self.get_outflow_par_err(new_mask, v_n)
-                comb_res_dic[new_mask][v_n] = [val1, val2, err]
-
-        # printing results
-        for key in ind_res_dic.keys():
-            print ind_res_dic[key]
-
-        print("sim1:{} sim2:{}".format(self.sim1, self.sim2))
-        for new_mask in new_masks:
-            print("\tmask:{}".format(new_mask))
-            for v_n in v_ns:
-                val1, val2, err = comb_res_dic[new_mask][v_n]
-                print("\t\tval1:{} val2:{} err:{}".format(val1, val2, err))
-
-        return ind_res_dic, comb_res_dic
-
-class ErrorEstimation:
-
-    def __init__(self, sim1, sim2):
-        self.det = 0
-        self.sim1 = sim1
-        self.sim2 = sim2
-
-        self.o_par1 = ADD_METHODS_ALL_PAR(self.sim1)
-        self.o_par2 = ADD_METHODS_ALL_PAR(self.sim2)
-
-    def get_post_geo_delta_t(self):
-
-        # o_par1 = ALL_PAR(self.sim1)
-        # o_par2 = ALL_PAR(self.sim2)
-
-        tmerg1 = self.o_par1.get_par("tmerger")
-        tmerg2 = self.o_par2.get_par("tmerger")
-
-        t98geomass1 = self.o_par1.get_outflow_par(self.det, "geo", "t98mass")
-        t98geomass2 = self.o_par2.get_outflow_par(self.det, "geo", "t98mass")
-
-        tend1 = self.o_par1.get_outflow_par(self.det, "geo", "tend")
-        tend2 = self.o_par2.get_outflow_par(self.det, "geo", "tend")
-
-        assert tend1 > t98geomass1
-        assert tend2 > t98geomass2
-        assert tmerg1 < t98geomass1
-        assert tmerg2 < t98geomass2
-
-        tend1 = tend1 - tmerg1
-        tend2 = tend2 - tmerg2
-        t98geomass1 = t98geomass1 - tmerg1
-        t98geomass2 = t98geomass2 - tmerg2
-
-        delta_t1 = tend1 - t98geomass1
-        delta_t2 = tend2 - t98geomass2
-
-        print("Time window for bernoulli ")
-        print("\t{} {:.2f} [ms]".format(self.sim1, delta_t1*1e3))
-        print("\t{} {:.2f} [ms]".format(self.sim2, delta_t2*1e3))
-        # exit(1)
-
-        delta_t = np.min([delta_t1, delta_t2])
-
-        return delta_t
-
-    def get_tmax_d3_data(self):
-
-        isd3_1, itd3_1, td3_1 = self.o_par1.get_ittime("profiles", "prof")
-        isd3_2, itd3_2, td3_2 = self.o_par2.get_ittime("profiles", "prof")
-
-        if len(td3_1) == 0:
-            Printcolor.red("D3 data not found for sim1:{}".format(self.sim1))
-            return np.nan
-        if len(td3_2) == 0:
-            Printcolor.red("D3 data not found for sim2:{}".format(self.sim2))
-            return np.nan
-
-        if td3_1.min() > td3_2.max():
-            Printcolor.red("D3 data does not overlap. sim1 has min:{} that is > than sim2 max: {}"
-                           .format(td3_1.min(), td3_2.max()))
-            return np.nan
-
-        if td3_1.max() < td3_2.min():
-            Printcolor.red("D3 data does not overlap. sim1 has max:{} that is < than sim2 min: {}"
-                           .format(td3_1.max(), td3_2.min()))
-            return np.nan
-
-        tmax = np.min([td3_1.max(), td3_2.max()])
-        print("\ttmax for D3 data: {}".format(tmax))
-        return float(tmax)
-
-    def compute_outflow_new_mask(self, sim, tasks, mask, rewrite):
-
-        # get_tmax60 # ms
-        print("\tAdding mask:{}".format(mask))
-        o_outflow = EJECTA_PARS(sim, add_mask=mask)
-
-        if not os.path.isdir(Paths.ppr_sims + sim +"/" +"outflow_{:d}/".format(self.det) + mask + '/'):
-            os.mkdir(Paths.ppr_sims + sim +"/" +"outflow_{:d}/".format(self.det) + mask + '/')
-
-        for task in tasks:
-            if task == "hist":
-                from outflowed import outflowed_historgrams
-                outflowed_historgrams(o_outflow, [self.det], [mask], o_outflow.list_hist_v_ns, rewrite=rewrite)
-            elif task == "corr":
-                from outflowed import outflowed_correlations
-                outflowed_correlations(o_outflow, [self.det], [mask], o_outflow.list_corr_v_ns, rewrite=rewrite)
-            elif task == "totflux":
-                from outflowed import outflowed_totmass
-                outflowed_totmass(o_outflow, [self.det], [mask], rewrite=rewrite)
-            elif task == "timecorr":
-                from outflowed import outflowed_timecorr
-                outflowed_timecorr(o_outflow, [self.det], [mask], o_outflow.list_hist_v_ns, rewrite=rewrite)
-            else:
-                raise NameError("method for computing outflow with new mask is not setup for task:{}".format(task))
-
-    def get_outflow_par_err(self, new_mask, v_n):
-
-        o_par1 = ALL_PAR(self.sim1, add_mask=new_mask)
-        o_par2 = ALL_PAR(self.sim2, add_mask=new_mask)
-
-        val1 = o_par1.get_outflow_par(self.det, new_mask, v_n)
-        val2 = o_par2.get_outflow_par(self.det, new_mask, v_n)
-
-        # err = np.abs(val1 - val2) / val1
-
-        return val1, val2
-
-
-    def main(self, rewrite=True):
-
-        geo_v_ns = ["Mej_tot", "Ye_ave", "s_ave", "theta_rms"]
-        tasks = ["totflux", "hist"]
-
-        self.get_tmax_d3_data()
-
-        # d3
-        v_ns = ["Mdisk3D"]
-        d3_res1 = {}
-        d3_res2 = {}
-        td3 = self.get_tmax_d3_data()
-        if not np.isnan(td3):
-            for v_n in v_ns:
-                d3_res1[v_n] = self.o_par1.get_int_par(v_n, td3)
-                d3_res2[v_n] = self.o_par2.get_int_par(v_n, td3)
-        else:
-            for v_n in v_ns:
-                d3_res1[v_n] = np.nan
-                d3_res2[v_n] = np.nan
-
-        print("--- {} ---".format("d3"))
-        print(self.sim1),
-        print([("{}: {}".format(key, val)) for key, val in d3_res1.items()])
-        print(self.sim2),
-        print([("{}: {}".format(key, val)) for key, val in d3_res2.items()])
-
-        # geo
-        mask = "geo"
-        self.compute_outflow_new_mask(self.sim1, tasks, mask, rewrite=rewrite)
-        self.compute_outflow_new_mask(self.sim2, tasks, mask, rewrite=rewrite)
-        geo_res1 = {}
-        geo_res2 = {}
-        for v_n in geo_v_ns:
-            val1, val2 = self.get_outflow_par_err(mask, v_n)
-            geo_res1[v_n] = val1
-            geo_res2[v_n] = val2
-
-        print("--- {} ---".format(mask))
-        print(self.sim1),
-        print([("{}: {}".format(key, val)) for key, val in geo_res1.items()])
-        print(self.sim2),
-        print([("{}: {}".format(key, val)) for key, val in geo_res2.items()])
-
-        # bern
-        delta_t = self.get_post_geo_delta_t()
-        mask = "bern_geoend" + "_length{:.0f}".format(delta_t*1e5)# [1e2 ms]
-        self.compute_outflow_new_mask(self.sim1, tasks, mask, rewrite=rewrite)
-        self.compute_outflow_new_mask(self.sim2, tasks, mask, rewrite=rewrite)
-        bern_res1 = {}
-        bern_res2 = {}
-        for v_n in geo_v_ns:
-            val1, val2 = self.get_outflow_par_err(mask, v_n)
-            bern_res1[v_n] = val1
-            bern_res2[v_n] = val2
-
-        print("--- {} ---".format(mask))
-        print(self.sim1),
-        print([("{}: {}".format(key, val)) for key, val in bern_res1.items()])
-        print(self.sim2),
-        print([("{}: {}".format(key, val)) for key, val in bern_res2.items()])
-
-    # ----------------------------------------------------------
-
-    @staticmethod
-    def get_lbl(v_n, mask=""):
-
-        if mask == "":
-            if v_n == "Mdisk3D":
-                return r"$M_{\text{disk}} ^{\text{last}}$"
-            elif v_n == "Mdisk":
-                return r"$M_{\text{disk}} ^{\text{BH}}$"
-            elif v_n == "M1":
-                return "$M_a$"
-            elif v_n == "M2":
-                return "$M_b$"
-            elif v_n == "tcoll_gw" or v_n == "tcoll":
-                return r"$t_{\text{BH}}$"
-            elif v_n == "tend":
-                return r"$t_{\text{end}}$"
-            elif v_n == "tdisk3D":
-                return r"$t_{\text{disk}}$"
-            elif v_n == "q":
-                return r"$M_a/M_b$"
-            elif v_n == "EOS":
-                return r"EOS"
-            elif v_n == "res":
-                return r"res"
-            elif v_n == "vis":
-                return "LK"
-            elif v_n == "note":
-                return r"note"
-        else:
-            if mask == "geo":
-                if v_n == "theta_rms":
-                    return "$\\langle \\theta_{\\text{ej}} \\rangle$"
-                elif v_n == "Mej_tot":
-                    return "$M_{\\text{ej}}$"
-                elif v_n == "Ye_ave":
-                    return "$\\langle Y_e \\rangle$"
-                elif v_n == "vel_inf_ave":
-                    return "$\\langle \\upsilon_{\\text{ej}} \\rangle$"
-                else:
-                    return v_n
-            elif mask.__contains__("bern_"):
-                if v_n == "theta_rms":
-                    return "$\\langle \\theta_{\\text{ej}}^{\\text{w}} \\rangle$"
-                elif v_n == "Mej_tot":
-                    return "$M_{\\text{ej}}^{\\text{w}}$"
-                elif v_n == "Ye_ave":
-                    return "$\\langle Y_e ^{\\text{w}}  \\rangle$"
-                elif v_n == "vel_inf_ave":
-                    return "$\\langle \\upsilon_{\\text{ej}}^{\\text{w}} \\rangle$"
-                else:
-                    return v_n
-            else:
-                raise NameError("No label for v_n: {} and mask: {}"
-                                .format(v_n, mask))
-
-    @staticmethod
-    def get_unit_lbl(v_n):
-        if v_n in ["M1", "M2"]:
-            return "$[M_{\odot}]$"
-        elif v_n in ["Mej_tot"]:
-            return "$[10^{-2} M_{\odot}]$"
-        elif v_n in ["Mdisk3D", "Mdisk"]:
-            return "$[M_{\odot}]$"
-        elif v_n in ["vel_inf_ave"]:
-            return "$[c]$"
-        elif v_n in ["tcoll_gw", "tmerg_gw", "tmerg", "tcoll", "tend", "tdisk3D"]:
-            return "[ms]"
-        else:
-            return " "
-
-    def one_tex_table(self, rewrite = True):
-
-
-
-        size = '{'
-        head = ''
-        for i, v_n in enumerate(cols):
-            v_n = self.get_lbl(v_n)
-            size = size + 'c'
-            head = head + '{}'.format(v_n)
-            if v_n != cols[-1]: size = size + ' '
-            if i != len(cols) - 1: head = head + ' & '
-        size = size + '}'
-
-        unit_bar = ''
-        for v_n in cols:
-            unit = self.get_unit_lbl(v_n)
-            unit_bar = unit_bar + '{}'.format(unit)
-            if v_n != cols[-1]: unit_bar = unit_bar + ' & '
-
-        head = head + ' \\\\'  # = \\
-        unit_bar = unit_bar + ' \\\\ '
-
-        print('\n')
-
-        print('\\begin{table*}[t]')
-        print('\\begin{center}')
-        print('\\begin{tabular}' + '{}'.format(size))
-        print('\\hline')
-        print(head)
-        print(unit_bar)
-        print('\\hline\\hline')
+# class ErrorEstimation_old:
+#
+#     def __init__(self, sim1, sim2):
+#
+#         self.det = 0
+#
+#         self.sim1 = sim1
+#         self.sim2 = sim2
+#
+#         pass
+#
+#     # --------------------| Preparation |--------------------------- #
+#
+#     def get_tmax(self):
+#
+#         o_par1 = ALL_PAR(self.sim1)
+#         o_par2 = ALL_PAR(self.sim2)
+#
+#         tmerg1 = o_par1.get_par("tmerger")
+#         tmerg2 = o_par2.get_par("tmerger")
+#
+#         t98geomass1 = o_par1.get_outflow_par(self.det, "geo", "t98mass")
+#         t98geomass2 = o_par2.get_outflow_par(self.det, "geo", "t98mass")
+#
+#         tend1 = o_par1.get_outflow_par(self.det, "geo", "tend")
+#         tend2 = o_par2.get_outflow_par(self.det, "geo", "tend")
+#
+#         assert tend1 > t98geomass1
+#         assert tend2 > t98geomass2
+#         assert tmerg1 < t98geomass1
+#         assert tmerg2 < t98geomass2
+#
+#         tend1 = tend1 - tmerg1
+#         tend2 = tend2 - tmerg2
+#         t98geomass1 = t98geomass1 - tmerg1
+#         t98geomass2 = t98geomass2 - tmerg2
+#
+#         delta_t1 = tend1 - t98geomass1
+#         delta_t2 = tend2 - t98geomass2
+#
+#         print("Time window for bernoulli ")
+#         print("\t{} {:.2f} [ms]".format(self.sim1, delta_t1*1e3))
+#         print("\t{} {:.2f} [ms]".format(self.sim2, delta_t2*1e3))
+#         exit(1)
+#
+#         delta_t = np.min([delta_t1, delta_t2])
+#
+#         return delta_t
+#         #
+#         #
+#         # assert tend1 > tmerg1
+#         # assert tend2 > tmerg2
+#         #
+#         # print("tend1:{} tmerg1:{} -> {}".format(tend1, tmerg1, tend1-tmerg1))
+#         # print("tend2:{} tmerg2:{} -> {}".format(tend2, tmerg2, tend2-tmerg2))
+#         # # print("tmax:{}".format)
+#         #
+#         # tend1 = tend1 - tmerg1
+#         # tend2 = tend2 - tmerg2
+#         #
+#         # tmax = np.min([tend1, tend2])
+#         # print("get_tmax = tmax:{}".format(tmax))
+#         #
+#         #
+#         # return tmax
+#
+#     def compute_outflow_new_mask(self, sim, tasks, new_mask, rewrite):
+#
+#         # get_tmax60 # ms
+#         print("\tAdding mask:{}".format(new_mask))
+#         o_outflow = EJECTA_PARS(sim, add_mask=new_mask)
+#
+#         if not os.path.isdir(Paths.ppr_sims+sim+"/"+"outflow_{:d}/".format(self.det)+new_mask+'/'):
+#             os.mkdir(Paths.ppr_sims+sim+"/"+"outflow_{:d}/".format(self.det)+new_mask+'/')
+#
+#         for task in tasks:
+#             if task == "hist":
+#                 from outflowed import outflowed_historgrams
+#                 outflowed_historgrams(o_outflow, [self.det], [new_mask], o_outflow.list_hist_v_ns, rewrite=rewrite)
+#             elif task == "corr":
+#                 from outflowed import outflowed_correlations
+#                 outflowed_correlations(o_outflow, [self.det], [new_mask], o_outflow.list_corr_v_ns, rewrite=rewrite)
+#             elif task == "totflux":
+#                 from outflowed import outflowed_totmass
+#                 outflowed_totmass(o_outflow, [self.det], [new_mask], rewrite=rewrite)
+#             elif task == "timecorr":
+#                 from outflowed import outflowed_timecorr
+#                 outflowed_timecorr(o_outflow, [self.det], [new_mask], o_outflow.list_hist_v_ns, rewrite=rewrite)
+#             else:
+#                 raise NameError("method for computing outflow with new mask is not setup for task:{}".format(task))
+#
+#     def main_prepare_outflow_data(self, new_mask, rewrite=False):
+#
+#         # get new mask for a maximum time (postmerger)
+#         # compute outflow data for this new mask
+#         tasks = ["totflux", "hist"]
+#         self.compute_outflow_new_mask(self.sim1, tasks, new_mask, rewrite=rewrite)
+#         self.compute_outflow_new_mask(self.sim2, tasks, new_mask, rewrite=rewrite)
+#
+#         return new_mask
+#
+#     # --------------------| Data Comparison |--------------------------- #
+#
+#     def get_outflow_par_err(self, new_mask, v_n):
+#
+#         o_par1 = ALL_PAR(self.sim1, add_mask=new_mask)
+#         o_par2 = ALL_PAR(self.sim2, add_mask=new_mask)
+#
+#         val1 = o_par1.get_outflow_par(self.det, new_mask, v_n)
+#         val2 = o_par2.get_outflow_par(self.det, new_mask, v_n)
+#
+#         err = np.abs(val1 - val2) / val1
+#
+#         return val1, val2, err
+#
+#     def main(self, v_ns, rewrite):
+#
+#         base_masks = ["geo", "bern_geoend"]
+#         new_masks = []
+#         ind_res_dic = {}
+#         comb_res_dic = {}
+#
+#         tmax = self.get_tmax()
+#
+#         # preparing data
+#         for base_mask in base_masks:
+#             __new_mask = base_mask + "_length{:.0f}".format(tmax * 1e5)  # 100ms
+#             Printcolor.print_colored_string(
+#                 ["task:", "outflow", "det:", "{}".format(self.det), "mask:", __new_mask, ":", "starting"],
+#                 ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+#             # try:
+#             new_mask = self.main_prepare_outflow_data(__new_mask, rewrite=rewrite)
+#             new_masks.append(new_mask)
+#             # except AssertionError:
+#             #     Printcolor.print_colored_string(
+#             #         ["task:", "outflow", "det:", "{}".format(self.det), "mask:", __new_mask, ":", "Assertion Error"],
+#             #         ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+#             #     break
+#
+#         if len(new_masks) == 0:
+#             raise ValueError("non of the given base_masks:{} succeeded".format(base_masks))
+#
+#         # writing resukts
+#
+#         o_par1 = ALL_PAR(self.sim1)
+#         o_par2 = ALL_PAR(self.sim2)
+#
+#         ind_res_dic["sims"] = [self.sim1, self.sim2]
+#         ind_res_dic["base_masks"] = base_masks
+#         ind_res_dic["new_masks"] = new_masks
+#
+#         for mask in base_masks:
+#             if mask.__contains__("bern_"):
+#                 t98mass1 = o_par1.get_outflow_par(self.det, "geo", "t98mass")
+#                 t98mass2 = o_par2.get_outflow_par(self.det, "geo", "t98mass")
+#
+#                 tmerg1 = o_par1.get_par("tmerger")
+#                 tmerg2 = o_par2.get_par("tmerger")
+#
+#                 ind_res_dic["t98mass"] = [t98mass1-tmerg1, t98mass2-tmerg2]
+#
+#
+#         # loading results
+#         for new_mask in new_masks:
+#             comb_res_dic[new_mask] = {}
+#             for v_n in v_ns:
+#                 val1, val2, err = self.get_outflow_par_err(new_mask, v_n)
+#                 comb_res_dic[new_mask][v_n] = [val1, val2, err]
+#
+#         # printing results
+#         for key in ind_res_dic.keys():
+#             print ind_res_dic[key]
+#
+#         print("sim1:{} sim2:{}".format(self.sim1, self.sim2))
+#         for new_mask in new_masks:
+#             print("\tmask:{}".format(new_mask))
+#             for v_n in v_ns:
+#                 val1, val2, err = comb_res_dic[new_mask][v_n]
+#                 print("\t\tval1:{} val2:{} err:{}".format(val1, val2, err))
+#
+#         return ind_res_dic, comb_res_dic
+#
+# class ErrorEstimation:
+#
+#     def __init__(self, sim1, sim2):
+#         self.det = 0
+#         self.sim1 = sim1
+#         self.sim2 = sim2
+#
+#         self.o_par1 = ADD_METHODS_ALL_PAR(self.sim1)
+#         self.o_par2 = ADD_METHODS_ALL_PAR(self.sim2)
+#
+#     def get_post_geo_delta_t(self):
+#
+#         # o_par1 = ALL_PAR(self.sim1)
+#         # o_par2 = ALL_PAR(self.sim2)
+#
+#         tmerg1 = self.o_par1.get_par("tmerger")
+#         tmerg2 = self.o_par2.get_par("tmerger")
+#
+#         t98geomass1 = self.o_par1.get_outflow_par(self.det, "geo", "t98mass")
+#         t98geomass2 = self.o_par2.get_outflow_par(self.det, "geo", "t98mass")
+#
+#         tend1 = self.o_par1.get_outflow_par(self.det, "geo", "tend")
+#         tend2 = self.o_par2.get_outflow_par(self.det, "geo", "tend")
+#
+#         assert tend1 > t98geomass1
+#         assert tend2 > t98geomass2
+#         assert tmerg1 < t98geomass1
+#         assert tmerg2 < t98geomass2
+#
+#         tend1 = tend1 - tmerg1
+#         tend2 = tend2 - tmerg2
+#         t98geomass1 = t98geomass1 - tmerg1
+#         t98geomass2 = t98geomass2 - tmerg2
+#
+#         delta_t1 = tend1 - t98geomass1
+#         delta_t2 = tend2 - t98geomass2
+#
+#         print("Time window for bernoulli ")
+#         print("\t{} {:.2f} [ms]".format(self.sim1, delta_t1*1e3))
+#         print("\t{} {:.2f} [ms]".format(self.sim2, delta_t2*1e3))
+#         # exit(1)
+#
+#         delta_t = np.min([delta_t1, delta_t2])
+#
+#         return delta_t
+#
+#     def get_tmax_d3_data(self):
+#
+#         isd3_1, itd3_1, td3_1 = self.o_par1.get_ittime("profiles", "prof")
+#         isd3_2, itd3_2, td3_2 = self.o_par2.get_ittime("profiles", "prof")
+#
+#         if len(td3_1) == 0:
+#             Printcolor.red("D3 data not found for sim1:{}".format(self.sim1))
+#             return np.nan
+#         if len(td3_2) == 0:
+#             Printcolor.red("D3 data not found for sim2:{}".format(self.sim2))
+#             return np.nan
+#
+#         if td3_1.min() > td3_2.max():
+#             Printcolor.red("D3 data does not overlap. sim1 has min:{} that is > than sim2 max: {}"
+#                            .format(td3_1.min(), td3_2.max()))
+#             return np.nan
+#
+#         if td3_1.max() < td3_2.min():
+#             Printcolor.red("D3 data does not overlap. sim1 has max:{} that is < than sim2 min: {}"
+#                            .format(td3_1.max(), td3_2.min()))
+#             return np.nan
+#
+#         tmax = np.min([td3_1.max(), td3_2.max()])
+#         print("\ttmax for D3 data: {}".format(tmax))
+#         return float(tmax)
+#
+#     def compute_outflow_new_mask(self, sim, tasks, mask, rewrite):
+#
+#         # get_tmax60 # ms
+#         print("\tAdding mask:{}".format(mask))
+#         o_outflow = EJECTA_PARS(sim, add_mask=mask)
+#
+#         if not os.path.isdir(Paths.ppr_sims + sim +"/" +"outflow_{:d}/".format(self.det) + mask + '/'):
+#             os.mkdir(Paths.ppr_sims + sim +"/" +"outflow_{:d}/".format(self.det) + mask + '/')
+#
+#         for task in tasks:
+#             if task == "hist":
+#                 from outflowed import outflowed_historgrams
+#                 outflowed_historgrams(o_outflow, [self.det], [mask], o_outflow.list_hist_v_ns, rewrite=rewrite)
+#             elif task == "corr":
+#                 from outflowed import outflowed_correlations
+#                 outflowed_correlations(o_outflow, [self.det], [mask], o_outflow.list_corr_v_ns, rewrite=rewrite)
+#             elif task == "totflux":
+#                 from outflowed import outflowed_totmass
+#                 outflowed_totmass(o_outflow, [self.det], [mask], rewrite=rewrite)
+#             elif task == "timecorr":
+#                 from outflowed import outflowed_timecorr
+#                 outflowed_timecorr(o_outflow, [self.det], [mask], o_outflow.list_hist_v_ns, rewrite=rewrite)
+#             else:
+#                 raise NameError("method for computing outflow with new mask is not setup for task:{}".format(task))
+#
+#     def get_outflow_par_err(self, new_mask, v_n):
+#
+#         o_par1 = ALL_PAR(self.sim1, add_mask=new_mask)
+#         o_par2 = ALL_PAR(self.sim2, add_mask=new_mask)
+#
+#         val1 = o_par1.get_outflow_par(self.det, new_mask, v_n)
+#         val2 = o_par2.get_outflow_par(self.det, new_mask, v_n)
+#
+#         # err = np.abs(val1 - val2) / val1
+#
+#         return val1, val2
+#
+#
+#     def main(self, rewrite=True):
+#
+#         geo_v_ns = ["Mej_tot", "Ye_ave", "s_ave", "theta_rms"]
+#         tasks = ["totflux", "hist"]
+#
+#         self.get_tmax_d3_data()
+#
+#         # d3
+#         v_ns = ["Mdisk3D"]
+#         d3_res1 = {}
+#         d3_res2 = {}
+#         td3 = self.get_tmax_d3_data()
+#         if not np.isnan(td3):
+#             for v_n in v_ns:
+#                 d3_res1[v_n] = self.o_par1.get_int_par(v_n, td3)
+#                 d3_res2[v_n] = self.o_par2.get_int_par(v_n, td3)
+#         else:
+#             for v_n in v_ns:
+#                 d3_res1[v_n] = np.nan
+#                 d3_res2[v_n] = np.nan
+#
+#         print("--- {} ---".format("d3"))
+#         print(self.sim1),
+#         print([("{}: {}".format(key, val)) for key, val in d3_res1.items()])
+#         print(self.sim2),
+#         print([("{}: {}".format(key, val)) for key, val in d3_res2.items()])
+#
+#         # geo
+#         mask = "geo"
+#         self.compute_outflow_new_mask(self.sim1, tasks, mask, rewrite=rewrite)
+#         self.compute_outflow_new_mask(self.sim2, tasks, mask, rewrite=rewrite)
+#         geo_res1 = {}
+#         geo_res2 = {}
+#         for v_n in geo_v_ns:
+#             val1, val2 = self.get_outflow_par_err(mask, v_n)
+#             geo_res1[v_n] = val1
+#             geo_res2[v_n] = val2
+#
+#         print("--- {} ---".format(mask))
+#         print(self.sim1),
+#         print([("{}: {}".format(key, val)) for key, val in geo_res1.items()])
+#         print(self.sim2),
+#         print([("{}: {}".format(key, val)) for key, val in geo_res2.items()])
+#
+#         # bern
+#         delta_t = self.get_post_geo_delta_t()
+#         mask = "bern_geoend" + "_length{:.0f}".format(delta_t*1e5)# [1e2 ms]
+#         self.compute_outflow_new_mask(self.sim1, tasks, mask, rewrite=rewrite)
+#         self.compute_outflow_new_mask(self.sim2, tasks, mask, rewrite=rewrite)
+#         bern_res1 = {}
+#         bern_res2 = {}
+#         for v_n in geo_v_ns:
+#             val1, val2 = self.get_outflow_par_err(mask, v_n)
+#             bern_res1[v_n] = val1
+#             bern_res2[v_n] = val2
+#
+#         print("--- {} ---".format(mask))
+#         print(self.sim1),
+#         print([("{}: {}".format(key, val)) for key, val in bern_res1.items()])
+#         print(self.sim2),
+#         print([("{}: {}".format(key, val)) for key, val in bern_res2.items()])
+#
+#     # ----------------------------------------------------------
+#
+#     @staticmethod
+#     def get_lbl(v_n, mask=""):
+#
+#         if mask == "":
+#             if v_n == "Mdisk3D":
+#                 return r"$M_{\text{disk}} ^{\text{last}}$"
+#             elif v_n == "Mdisk":
+#                 return r"$M_{\text{disk}} ^{\text{BH}}$"
+#             elif v_n == "M1":
+#                 return "$M_a$"
+#             elif v_n == "M2":
+#                 return "$M_b$"
+#             elif v_n == "tcoll_gw" or v_n == "tcoll":
+#                 return r"$t_{\text{BH}}$"
+#             elif v_n == "tend":
+#                 return r"$t_{\text{end}}$"
+#             elif v_n == "tdisk3D":
+#                 return r"$t_{\text{disk}}$"
+#             elif v_n == "q":
+#                 return r"$M_a/M_b$"
+#             elif v_n == "EOS":
+#                 return r"EOS"
+#             elif v_n == "res":
+#                 return r"res"
+#             elif v_n == "vis":
+#                 return "LK"
+#             elif v_n == "note":
+#                 return r"note"
+#         else:
+#             if mask == "geo":
+#                 if v_n == "theta_rms":
+#                     return "$\\langle \\theta_{\\text{ej}} \\rangle$"
+#                 elif v_n == "Mej_tot":
+#                     return "$M_{\\text{ej}}$"
+#                 elif v_n == "Ye_ave":
+#                     return "$\\langle Y_e \\rangle$"
+#                 elif v_n == "vel_inf_ave":
+#                     return "$\\langle \\upsilon_{\\text{ej}} \\rangle$"
+#                 else:
+#                     return v_n
+#             elif mask.__contains__("bern_"):
+#                 if v_n == "theta_rms":
+#                     return "$\\langle \\theta_{\\text{ej}}^{\\text{w}} \\rangle$"
+#                 elif v_n == "Mej_tot":
+#                     return "$M_{\\text{ej}}^{\\text{w}}$"
+#                 elif v_n == "Ye_ave":
+#                     return "$\\langle Y_e ^{\\text{w}}  \\rangle$"
+#                 elif v_n == "vel_inf_ave":
+#                     return "$\\langle \\upsilon_{\\text{ej}}^{\\text{w}} \\rangle$"
+#                 else:
+#                     return v_n
+#             else:
+#                 raise NameError("No label for v_n: {} and mask: {}"
+#                                 .format(v_n, mask))
+#
+#     @staticmethod
+#     def get_unit_lbl(v_n):
+#         if v_n in ["M1", "M2"]:
+#             return "$[M_{\odot}]$"
+#         elif v_n in ["Mej_tot"]:
+#             return "$[10^{-2} M_{\odot}]$"
+#         elif v_n in ["Mdisk3D", "Mdisk"]:
+#             return "$[M_{\odot}]$"
+#         elif v_n in ["vel_inf_ave"]:
+#             return "$[c]$"
+#         elif v_n in ["tcoll_gw", "tmerg_gw", "tmerg", "tcoll", "tend", "tdisk3D"]:
+#             return "[ms]"
+#         else:
+#             return " "
+#
+#     def one_tex_table(self, rewrite = True):
+#
+#
+#
+#         size = '{'
+#         head = ''
+#         for i, v_n in enumerate(cols):
+#             v_n = self.get_lbl(v_n)
+#             size = size + 'c'
+#             head = head + '{}'.format(v_n)
+#             if v_n != cols[-1]: size = size + ' '
+#             if i != len(cols) - 1: head = head + ' & '
+#         size = size + '}'
+#
+#         unit_bar = ''
+#         for v_n in cols:
+#             unit = self.get_unit_lbl(v_n)
+#             unit_bar = unit_bar + '{}'.format(unit)
+#             if v_n != cols[-1]: unit_bar = unit_bar + ' & '
+#
+#         head = head + ' \\\\'  # = \\
+#         unit_bar = unit_bar + ' \\\\ '
+#
+#         print('\n')
+#
+#         print('\\begin{table*}[t]')
+#         print('\\begin{center}')
+#         print('\\begin{tabular}' + '{}'.format(size))
+#         print('\\hline')
+#         print(head)
+#         print(unit_bar)
+#         print('\\hline\\hline')
 
 """=================================================================================================================="""
 
@@ -4233,7 +4237,7 @@ def plot_several_q_eff(v_n, sims, iterations, figname):
     o_plot.main()
     exit(0)
 
-''' disk histogram evolution0000 '''
+''' disk histogram evolution & disk mass '''
 
 def plot_disk_hist_evol_one_v_n(v_n, sim, figname):
 
@@ -4331,9 +4335,9 @@ def plot_disk_hist_evol_one_v_n(v_n, sim, figname):
 
 def plot_disk_hist_evol(sim, figname):
 
-    # v_ns = ["r", "theta", "Ye", "temp", "velz", "rho", "dens_unb_bern"]
+    v_ns = ["r", "theta", "Ye", "velz", "temp", "rho", "dens_unb_bern"]
 
-    v_ns = ["velz"]#, "temp", "rho", "dens_unb_bern"]
+    # v_ns = ["velz", "temp", "rho", "dens_unb_bern"]
 
     d3_corr = LOAD_RES_CORR(sim)
     iterations = d3_corr.list_iterations
@@ -4346,7 +4350,7 @@ def plot_disk_hist_evol(sim, figname):
     o_plot.gen_set["sharex"] = False
     o_plot.gen_set["sharey"] = False
     o_plot.gen_set["subplots_adjust_h"] = 0.2
-    o_plot.gen_set["subplots_adjust_w"] = 0.3
+    o_plot.gen_set["subplots_adjust_w"] = 0.4
     o_plot.set_plot_dics = []
 
     i_plot = 1
@@ -4369,7 +4373,7 @@ def plot_disk_hist_evol(sim, figname):
         assert len(times) > 0
         times = np.array(times) * 1e3
         bins = np.array(bins)
-        values = np.reshape(np.array(values), newshape=(len(iterations), len(bins))).T
+        values = np.reshape(np.array(values), newshape=(len(times), len(bins))).T
         #
         d1class = ADD_METHODS_ALL_PAR(sim)
         tmerg = d1class.get_par("tmerg") * 1e3
@@ -4379,7 +4383,7 @@ def plot_disk_hist_evol(sim, figname):
         values = np.maximum(values, 1e-10)
         #
         if v_n in ["theta"]:
-            bins = bins / np.pi * 180.
+            bins = 90 - (bins / np.pi * 180.)
         #
         def_dic = {'task': 'colormesh', 'ptype': 'cartesian',  # 'aspect': 1.,
                    'xarr': times, "yarr": bins, "zarr": values,
@@ -4396,6 +4400,7 @@ def plot_disk_hist_evol(sim, figname):
                    'minorticks': True,
                    'title': {},  # "text": r'$t-t_{merg}:$' + r'${:.1f}$'.format((time_ - tmerg) * 1e3), 'fontsize': 14
                    # 'sharex': True,  # removes angular citkscitks
+                   'text':{},
                    'fontsize': 14,
                    'labelsize': 14,
                    'sharex': False,
@@ -4405,10 +4410,15 @@ def plot_disk_hist_evol(sim, figname):
             def_dic['cbar'] = {'location': 'right .02 0.', 'label': Labels.labels("mass"),  # 'right .02 0.' 'fmt': '%.1e',
                             'labelsize': 14,  # 'aspect': 6.,
                             'fontsize': 14}
-        # if v_n == "velz":
-        #     def_dic['ymin'] = -.3
-        #     def_dic['ymax'] = .3
-        #
+        if v_n == v_ns[0]:
+            def_dic['text'] = {'coords':(1.0, 1.05), 'text':sim.replace("_", "\_"), 'color':'black', 'fs':16}
+        if v_n == "velz":
+            def_dic['ymin'] = -.3
+            def_dic['ymax'] = .3
+        elif v_n == "temp":
+            def_dic['ymin'] = 1e-1
+            def_dic['ymax'] = 1e2
+
         tcoll = d1class.get_par("tcoll_gw")
         if not np.isnan(tcoll):
             tcoll = (tcoll * 1e3) - tmerg
@@ -4432,6 +4442,103 @@ def plot_disk_hist_evol(sim, figname):
         i_plot = i_plot + 1
     o_plot.main()
 
+    exit(1)
+
+def plot_disk_mass_evol():
+    # 11
+    sims = ["DD2_M13641364_M0_LK_SR_R04", "BLh_M13641364_M0_LK_SR"] + \
+           ["DD2_M15091235_M0_LK_SR", "LS220_M14691268_M0_LK_SR"] + \
+           ["DD2_M13641364_M0_SR", "LS220_M13641364_M0_SR", "SFHo_M13641364_M0_SR", "SLy4_M13641364_M0_SR"] + \
+           ["DD2_M14971245_M0_SR", "SFHo_M14521283_M0_SR", "SLy4_M14521283_M0_SR"]
+    #
+    colors = ["blue", "black"] + \
+           ["blue", "red"] + \
+           ["blue", "red", "green", "orange"] + \
+           ["blue", "green", "orange"]
+    #
+    lss=["-", "-"] + \
+        ["--", "--"] + \
+        [":", ":", ":", ":"] + \
+        ["-.", "-."]
+    #
+    lws = [1., 1.] + \
+        [1., 1.] + \
+        [1., 1., 1., 1.] + \
+        [1., 1.]
+    alphas=[1., 1.] + \
+        [1., 1.] + \
+        [1., 1., 1., 1.] + \
+        [1., 1.]
+    #
+    # ----
+
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+    o_plot.gen_set["figname"] = "disk_mass_evol.png"
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = True
+    o_plot.gen_set["dpi"] = 128
+    o_plot.gen_set["subplots_adjust_h"] = 0.3
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+
+    for sim, color, ls, lw, alpha in zip(sims, colors, lss, lws, alphas):
+        print("{}".format(sim))
+        o_data = ADD_METHODS_ALL_PAR(sim)
+        data = o_data.get_disk_mass()
+        tmerg = o_data.get_par("tmerg")
+        tarr = (data[:, 0] - tmerg) * 1e3
+        marr = data[:, 1]
+
+        if sim == "DD2_M13641364_M0_LK_SR_R04":
+            tarr = tarr[3:] # 3ms, 6ms, 51ms.... Removing initial profiles
+            marr = marr[3:] #
+        #
+        tcoll = o_data.get_par("tcoll_gw")
+        if not np.isnan(tcoll) and tcoll < tarr[-1]:
+            tcoll = (tcoll - tmerg) * 1e3
+            print(tcoll, tarr[0])
+            mcoll = interpolate.interp1d(tarr,marr,kind="linear")(tcoll)
+            tcoll_dic = {
+                'task': 'line', 'ptype': 'cartesian',
+                'position': (1, 1),
+                'xarr': [tcoll], 'yarr': [mcoll],
+                'v_n_x': "time", 'v_n_y': "mass",
+                'color': color, 'marker': "x", 'ms': 5., 'alpha': alpha,
+                'xmin': -10, 'xmax': 100, 'ymin': 0, 'ymax': .3,
+                'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels("diskmass"),
+                'label': None, 'yscale': 'linear',
+                'fancyticks': True, 'minorticks': True,
+                'fontsize': 14,
+                'labelsize': 14,
+                'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+            }
+            o_plot.set_plot_dics.append(tcoll_dic)
+        #
+        plot_dic = {
+            'task': 'line', 'ptype': 'cartesian',
+            'position': (1, 1),
+            'xarr': tarr, 'yarr': marr,
+            'v_n_x': "time", 'v_n_y': "mass",
+            'color': color, 'ls': ls, 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
+            'xmin': -10, 'xmax': 100, 'ymin': 0, 'ymax': .35,
+            'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels("diskmass"),
+            'label': str(sim).replace('_', '\_'), 'yscale': 'linear',
+            'fancyticks': True, 'minorticks': True,
+            'fontsize': 14,
+            'labelsize': 14,
+            'legend': {'bbox_to_anchor':(1.1,1.05),
+                'loc': 'lower right', 'ncol': 2, 'fontsize': 8}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+        }
+        if sim == sims[-1]:
+            plot_dic['legend'] = {'bbox_to_anchor':(1.1,1.05),
+                'loc': 'lower right', 'ncol': 2, 'fontsize': 8}
+        o_plot.set_plot_dics.append(plot_dic)
+
+    o_plot.main()
+    exit(1)
 
 if __name__ == '__main__':
 
@@ -4444,13 +4551,24 @@ if __name__ == '__main__':
 
     ''' disk properties '''
 
-    plot_disk_hist_evol("LS220_M13641364_M0_LK_SR_restart", "ls220_disk_hists.png")
+    # plot_disk_mass_evol()
 
-    plot_disk_hist_evol_one_v_n("Ye", "LS220_M13641364_M0_LK_SR_restart", "ls220_ye_disk_hist.png")
-    plot_disk_hist_evol_one_v_n("temp", "LS220_M13641364_M0_LK_SR_restart", "ls220_temp_disk_hist.png")
-    plot_disk_hist_evol_one_v_n("rho", "LS220_M13641364_M0_LK_SR_restart", "ls220_rho_disk_hist.png")
-    plot_disk_hist_evol_one_v_n("dens_unb_bern", "LS220_M13641364_M0_LK_SR_restart", "ls220_dens_unb_bern_disk_hist.png")
-    plot_disk_hist_evol_one_v_n("velz", "LS220_M13641364_M0_LK_SR_restart", "ls220_velz_disk_hist.png")
+    # plot_disk_hist_evol("LS220_M13641364_M0_SR", "ls220_no_lk_disk_hists.png")
+    # plot_disk_hist_evol("LS220_M13641364_M0_LK_SR_restart", "ls220_disk_hists.png")
+    # plot_disk_hist_evol("BLh_M13641364_M0_LK_SR", "blh_disk_hists.png")
+    # plot_disk_hist_evol("DD2_M13641364_M0_SR", "dd2_nolk_disk_hists.png")
+    # plot_disk_hist_evol("SFHo_M13641364_M0_SR", "sfho_nolk_disk_hists.png")
+    # plot_disk_hist_evol("SLy4_M13641364_M0_SR", "sly_nolk_disk_hists.png")
+    # plot_disk_hist_evol("SFHo_M14521283_M0_SR", "sfho_qnot1_nolk_disk_hists.png")
+    # plot_disk_hist_evol("SLy4_M14521283_M0_SR", "sly_qnot1_nolk_disk_hists.png")
+    # plot_disk_hist_evol("DD2_M14971245_M0_SR", "dd2_qnot1_nolk_disk_hists.png")
+    # plot_disk_hist_evol("LS220_M13641364_M0_SR", "ls220_nolk_disk_hists.png")
+
+    # plot_disk_hist_evol_one_v_n("Ye", "LS220_M13641364_M0_LK_SR_restart", "ls220_ye_disk_hist.png")
+    # plot_disk_hist_evol_one_v_n("temp", "LS220_M13641364_M0_LK_SR_restart", "ls220_temp_disk_hist.png")
+    # plot_disk_hist_evol_one_v_n("rho", "LS220_M13641364_M0_LK_SR_restart", "ls220_rho_disk_hist.png")
+    # plot_disk_hist_evol_one_v_n("dens_unb_bern", "LS220_M13641364_M0_LK_SR_restart", "ls220_dens_unb_bern_disk_hist.png")
+    # plot_disk_hist_evol_one_v_n("velz", "LS220_M13641364_M0_LK_SR_restart", "ls220_velz_disk_hist.png")
 
     # o_err = ErrorEstimation("DD2_M15091235_M0_LK_SR","DD2_M14971245_M0_SR")
     # o_err.main(rewrite=False)
@@ -4459,7 +4577,7 @@ if __name__ == '__main__':
     ''' --- COMPARISON TABLE --- '''
     tbl = COMPARISON_TABLE()
 
-    ### effect of viscosity
+    ### --- effect of viscosity
     # tbl.print_mult_table([["DD2_M15091235_M0_LK_SR", "DD2_M14971245_M0_SR"],
     #                       ["DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_SR_R04"],
     #                       ["LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_SR"],
@@ -4481,7 +4599,7 @@ if __name__ == '__main__':
     #                      )
     # exit(0)
 
-    #### resulution effect on simulations with viscosity
+    #### --- resulution effect on simulations with viscosity
     # tbl.print_mult_table([["DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_HR_R04"], # DD2_M13641364_M0_LK_LR_R04
     #                      ["DD2_M15091235_M0_LK_SR", "DD2_M15091235_M0_LK_HR"],          # no
     #                      ["LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_HR"],      # no
@@ -4506,31 +4624,31 @@ if __name__ == '__main__':
     #                      )
     # exit(0)
     
-    # resolution effect on simulations without voscosity
-    tbl.print_mult_table([["DD2_M13641364_M0_SR_R04", "DD2_M13641364_M0_LR_R04"],
-                         ["DD2_M14971245_M0_SR", "DD2_M14971245_M0_HR"],
-                         ["LS220_M13641364_M0_SR", "LS220_M13641364_M0_HR"],
-                         ["LS220_M14691268_M0_SR", "LS220_M14691268_M0_HR"],
-                         ["SFHo_M13641364_M0_SR", "SFHo_M13641364_M0_HR"],
-                         ["SFHo_M14521283_M0_SR", "SFHo_M14521283_M0_HR"]],
-                         [r"\hline",
-                          r"\hline",
-                          r"\hline",
-                          r"\hline",
-                          r"\hline",
-                          r"\hline"],
-                         r"{Resolution effec to on the outflow properties and disk mass on the simulations without "
-                         r"subgird turbulence. Here the $t_{\text{disk}}$ "
-                         r"is the maximum postmerger time, for which the 3D is available for both simulations "
-                         r"For that time, the disk mass is interpolated using linear inteprolation. The "
-                         r"$\Delta t_{\text{wind}}$ is the maximum common time window between the time at "
-                         r"which dynamical ejecta reaches 98\% of its total mass and the end of the simulation "
-                         r"Cases where $t_{\text{disk}}$ or $\Delta t_{\text{wind}}$ is N/A indicate the absence "
-                         r"of the ovelap between 3D data fro simulations or absence of this data entirely and "
-                         r"absence of overlap between the time window in which the spiral-wave wind is computed "
-                         r"which does not allow to do a proper, one-to-one comparison. $\Delta$ is a estimated "
-                         r"change as $|value_1 - value_2|/value_1$ in percentage }"
-                         )
+    #### --- resolution effect on simulations without voscosity
+    # tbl.print_mult_table([["DD2_M13641364_M0_SR_R04", "DD2_M13641364_M0_LR_R04"],
+    #                      ["DD2_M14971245_M0_SR", "DD2_M14971245_M0_HR"],
+    #                      ["LS220_M13641364_M0_SR", "LS220_M13641364_M0_HR"],
+    #                      ["LS220_M14691268_M0_SR", "LS220_M14691268_M0_HR"],
+    #                      ["SFHo_M13641364_M0_SR", "SFHo_M13641364_M0_HR"],
+    #                      ["SFHo_M14521283_M0_SR", "SFHo_M14521283_M0_HR"]],
+    #                      [r"\hline",
+    #                       r"\hline",
+    #                       r"\hline",
+    #                       r"\hline",
+    #                       r"\hline",
+    #                       r"\hline"],
+    #                      r"{Resolution effec to on the outflow properties and disk mass on the simulations without "
+    #                      r"subgird turbulence. Here the $t_{\text{disk}}$ "
+    #                      r"is the maximum postmerger time, for which the 3D is available for both simulations "
+    #                      r"For that time, the disk mass is interpolated using linear inteprolation. The "
+    #                      r"$\Delta t_{\text{wind}}$ is the maximum common time window between the time at "
+    #                      r"which dynamical ejecta reaches 98\% of its total mass and the end of the simulation "
+    #                      r"Cases where $t_{\text{disk}}$ or $\Delta t_{\text{wind}}$ is N/A indicate the absence "
+    #                      r"of the ovelap between 3D data fro simulations or absence of this data entirely and "
+    #                      r"absence of overlap between the time window in which the spiral-wave wind is computed "
+    #                      r"which does not allow to do a proper, one-to-one comparison. $\Delta$ is a estimated "
+    #                      r"change as $|value_1 - value_2|/value_1$ in percentage }"
+    #                      )
 
 
     exit(0)

@@ -1809,7 +1809,7 @@ class COLLATE_DATA(LOAD_ITTIME):
         self.epsilon = 1e-15    # Precision used in comparing timestamps
         self.tidx = 1           # Index of the time column, from 1 (default: 1)
 
-        self.collate()
+        self.collate(glob_overwrite)
 
     def __collate(self, list_of_files, fname, comment, include_comments=True):
 
