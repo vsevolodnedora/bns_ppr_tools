@@ -18,75 +18,34 @@ from sys import path
 from py.path import local
 
 path.append('modules/')
-from _curses import raw
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import ticker
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import rc
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-# import scivis.units as ut # for tmerg
-import statsmodels.formula.api as smf
-import scipy.optimize as opt
-from math import pi, sqrt
-import matplotlib as mpl
-from glob import glob
-import pandas as pd
-import numpy as np
-import itertools
 import warnings
 import os.path
-import cPickle
 import click
-import time
-import copy
-import h5py
-import csv
-import os
-import gc
-import re
+
 warnings.filterwarnings("ignore",category=matplotlib.mplDeprecation)
-# from visit_utils import *
-from scidata.utils import locate
-import scidata.carpet.hdf5 as h5
-import scidata.xgraph as xg
+
 from scidata.carpet.interp import Interpolator
-import scivis.data.carpet2d
-from scipy import interpolate
-
-from scipy.optimize import fmin
-from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
-    MultipleLocator
-from matplotlib.colors import LogNorm, Normalize
 
 
-from math import pi, log10
-import time
+from math import log10
 import sys
-import os
-from os import path
-import multiprocessing as mp
 from argparse import ArgumentParser
-from functools import partial
-import json
-import h5py
-# import matplotlib.pyplot as plt
-# from matplotlib.colors import LogNorm
-import time
-import datetime
 
-import scivis.units as units
+import h5py
+
+import time
+
+
 
 from preanalysis import SIM_STATUS, PRINT_SIM_STATUS, LOAD_ITTIME
-# from d1analysis import ADD_METHODS_1D, NORMALIZE_NUCLEO
 from plotting_methods import PLOT_MANY_TASKS
 from utils import *
-# from d2analysis import COMPUTE_STORE
-# from d3analysis import MAINMETHODS_STORE, LOAD_PROFILE_XYXZ, LOAD_RES_CORR, LOAD_DENSITY_MODES
-
-
 
 
 """ ==============================================| SETTINGS |====================================================== """

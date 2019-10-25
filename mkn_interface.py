@@ -107,8 +107,8 @@ class COMPUTE_LIGHTCURVE():
 
         self.glob_params = {'lc model'   : 'grossman',  # model for the lightcurve (grossman or villar)
                        #              'mkn model': 'aniso1comp',  # possible choices: iso1comp, iso2comp, iso3comp, aniso1comp, aniso2comp, aniso3comp
-                       'omega frac':1.0,      # fraction of the solid angle filled by the ejecta
-                       'rad shell': True,     # exclude the free streaming part
+                       'omega frac':0.5,      # fraction of the solid angle filled by the ejecta
+                       'rad shell': False,     # exclude the free streaming part
                        'v_min':     1.e-7,    # minimal velocity for the Grossman model
                        'n_v':       400,      # number of points for the Grossman model
                        'vscale':    'linear', # scale for the velocity in the Grossman model
@@ -174,7 +174,8 @@ class COMPUTE_LIGHTCURVE():
                                            'T_floor':           1000}
         elif iso_or_aniso == 'aniso':
             self.ejecta_params['dynamics'] = {'mass_dist':'sin', 'vel_dist':'uniform', 'op_dist':'step'   ,
-                                       'therm_model':'BKWM', 'eps_ye_dep':True,'v_law':'poly', 'entropy':10, 'tau':5}
+                                       'therm_model':'BKWM', 'eps_ye_dep':"PBR",'v_law':'poly', 'use_kappa_table':False,
+                                              'entropy':10, 'tau':20}
             self.ejecta_vars['dynamics'] = {'xi_disk':          None,
                                            'm_ej':              mej, # 0.00169045, # - LS220 | 0.00263355 - DD2
                                            'step_angle_mass':   None,
@@ -218,9 +219,10 @@ class COMPUTE_LIGHTCURVE():
                                            'step_angle_op':     None,
                                            'T_floor':           1000}
         elif iso_or_aniso == 'aniso':
-            self.ejecta_params['dynamics'] = {'mass_dist':'sin', 'vel_dist':'uniform', 'op_dist':'step'   ,
-                                       'therm_model':'BKWM', 'eps_ye_dep':True,'v_law':'poly', 'entropy':10, 'tau':5}
-            self.ejecta_vars['dynamics'] = {'xi_disk':          None,
+            self.ejecta_params['spiral'] = {'mass_dist':'sin', 'vel_dist':'uniform', 'op_dist':'step'   ,
+                                       'therm_model':'BKWM', 'eps_ye_dep':"PBR",'v_law':'poly', 'use_kappa_table':False,
+                                              'entropy':20, 'tau':30}
+            self.ejecta_vars['spiral'] = {'xi_disk':          None,
                                            'm_ej':              mej, # 0.00169045, # - LS220 | 0.00263355 - DD2
                                            'step_angle_mass':   None,
                                            'high_lat_flag':     None,
@@ -230,8 +232,9 @@ class COMPUTE_LIGHTCURVE():
                                            'step_angle_vel':    None,
                                            'central_op':        None,
                                            'high_lat_op':       1.,  # F:1
-                                           'low_lat_op':        10., # F:30    # does not work for NR
-                                           'step_angle_op':     math.radians(45.),
+                                           'low_lat_op':        30., # F:30    # does not work for NR
+                                           'override_m_ej':     False,  # for manual import
+                                           'step_angle_op':     math.radians(15.),
                                            'T_floor':           1000} # F:30
         elif iso_or_aniso == "":
             pass
