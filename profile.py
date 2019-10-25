@@ -3760,7 +3760,7 @@ def plot_density_modes(dmclass, rewrite=False):
 
 def d3_main_computational_loop():
 
-    outdir = glob_outdir_sim
+    outdir = Paths.ppr_sims + glob_sim + '/'
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
     outdir += __rootoutdir__
@@ -3946,7 +3946,7 @@ if __name__ == '__main__':
     else:
         raise NameError("for '--overwrite' option use 'yes' or 'no'. Given: {}"
                         .format(glob_overwrite))
-    glob_outdir_sim = Paths.ppr_sims + glob_sim + '/'
+    # glob_outdir_sim = Paths.ppr_sims + glob_sim + '/'
 
     # set globals
     Paths.gw170817 = glob_simdir
