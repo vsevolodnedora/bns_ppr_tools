@@ -19,7 +19,7 @@ from py.path import local
 
 path.append('modules/')
 import matplotlib
-matplotlib.use("Agg")
+# matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import rc
 plt.rc('text', usetex=True)
