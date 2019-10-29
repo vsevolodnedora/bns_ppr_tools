@@ -174,6 +174,16 @@ class BASIC_PARTS():
             fs =    dic['text']['fs']
             ax.text(coords[0], coords[1], text, color=color, fontsize=fs, transform=ax.transAxes)
 
+    def plot_text2(self, ax, dic):
+        xcorr = dic['x']
+        ycorr = dic['y']
+        text = dic['text']
+        fs = dic['fs']
+        color=dic['color']
+        horal = dic['horizontalalignment']
+        ax.text(xcorr, ycorr, text, color=color, fontsize=fs, horizontalalignment=horal)
+        return 0
+
     @staticmethod
     def plot_colormesh(ax, dic, x_arr, y_arr, z_arr):
 
@@ -203,7 +213,7 @@ class BASIC_PARTS():
         """
 
 
-        if "mask" in dic.keys():
+        if "mask" in dic.keys() and dic["mask"] != None:
             if dic["mask"] == "negative":
                 z_arr = np.ma.masked_array(z_arr, z_arr < 0) # [z_arr < 0] = np.nan#
                 # print(z_arr)
@@ -213,7 +223,15 @@ class BASIC_PARTS():
                 z_arr = np.ma.masked_array(z_arr, x_arr > 0)
             elif dic["mask"] == "x<0":
                 z_arr = np.ma.masked_array(z_arr, x_arr < 0)
-
+            elif dic["mask"].__contains__("z>"):
+                val = float(dic["mask"].split("z>")[-1])
+                # assert val < z_arr.max()
+                z_arr = np.ma.masked_array(z_arr, z_arr > val)
+            elif dic["mask"].__contains__("z<"):
+                val = float(dic["mask"].split("z<")[-1])
+                z_arr = np.ma.masked_array(z_arr, z_arr < val)
+            else:
+                raise NameError("mask:{} is not recognized. (For plotting)".format(dic["mask"]))
         if "mask_below" in dic.keys():
             z_arr = np.ma.masked_array(z_arr, z_arr < dic["mask_below"])
         elif "mask_above" in dic.keys():
@@ -252,6 +270,48 @@ class BASIC_PARTS():
         im.set_rasterized(True)
 
         return im
+
+    @staticmethod
+    def plot_scatter(ax, dic, x_arr, y_arr, z_arr):
+        vmin = dic["vmin"]
+        vmax = dic["vmax"]
+        if vmin == None:
+            assert not np.isnan(z_arr.min())
+            assert not np.isinf(z_arr.min())
+            vmin = z_arr.min()
+            if dic["norm"] == "log":
+                vmin = z_arr.flatten()[np.where(z_arr > 0, z_arr, np.inf).argmin()]
+        if vmax == None:
+            assert not np.isnan(z_arr.max())
+            assert not np.isinf(z_arr.max())
+            vmax = z_arr.max()
+            if dic["norm"] == "log":
+                vmax = z_arr.flatten()[np.where(z_arr < 0, z_arr, -np.inf).argmax()]
+        cm = plt.cm.get_cmap(dic['cmap'])
+
+        if dic["norm"] == "norm" or dic["norm"] == "linear" or dic["norm"] == None:
+            norm = Normalize(vmin=vmin, vmax=vmax)
+        elif dic["norm"] == "log":
+            exit(1)
+            assert vmin > 0
+            assert vmax > 0
+            norm = LogNorm(vmin=vmin, vmax=vmax)
+        else:
+            raise NameError("unrecognized norm: {} in task {}"
+                            .format(dic["norm"], dic["v_n"]))
+
+
+        if "marker" in dic.keys() and dic["marker"] != None:
+            if "label" in dic.keys() and dic['label'] != None:
+                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, marker=dic["marker"], label=dic['label'])
+            else:
+                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], marker=dic["marker"], cmap=cm)
+        else:
+            if "label" in dic.keys() and dic['label'] != None:
+                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, label=dic['label'])
+            else:
+                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm)
+        return sc
 
     def fill_arr_with_vmin(self, arr, dic):
 
@@ -1353,6 +1413,13 @@ class PLOT_TASK(BASIC_PARTS):
             return self.plot_colormesh(ax, dic, dic["xarr"], dic["yarr"], dic["zarr"])
         elif dic['task'] == 'mkn obs':
             return self.plot_mkn_obs_data(ax, dic)
+        elif dic['task'] == 'scatter':
+            assert "xarr" in dic.keys()
+            assert "yarr" in dic.keys()
+            assert "zarr" in dic.keys()
+            return self.plot_scatter(ax, dic, dic["xarr"], dic["yarr"], dic["zarr"])
+        elif dic['task'] == "text":
+            return self.plot_text2(ax, dic)
         else:
             raise NameError("dic['task'] is not recognized ({})".format(dic["task"]))
 
@@ -1557,7 +1624,7 @@ class PLOT_MANY_TASKS(PLOT_TASK):
                             self.set_xy_labels(ax, dic)
                             self.set_legend(ax, dic)
                             self.remover_some_ticks(ax, dic)
-                            self.plot_text(ax, dic)
+                            # self.plot_text(ax, dic)
                             self.add_fancy_to_ax(ax, dic)
 
                             # self.set_min_max_scale(ax, dic, n_col, n_row)

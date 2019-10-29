@@ -34,6 +34,7 @@ from scipy import interpolate
 from scidata.utils import locate
 import scidata.carpet.hdf5 as h5
 import scidata.xgraph as xg
+from matplotlib.mlab import griddata
 
 from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
     MultipleLocator
@@ -541,10 +542,22 @@ class ALL_PAR(COMPUTE_ARR):
                 return dislmasses[-1, 1]
             else:
                 return np.nan
+        elif v_n == "Mdisk3Dmax":
+            dislmasses = self.get_disk_mass()
+            if len(dislmasses) > 0:
+                return np.array(dislmasses[:, 1]).max()
+            else:
+                return np.nan
         elif v_n == "tdisk3D":
             dislmasses = self.get_disk_mass()
             if len(dislmasses) > 0:
                 return dislmasses[-1, 0]
+            else:
+                return np.nan
+        elif v_n == "tdisk3Dmax":
+            dislmasses = self.get_disk_mass()
+            if len(dislmasses) > 0:
+                return dislmasses[UTILS.find_nearest_index(dislmasses[:, 0], np.array(dislmasses[:, 0]).max()), 1]
             else:
                 return np.nan
         else:
@@ -2705,6 +2718,248 @@ def get_ms(q, qmin=1, qmax = 1.4, msmin = 5., msmax = 10.):
 
 """=================================================================================================================="""
 
+''' ejecta summory '''
+
+def plot_last_disk_mass_with_lambda(v_n_x, v_n_y, v_n, det=None, mask=None):
+    #
+    simlist = ["BLh_M10201856_M0_LK_SR",
+        "BLh_M10651772_M0_LK_SR",
+        "BLh_M11841581_M0_LK_SR",
+        "BLh_M13641364_M0_LK_SR",
+        "BLh_M16351146_M0_LK_LR"] + [
+        "DD2_M11461635_M0_LK_SR",
+        "DD2_M13641364_M0_HR",
+        "DD2_M13641364_M0_HR_R04",
+        "DD2_M13641364_M0_LK_HR_R04",
+        "DD2_M13641364_M0_LK_LR_R04",
+        "DD2_M13641364_M0_LK_SR_R04",
+        "DD2_M13641364_M0_LR",
+        "DD2_M13641364_M0_LR_R04",
+        "DD2_M13641364_M0_SR",
+        "DD2_M13641364_M0_SR_R04",
+        "DD2_M14321300_M0_LR",
+        "DD2_M14351298_M0_LR",
+        "DD2_M14861254_M0_HR",
+        "DD2_M14861254_M0_LR",
+        "DD2_M14971245_M0_HR",
+        "DD2_M14971245_M0_SR",
+        "DD2_M14971246_M0_LR",
+        "DD2_M15091235_M0_LK_HR",
+        "DD2_M15091235_M0_LK_SR",
+        "DD2_M16351146_M0_LK_LR"] + [
+        "LS220_M10651772_M0_LK_LR",
+        "LS220_M11461635_M0_LK_SR",
+        "LS220_M13641364_M0_HR",
+        "LS220_M13641364_M0_LK_SR",
+        "LS220_M13641364_M0_LK_SR_restart",
+        "LS220_M13641364_M0_LR",
+        "LS220_M13641364_M0_SR",
+        "LS220_M14001330_M0_HR",
+        "LS220_M14001330_M0_SR",
+        "LS220_M14351298_M0_HR",
+        "LS220_M14351298_M0_SR",
+        "LS220_M14691268_M0_HR",
+        "LS220_M14691268_M0_LK_HR",
+        "LS220_M14691268_M0_LK_SR",
+        "LS220_M14691268_M0_LR",
+        "LS220_M14691268_M0_SR",
+        "LS220_M16351146_M0_LK_LR"] + [
+        "SFHo_M10651772_M0_LK_LR",
+        "SFHo_M11461635_M0_LK_SR",
+        "SFHo_M13641364_M0_HR",
+        "SFHo_M13641364_M0_LK_HR",
+        "SFHo_M13641364_M0_LK_SR",
+        "SFHo_M13641364_M0_LK_SR_2019pizza",
+        "SFHo_M13641364_M0_SR",
+        "SFHo_M14521283_M0_HR",
+        "SFHo_M14521283_M0_LK_HR",
+        "SFHo_M14521283_M0_LK_SR",
+        "SFHo_M14521283_M0_LK_SR_2019pizza",
+        "SFHo_M14521283_M0_SR",
+        "SFHo_M16351146_M0_LK_LR"] + [
+        "SLy4_M10651772_M0_LK_LR",
+        "SLy4_M11461635_M0_LK_SR",
+        "SLy4_M13641364_M0_LK_LR",
+        "SLy4_M13641364_M0_LK_SR",
+        "SLy4_M13641364_M0_LR",
+        "SLy4_M13641364_M0_SR",
+        # "SLy4_M14521283_M0_HR",
+        "SLy4_M14521283_M0_LR",
+        "SLy4_M14521283_M0_SR"]
+    #
+    # v_n = "Mdisk3Dmax"
+    # v_n_x = "Lambda"
+    # v_n_y = "q"
+    # det = None
+    # mask = None
+    #
+    # --------------------------
+
+    if det != None and mask != None:
+        figname = "{}_{}_{}_{}_{}.png".format(v_n_x, v_n_y, v_n, det, mask)
+    else:
+        figname = "{}_{}_{}.png".format(v_n_x, v_n_y, v_n)
+
+    # --------------------------
+    eos_lambda = {}
+
+    data = {"LS220":{}, "DD2":{}, "BLh":{}, "SFHo":{}, "SLy4":{}}
+
+    for sim in simlist:
+        o_par = ADD_METHODS_ALL_PAR(sim)
+        o_init = LOAD_INIT_DATA(sim)
+        lam = o_init.get_par(v_n_x)
+        eos = o_init.get_par("EOS")
+        q = o_init.get_par(v_n_y)
+        if det != None and mask != None:
+            mdisk = o_par.get_outflow_par(det, mask, v_n)
+        else:
+            mdisk = o_par.get_par(v_n)
+            # tdisk = o_par.get_par("tdisk3D")
+        #
+        for eos_ in data.keys():
+            if eos_ == eos:
+                if not np.isnan(mdisk):
+                    if not eos in eos_lambda.keys():
+                        eos_lambda[eos] = lam
+                    data[eos][sim] = {}
+                    Printcolor.green("sim: {}. Mdisk found".format(sim))
+                    data[eos][sim][v_n_x] = float(lam)
+                    data[eos][sim][v_n_y] = float(q)
+                    data[eos][sim][v_n] = float(mdisk)
+                    # data[eos][sim]["tdisk3D"] = float(tdisk)
+                    data[eos][sim]['eos'] = eos
+                else:
+                    Printcolor.red("sim: {}, Mdisk is nan".format(sim))
+    #   #   #   #   #
+    #   #   #   #   #
+    for eos in data.keys():
+        # print(data[eos][sim]["Lambda"])
+        sims = data[eos].keys()
+        data[eos][v_n_x + 's'] = np.array([float(data[eos][sim][v_n_x]) for sim in sims])
+        data[eos][v_n_y + 's'] = np.array([float(data[eos][sim][v_n_y]) for sim in sims])
+        data[eos][v_n] = np.array([float(data[eos][sim][v_n]) for sim in sims])
+
+    # lams = [np.array([data[eos][sim]["Lambda"] for sim in data.keys()]) for eos in data.keys()]
+    # qs = [np.array([data[eos][sim]["q"] for sim in data.keys()]) for eos in data.keys()]
+    # dmasses = [np.array([data[eos][sim]["Mdisk3D"] for sim in data.keys()]) for eos in data.keys()]
+    #
+    #
+    #
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+    o_plot.gen_set["figname"] = figname
+    o_plot.gen_set["sharex"] = True
+    o_plot.gen_set["sharey"] = False
+    o_plot.gen_set["subplots_adjust_h"] = 0.0
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+    #
+    # lams2d, qs2d = np.meshgrid(lams, qs)
+    # dmasses2d = griddata(lams, qs, dmasses, lams2d, qs2d, interp='linear')
+    # print(lams2d)
+    # print(qs2d)
+    # print(dmasses2d)
+    # print(len(lams), len(qs), len(dmasses))
+    # qs1, qs2 = qs.min(), qs.max()
+    # lam1, lam2 = lams.min(), lams.max()
+    # qstep = 0.1
+    # lamstep = 100
+    # grid_q = np.arange(start=qs1, stop=qs2, step=qstep)
+    # grid_lam = np.arange(start=lam1, stop=lam2, step=lamstep)
+
+    # for eos in eos_lambda.keys():
+    #     eos_dic = {
+    #         'task': 'text', 'ptype': 'cartesian',
+    #         'position': (1, 1),
+    #         'x': eos_lambda[eos], 'y': 1.5, 'text': eos,
+    #         'horizontalalignment': 'center',
+    #         'color': 'black', 'fs': 14
+    #     }
+    #     o_plot.set_plot_dics.append(eos_dic)
+
+    #
+
+
+    for eos, marker in zip(data.keys(), ['^', '<', '>', 's', 'd']):
+        lams_i = data[eos][v_n_x+'s']
+        qs_i = data[eos][v_n_y+'s']
+        dmasses_i = data[eos][v_n]
+        dic = {
+            'task': 'scatter', 'ptype': 'cartesian',  # 'aspect': 1.,
+            'xarr': lams_i, "yarr": qs_i, "zarr": dmasses_i,
+            'position': (1, 1),  # 'title': '[{:.1f} ms]'.format(time_),
+            'cbar': {'location': 'right .03 .0', 'label': Labels.labels(v_n),  # 'fmt': '%.1f',
+                     'labelsize': 14, 'fontsize': 14},
+            'v_n_x': 'x', 'v_n_y': 'z', 'v_n': v_n,
+            'xlabel': v_n_x, "ylabel": v_n_y, 'label':eos,
+            'xmin': 300, 'xmax': 880, 'ymin': 0.90, 'ymax': 2.1, 'vmin': 0.001, 'vmax': 0.40,
+            'fill_vmin': False,  # fills the x < vmin with vmin
+            'xscale': None, 'yscale': None,
+            'cmap': 'inferno', 'norm': None, 'ms': 35, 'marker': marker,
+            'fancyticks': True,
+            'minorticks': True,
+            'title': {},
+            'legend': {},
+            'sharey': False,
+            'sharex': False,  # removes angular citkscitks
+            'fontsize': 14,
+            'labelsize': 14
+        }
+        #
+        if v_n.__contains__("Mdisk3D"):
+            dic["vmin"], dic["vmax"] = 0.001, 0.40
+        elif v_n.__contains__("t"):
+            dic["vmin"], dic["vmax"] = 0.001, 0.60
+        elif v_n.__contains__("Mej"):
+            dic["vmin"], dic["vmax"] = 0.0001, 0.001
+        #
+        if eos == data.keys()[-1]:
+            dic['legend'] = {'loc': 'upper right', 'ncol': 3, 'fontsize': 10}
+        o_plot.set_plot_dics.append(dic)
+
+    # for sim in data.keys():
+    #     eos_dic = {
+    #         'task': 'text', 'ptype': 'cartesian',
+    #         'position': (1, 1),
+    #         'x': data[sim]['Lambda'], 'y': data[sim]['q'], 'text': data[sim]['eos'],
+    #         'horizontalalignment': 'center',
+    #         'color': 'black', 'fs': 11
+    #     }
+    #     o_plot.set_plot_dics.append(eos_dic)
+
+
+    # disk_mass_dic = {
+    #     'task': 'colormesh', 'ptype': 'cartesian', #'aspect': 1.,
+    #     'xarr': lams2d, "yarr": qs2d, "zarr": dmasses2d,
+    #     'position': (1, 1),  # 'title': '[{:.1f} ms]'.format(time_),
+    #     'cbar': {'location': 'right .03 .0', 'label': Labels.labels("Mdisk3D"),  # 'fmt': '%.1f',
+    #             'labelsize': 14, 'fontsize': 14},
+    #     'v_n_x': 'x', 'v_n_y': 'z', 'v_n': "Mdisk3D",
+    #     'xlabel': 'Lambda', "ylabel": "q",
+    #     'xmin': 350, 'xmax': 860, 'ymin': 1.00, 'ymax': 1.6, 'vmin': 0.001, 'vmax': 0.40,
+    #     'fill_vmin': False,  # fills the x < vmin with vmin
+    #     'xscale': None, 'yscale': None,
+    #     'mask': None, 'cmap': 'Greys', 'norm': "log",
+    #     'fancyticks': True,
+    #     'minorticks':True,
+    #     'title': {},
+    #     'sharey': False,
+    #     'sharex': False,  # removes angular citkscitks
+    #     'fontsize': 14,
+    #     'labelsize': 14
+    # }
+    # o_plot.set_plot_dics.append(disk_mass_dic)
+    o_plot.main()
+    exit(1)
+
+
+
+
+
+''' timecorr '''
 
 def plot_ejecta_time_corr_properites():
     o_plot = PLOT_MANY_TASKS()
@@ -2895,7 +3150,7 @@ def plot_ejecta_time_corr_properites():
 #     exit(1)
 # plot_total_fluxes_qnot1()
 
-''' ejecta mass '''
+''' ejecta mass fluxes '''
 
 def plot_total_fluxes_q1_and_qnot1(mask):
 
@@ -4444,7 +4699,7 @@ def plot_disk_hist_evol(sim, figname):
 
     exit(1)
 
-def plot_disk_mass_evol():
+def plot_disk_mass_evol_SR():
     # 11
     sims = ["DD2_M13641364_M0_LK_SR_R04", "BLh_M13641364_M0_LK_SR"] + \
            ["DD2_M15091235_M0_LK_SR", "LS220_M14691268_M0_LK_SR"] + \
@@ -4476,7 +4731,7 @@ def plot_disk_mass_evol():
     o_plot.gen_set["figdir"] = Paths.plots + "all2/"
     o_plot.gen_set["type"] = "cartesian"
     o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
-    o_plot.gen_set["figname"] = "disk_mass_evol.png"
+    o_plot.gen_set["figname"] = "disk_mass_evol_SR.png"
     o_plot.gen_set["sharex"] = False
     o_plot.gen_set["sharey"] = True
     o_plot.gen_set["dpi"] = 128
@@ -4540,6 +4795,488 @@ def plot_disk_mass_evol():
     o_plot.main()
     exit(1)
 
+def plot_disk_mass_evol_LR():
+
+    sims = ["BLh_M16351146_M0_LK_LR", "SLy4_M10651772_M0_LK_LR",  "SFHo_M10651772_M0_LK_LR", "SFHo_M16351146_M0_LK_LR",
+            "LS220_M10651772_M0_LK_LR", "LS220_M16351146_M0_LK_LR", "DD2_M16351146_M0_LK_LR"] + \
+           ["DD2_M13641364_M0_LR", "LS220_M13641364_M0_LR"] + \
+           ["DD2_M14971246_M0_LR", "DD2_M14861254_M0_LR", "DD2_M14351298_M0_LR", "DD2_M14321300_M0_LR", "SLy4_M14521283_M0_LR"]
+    #
+    colors = ["black", "orange", "pink", "olive", "red", "purple", "blue"] + \
+            ["blue", "red"] + \
+            ["darkblue", "blue", "cornflowerblue", "orange"]
+    #
+    lss = ["-", "-", "-", "-", "-", "-"] +\
+          ['--', '--', '--'] + \
+          ["-.", "-.", "-.", "-."]
+    #
+    lws = [1., 1., 1., 1., 1., 1., 1.] + \
+          [1., 1.] + \
+          [1., 1., 1., 1., 1.]
+    #
+    alphas = [1., 1., 1., 1., 1., 1., 1.] + \
+          [1., 1.] + \
+          [1., 1., 1., 1., 1.]
+
+
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+    o_plot.gen_set["figname"] = "disk_mass_evol_LR.png"
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = True
+    o_plot.gen_set["dpi"] = 128
+    o_plot.gen_set["subplots_adjust_h"] = 0.3
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+
+    for sim, color, ls, lw, alpha in zip(sims, colors, lss, lws, alphas):
+        print("{}".format(sim))
+        o_data = ADD_METHODS_ALL_PAR(sim)
+        data = o_data.get_disk_mass()
+        assert len(data) > 0
+        tmerg = o_data.get_par("tmerg")
+        tarr = (data[:, 0] - tmerg) * 1e3
+        marr = data[:, 1]
+
+        if sim == "DD2_M13641364_M0_LK_SR_R04":
+            tarr = tarr[3:]  # 3ms, 6ms, 51ms.... Removing initial profiles
+            marr = marr[3:]  #
+        #
+        tcoll = o_data.get_par("tcoll_gw")
+        if not np.isnan(tcoll) and tcoll < tarr[-1]:
+            tcoll = (tcoll - tmerg) * 1e3
+            print(tcoll, tarr[0])
+            mcoll = interpolate.interp1d(tarr, marr, kind="linear")(tcoll)
+            tcoll_dic = {
+                'task': 'line', 'ptype': 'cartesian',
+                'position': (1, 1),
+                'xarr': [tcoll], 'yarr': [mcoll],
+                'v_n_x': "time", 'v_n_y': "mass",
+                'color': color, 'marker': "x", 'ms': 5., 'alpha': alpha,
+                'xmin': -10, 'xmax': 40, 'ymin': 0, 'ymax': .3,
+                'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels("diskmass"),
+                'label': None, 'yscale': 'linear',
+                'fancyticks': True, 'minorticks': True,
+                'fontsize': 14,
+                'labelsize': 14,
+                'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+            }
+            o_plot.set_plot_dics.append(tcoll_dic)
+        #
+        plot_dic = {
+            'task': 'line', 'ptype': 'cartesian',
+            'position': (1, 1),
+            'xarr': tarr, 'yarr': marr,
+            'v_n_x': "time", 'v_n_y': "mass",
+            'color': color, 'ls': ls, 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
+            'xmin': -10, 'xmax': 40, 'ymin': 0, 'ymax': .35,
+            'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels("diskmass"),
+            'label': str(sim).replace('_', '\_'), 'yscale': 'linear',
+            'fancyticks': True, 'minorticks': True,
+            'fontsize': 14,
+            'labelsize': 14,
+            'legend': {'bbox_to_anchor': (1.1, 1.05),
+                       'loc': 'lower right', 'ncol': 2, 'fontsize': 8}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+        }
+        if sim == sims[-1]:
+            plot_dic['legend'] = {'bbox_to_anchor': (1.1, 1.05),
+                                  'loc': 'lower right', 'ncol': 2, 'fontsize': 8}
+        o_plot.set_plot_dics.append(plot_dic)
+
+
+    o_plot.main()
+    exit(1)
+
+def plot_disk_mass_evol_HR():
+
+    #
+    # SFHo_M14521283_M0_HR, SFHo_M13641364_M0_HR, DD2_M14971245_M0_HR, DD2_M14861254_M0_HR
+    #
+
+    sims = ["SFHo_M13641364_M0_HR",
+            "DD2_M14971245_M0_HR", "DD2_M14861254_M0_HR", "SFHo_M14521283_M0_HR"]
+    #
+    colors = ["green",
+              "blue", "cornflowerblue", "green"]
+    #
+    lss = ['--'] + \
+          ["-.", "-.", "-."]
+    #
+    lws = [1.,] + \
+          [1., 1., 1.]
+    #
+    alphas = [1.] +\
+          [1., 1., 1.]
+
+
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+    o_plot.gen_set["figname"] = "disk_mass_evol_HR.png"
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = True
+    o_plot.gen_set["dpi"] = 128
+    o_plot.gen_set["subplots_adjust_h"] = 0.3
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+
+    for sim, color, ls, lw, alpha in zip(sims, colors, lss, lws, alphas):
+        if not sim.__contains__("10651772"):
+            print("{}".format(sim))
+            o_data = ADD_METHODS_ALL_PAR(sim)
+            data = o_data.get_disk_mass()
+            assert len(data) > 0
+            tmerg = o_data.get_par("tmerg")
+            tarr = (data[:, 0] - tmerg) * 1e3
+            marr = data[:, 1]
+
+            if sim == "DD2_M13641364_M0_LK_SR_R04":
+                tarr = tarr[3:] # 3ms, 6ms, 51ms.... Removing initial profiles
+                marr = marr[3:] #
+            #
+            tcoll = o_data.get_par("tcoll_gw")
+            if not np.isnan(tcoll) and tcoll < tarr[-1]:
+                tcoll = (tcoll - tmerg) * 1e3
+                print(tcoll, tarr[0])
+                mcoll = interpolate.interp1d(tarr,marr,kind="linear")(tcoll)
+                tcoll_dic = {
+                    'task': 'line', 'ptype': 'cartesian',
+                    'position': (1, 1),
+                    'xarr': [tcoll], 'yarr': [mcoll],
+                    'v_n_x': "time", 'v_n_y': "mass",
+                    'color': color, 'marker': "x", 'ms': 5., 'alpha': alpha,
+                    'xmin': -10, 'xmax': 40, 'ymin': 0, 'ymax': .3,
+                    'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels("diskmass"),
+                    'label': None, 'yscale': 'linear',
+                    'fancyticks': True, 'minorticks': True,
+                    'fontsize': 14,
+                    'labelsize': 14,
+                    'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+                }
+                o_plot.set_plot_dics.append(tcoll_dic)
+            #
+            plot_dic = {
+                'task': 'line', 'ptype': 'cartesian',
+                'position': (1, 1),
+                'xarr': tarr, 'yarr': marr,
+                'v_n_x': "time", 'v_n_y': "mass",
+                'color': color, 'ls': ls, 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
+                'xmin': -10, 'xmax': 40, 'ymin': 0, 'ymax': .35,
+                'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels("diskmass"),
+                'label': str(sim).replace('_', '\_'), 'yscale': 'linear',
+                'fancyticks': True, 'minorticks': True,
+                'fontsize': 14,
+                'labelsize': 14,
+                'legend': {'bbox_to_anchor':(1.1,1.05),
+                    'loc': 'lower right', 'ncol': 2, 'fontsize': 8}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+            }
+            if sim == sims[-1]:
+                plot_dic['legend'] = {'bbox_to_anchor':(1.1,1.05),
+                    'loc': 'lower right', 'ncol': 2, 'fontsize': 8}
+            o_plot.set_plot_dics.append(plot_dic)
+
+    o_plot.main()
+    exit(1)
+
+''' disk slice xy-xz '''
+
+def plot_den_unb__vel_z_sly4_evol():
+
+    # tmp = d3class.get_data(688128, 3, "xy", "ang_mom_flux")
+    # print(tmp.min(), tmp.max())
+    # print(tmp)
+    # exit(1) # dens_unb_geo
+
+    """ --- --- --- """
+
+
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + 'all2/'
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (16.8, 8.0)  # <->, |] # to match hists with (8.5, 2.7)
+    o_plot.gen_set["figname"] = "sly4_136136_evol2.png"#"DD2_1512_slices.png" # LS_1412_slices
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = True
+    o_plot.gen_set["dpi"] = 128
+    o_plot.gen_set["subplots_adjust_h"] = -0.35
+    o_plot.gen_set["subplots_adjust_w"] = 0.05
+    o_plot.set_plot_dics = []
+
+    '''sly4 '''
+    simlist = ["SLy4_M13641364_M0_SR", "SLy4_M13641364_M0_SR", "SLy4_M13641364_M0_SR", "SLy4_M13641364_M0_SR"]
+    # itlist = [434176, 475136, 516096, 565248]
+    # itlist = [606208, 647168, 696320, 737280]
+    itlist = [434176, 516096, 647168, 737280]
+    ''' ls220 '''
+    # simlist = ["LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_SR"]
+    # itlist = [1515520, 1728512, 1949696, 2162688]
+    ''' dd2 '''
+    # simlist = ["DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_SR_R04"]
+    # itlist = [1111116,1741554,2213326,2611022]
+
+
+
+    rl = 2
+
+    o_plot.gen_set["figsize"] = (4.2*len(simlist), 8.0)  # <->, |] # to match hists with (8.5, 2.7)
+
+    plot_x_i = 1
+    for sim, it in zip(simlist, itlist):
+        print("sim:{} it:{}".format(sim, it))
+        d3class = LOAD_PROFILE_XYXZ(sim)
+        d1class = ADD_METHODS_ALL_PAR(sim)
+
+        t = d3class.get_time_for_it(it, d1d2d3prof="prof")
+        tmerg = d1class.get_par("tmerg")
+        xmin, xmax, ymin, ymax, zmin, zmax = UTILS.get_xmin_xmax_ymin_ymax_zmin_zmax(rl)
+
+        # --------------------------------------------------------------------------
+
+        # --------------------------------------------------------------------------
+        mask = "x>0"
+        #
+        v_n = "rho"
+        data_arr = d3class.get_data(it, rl, "xz", v_n)
+        x_arr = d3class.get_data(it, rl, "xz", "x")
+        z_arr = d3class.get_data(it, rl, "xz", "z")
+        rho_dic_xz = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                      'xarr': x_arr, "yarr": z_arr, "zarr": data_arr,
+                      'position': (1, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
+                      'cbar': {},
+                      'v_n_x': 'x', 'v_n_y': 'z', 'v_n': v_n,
+                      'xmin': xmin, 'xmax': xmax, 'ymin': zmin, 'ymax': zmax, 'vmin': 1e-9, 'vmax': 1e-5,
+                      'fill_vmin': False,  # fills the x < vmin with vmin
+                      'xscale': None, 'yscale': None,
+                      'mask': mask, 'cmap': 'Greys', 'norm': "log",
+                      'fancyticks': True,
+                      'minorticks':True,
+                      'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3), 'fontsize': 14},
+                      'sharey': False,
+                      'sharex': True,  # removes angular citkscitks
+                      'fontsize': 14,
+                      'labelsize': 14
+                      }
+        #
+        data_arr = d3class.get_data(it, rl, "xy", v_n)
+        x_arr = d3class.get_data(it, rl, "xy", "x")
+        y_arr = d3class.get_data(it, rl, "xy", "y")
+        rho_dic_xy = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                      'xarr': x_arr, "yarr": y_arr, "zarr": data_arr,
+                      'position': (2, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
+                      'cbar': {},
+                      'v_n_x': 'x', 'v_n_y': 'y', 'v_n': v_n,
+                      'xmin': xmin, 'xmax': xmax, 'ymin': ymin, 'ymax': ymax, 'vmin': 1e-9, 'vmax': 1e-5,
+                      'fill_vmin': False,  # fills the x < vmin with vmin
+                      'xscale': None, 'yscale': None,
+                      'mask': mask, 'cmap': 'Greys', 'norm': "log",
+                      'fancyticks': True,
+                      'minorticks': True,
+                      'title': {},
+                      'sharey': False,
+                      'sharex': False,  # removes angular citkscitks
+                      'fontsize': 14,
+                      'labelsize': 14
+                      }
+        #
+        if plot_x_i == 1:
+            rho_dic_xy['cbar'] = {'location': 'bottom -.05 .00', 'label': r'$\rho$ [GEO]',  # 'fmt': '%.1e',
+                          'labelsize': 14,
+                          'fontsize': 14}
+        if plot_x_i > 1:
+            rho_dic_xz['sharey'] = True
+            rho_dic_xy['sharey'] = True
+
+        o_plot.set_plot_dics.append(rho_dic_xz)
+        o_plot.set_plot_dics.append(rho_dic_xy)
+
+        # ----------------------------------------------------------------------
+        v_n = "dens_unb_bern"
+        #
+        data_arr = d3class.get_data(it, rl, "xz", v_n)
+        x_arr = d3class.get_data(it, rl, "xz", "x")
+        z_arr = d3class.get_data(it, rl, "xz", "z")
+        dunb_dic_xz = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                      'xarr': x_arr, "yarr": z_arr, "zarr": data_arr,
+                      'position': (1, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
+                      'cbar': {},
+                      'v_n_x': 'x', 'v_n_y': 'z', 'v_n': v_n,
+                      'xmin': xmin, 'xmax': xmax, 'ymin': zmin, 'ymax': zmax, 'vmin': 1e-10, 'vmax': 1e-7,
+                      'fill_vmin': False,  # fills the x < vmin with vmin
+                      'xscale': None, 'yscale': None,
+                      'mask': mask, 'cmap': 'Blues', 'norm': "log",
+                      'fancyticks': True,
+                       'minorticks': True,
+                       'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3), 'fontsize': 14},
+                      'sharex': True,  # removes angular citkscitks
+                      'sharey': False,
+                      'fontsize': 14,
+                      'labelsize': 14
+                      }
+        #
+        data_arr = d3class.get_data(it, rl, "xy", v_n)
+        x_arr = d3class.get_data(it, rl, "xy", "x")
+        y_arr = d3class.get_data(it, rl, "xy", "y")
+        dunb_dic_xy = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                      'xarr': x_arr, "yarr": y_arr, "zarr": data_arr,
+                      'position': (2, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
+                      'cbar': {},
+                      'fill_vmin': False,  # fills the x < vmin with vmin
+                      'v_n_x': 'x', 'v_n_y': 'y', 'v_n': v_n,
+                      'xmin': xmin, 'xmax': xmax, 'ymin': ymin, 'ymax': ymax, 'vmin': 1e-10, 'vmax': 1e-7,
+                      'xscale': None, 'yscale': None,
+                      'mask': mask, 'cmap': 'Blues', 'norm': "log",
+                      'fancyticks': True,
+                       'minorticks': True,
+                       'title': {},
+                      'sharey': False,
+                      'sharex': False,  # removes angular citkscitks
+                      'fontsize': 14,
+                      'labelsize': 14
+                      }
+        #
+        if plot_x_i == 2:
+            dunb_dic_xy['cbar'] = {'location': 'bottom -.05 .00', 'label': r'$D_{\rm{unb}}$ [GEO]',  # 'fmt': '%.1e',
+                          'labelsize': 14,
+                          'fontsize': 14}
+        if plot_x_i > 1:
+            dunb_dic_xz['sharey'] = True
+            dunb_dic_xy['sharey'] = True
+
+        o_plot.set_plot_dics.append(dunb_dic_xz)
+        o_plot.set_plot_dics.append(dunb_dic_xy)
+
+        # ----------------------------------------------------------------------
+        mask = "x<0"
+        #
+        v_n = "Ye"
+        cmap = "Reds"
+        #
+        data_arr = d3class.get_data(it, rl, "xz", v_n)
+        x_arr = d3class.get_data(it, rl, "xz", "x")
+        z_arr = d3class.get_data(it, rl, "xz", "z")
+        ye_dic_xz = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                       'xarr': x_arr, "yarr": z_arr, "zarr": data_arr,
+                       'position': (1, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
+                       'cbar': {},
+                       'fill_vmin': False,  # fills the x < vmin with vmin
+                       'v_n_x': 'x', 'v_n_y': 'z', 'v_n': v_n,
+                       'xmin': xmin, 'xmax': xmax, 'ymin': zmin, 'ymax': zmax, 'vmin': 0.1, 'vmax': 0.5,
+                       'xscale': None, 'yscale': None,
+                       'mask': mask, 'cmap': cmap, 'norm': None,
+                       'fancyticks': True,
+                     'minorticks': True,
+                     'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3), 'fontsize': 14},
+                       'sharey': False,
+                       'sharex': True,  # removes angular citkscitks
+                       'fontsize': 14,
+                       'labelsize': 14
+                       }
+        #
+        data_arr = d3class.get_data(it, rl, "xy", v_n)
+        x_arr = d3class.get_data(it, rl, "xy", "x")
+        y_arr = d3class.get_data(it, rl, "xy", "y")
+        ye_dic_xy = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                       'xarr': x_arr, "yarr": y_arr, "zarr": data_arr,
+                       'position': (2, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
+                       'cbar': {},
+                       'fill_vmin': False,  # fills the x < vmin with vmin
+                       'v_n_x': 'x', 'v_n_y': 'y', 'v_n': v_n,
+                       'xmin': xmin, 'xmax': xmax, 'ymin': ymin, 'ymax': ymax, 'vmin': 0.1, 'vmax': 0.5,
+                       'xscale': None, 'yscale': None,
+                       'mask': mask, 'cmap': cmap, 'norm': None,
+                       'fancyticks': True,
+                     'minorticks': True,
+                     'title': {},
+                       'sharey': False,
+                       'sharex': False,  # removes angular citkscitks
+                       'fontsize': 14,
+                       'labelsize': 14
+                       }
+        #
+        if plot_x_i == 3:
+            ye_dic_xy['cbar'] = {'location': 'bottom -.05 .00', 'label': r'$Y_e$',   'fmt': '%.1f',
+                          'labelsize': 14,
+                          'fontsize': 14}
+        if plot_x_i > 1:
+            ye_dic_xz['sharey'] = True
+            ye_dic_xy['sharey'] = True
+
+        o_plot.set_plot_dics.append(ye_dic_xz)
+        o_plot.set_plot_dics.append(ye_dic_xy)
+
+        # ----------------------------------------------------------
+        tcoll = d1class.get_par("tcoll_gw")
+        if not np.isnan(tcoll) and t >= tcoll:
+            print(tcoll, t)
+            v_n = "lapse"
+            mask = "z>0.5"
+            data_arr = d3class.get_data(it, rl, "xz", v_n)
+            x_arr = d3class.get_data(it, rl, "xz", "x")
+            z_arr = d3class.get_data(it, rl, "xz", "z")
+            lapse_dic_xz = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                            'xarr': x_arr, "yarr": z_arr, "zarr": data_arr,
+                            'position': (1, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
+                            'cbar': {},
+                            'v_n_x': 'x', 'v_n_y': 'z', 'v_n': v_n,
+                            'xmin': xmin, 'xmax': xmax, 'ymin': zmin, 'ymax': zmax, 'vmin': 0., 'vmax': 0.15,
+                            'fill_vmin': False,  # fills the x < vmin with vmin
+                            'xscale': None, 'yscale': None,
+                            'mask': mask, 'cmap': 'Greys', 'norm': None,
+                            'fancyticks': True,
+                            'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3),
+                                      'fontsize': 14},
+                            'sharey': False,
+                            'sharex': True,  # removes angular citkscitks
+                            'fontsize': 14,
+                            'labelsize': 14
+                            }
+            #
+            data_arr = d3class.get_data(it, rl, "xy", v_n)
+            # print(data_arr.min(), data_arr.max()); exit(1)
+            x_arr = d3class.get_data(it, rl, "xy", "x")
+            y_arr = d3class.get_data(it, rl, "xy", "y")
+            lapse_dic_xy = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
+                            'xarr': x_arr, "yarr": y_arr, "zarr": data_arr,
+                            'position': (2, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
+                            'cbar': {},
+                            'v_n_x': 'x', 'v_n_y': 'y', 'v_n': v_n,
+                            'xmin': xmin, 'xmax': xmax, 'ymin': ymin, 'ymax': ymax, 'vmin': 0, 'vmax': 0.15,
+                            'fill_vmin': False,  # fills the x < vmin with vmin
+                            'xscale': None, 'yscale': None,
+                            'mask': mask, 'cmap': 'Greys', 'norm': None,
+                            'fancyticks': True,
+                            'title': {},
+                            'sharey': False,
+                            'sharex': False,  # removes angular citkscitks
+                            'fontsize': 14,
+                            'labelsize': 14
+                            }
+            #
+            # if plot_x_i == 1:
+            #     rho_dic_xy['cbar'] = {'location': 'bottom -.05 .00', 'label': r'$\rho$ [GEO]',  # 'fmt': '%.1e',
+            #                           'labelsize': 14,
+            #                           'fontsize': 14}
+            if plot_x_i > 1:
+                lapse_dic_xz['sharey'] = True
+                lapse_dic_xy['sharey'] = True
+
+            o_plot.set_plot_dics.append(lapse_dic_xz)
+            o_plot.set_plot_dics.append(lapse_dic_xy)
+
+
+        plot_x_i += 1
+
+
+
+
+    o_plot.main()
+
+    exit(0)
+
+
 if __name__ == '__main__':
 
     ''' --- neutrinos --- '''
@@ -4551,7 +5288,12 @@ if __name__ == '__main__':
 
     ''' disk properties '''
 
-    # plot_disk_mass_evol()
+    # plot_last_disk_mass_with_lambda("Lambda", "q", "Mdisk3Dmax", None, None)
+    plot_last_disk_mass_with_lambda("Lambda", "q", "Mej_tot", det=0, mask="geo")
+
+    # plot_disk_mass_evol_SR()
+    # plot_disk_mass_evol_LR()
+    # plot_disk_mass_evol_HR()
 
     # plot_disk_hist_evol("LS220_M13641364_M0_SR", "ls220_no_lk_disk_hists.png")
     # plot_disk_hist_evol("LS220_M13641364_M0_LK_SR_restart", "ls220_disk_hists.png")
@@ -4574,6 +5316,12 @@ if __name__ == '__main__':
     # o_err.main(rewrite=False)
     # # plot_total_fluxes_lk_on_off("bern_geoend")
     # exit(1)
+
+    ''' disk slices '''
+
+    plot_den_unb__vel_z_sly4_evol()
+
+
     ''' --- COMPARISON TABLE --- '''
     tbl = COMPARISON_TABLE()
 

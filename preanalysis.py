@@ -1444,17 +1444,17 @@ class INIT_DATA:
             if tov_fpath != None:
                 tov_fname = tov_fpath
             elif self.par_dic["EOS"] == 'SFHo':
-                tov_fname = Paths.TOVs + 'SFHo_love.dat'
+                tov_fname = Paths.TOVs + 'SFHo_sequence.txt' #'SFHo_love.dat'
             elif self.par_dic["EOS"] == 'DD2':
-                tov_fname = Paths.TOVs + 'DD2_love.dat'
+                tov_fname = Paths.TOVs + 'DD2_sequence.txt' #'DD2_love.dat'
             elif self.par_dic["EOS"] == 'LS220':
-                tov_fname = Paths.TOVs + 'LS220_love.dat'
+                tov_fname = Paths.TOVs + 'LS200_sequence.txt' #'LS220_love.dat'
             elif self.par_dic["EOS"] == 'SLy4':
-                tov_fname = Paths.TOVs + 'SLy4_love.dat'
+                tov_fname = Paths.TOVs + 'SLy_sequence.txt' #'SLy4_love.dat'
             elif self.par_dic["EOS"] == 'BHBlp' or self.par_dic["EOS"] == 'BHB':
                 tov_fname = Paths.TOVs + 'BHBlp_love.dat'
             elif self.par_dic["EOS"] == "BLh":
-                tov_fname = Paths.TOVs + "BLh_love.dat"
+                tov_fname = Paths.TOVs + 'BLh_sequence.txt' #"BLh_love.dat"
             else:
                 raise NameError("\tTOV sequences are not found for EOS:{} ".format(self.par_dic["EOS"]))
             self.load_tov_extract_pars(tov_fname)
@@ -1493,15 +1493,22 @@ class INIT_DATA:
                 break
 
         assert initial_data != ""
-
+        #
         run = initial_data.split("/")[-3]
+        if not run.__contains__("R"):
+            if str(initial_data.split("/")[-2]).__contains__("R05"):
+                Printcolor.yellow("\tWrong path of initial data. Using R05 for initial_data:'\n\t{}".format(initial_data))
+                run = "R05"
+            else:
+                raise ValueError("found 'run':{} does not contain 'R'. in initial_data:{}".format(run, initial_data))
+        #
         initial_data_dirname = initial_data.split("/")[-2]
-
+        #
         pizza_fname = str(pizza_eos_fname.split("/")[-1])
         pizza_fname = pizza_fname[:-1]
-
+        #
         hydro_fname = str(hydro_eos_fname[1:-1])
-
+        #
         weak_fname = str(weak_eos_fname.split("/")[-1])
         weak_fname = weak_fname[:-1]
 
@@ -1519,7 +1526,7 @@ class INIT_DATA:
         if self.lor_archive_fpath == None:
 
             run, dirnmame, pizza_fname, hydro_fname, weak_fname = self.get_fname_for_init_data_from_parfile()
-
+            # print(run)
             if not os.path.isdir(Paths.lorene + run + '/'):
                 self.is_init_data_available = False
                 Printcolor.red("\tError. Init. data source dir is not found: {}"
@@ -1696,6 +1703,15 @@ class INIT_DATA:
         comp = tov_table[:, 4]  # compactness
         kl = tov_table[:, 5]
         lamb = tov_table[:, 6]  # lam
+
+        idx = np.argmax(m_grav)
+
+        m_grav = m_grav[:idx]
+        m_bary = m_bary[:idx]
+        r = r[:idx]
+        comp = comp[:idx]
+        kl = kl[:idx]
+        lamb = lamb[:idx]
 
         interp_grav_bary = interpolate.interp1d(m_bary, m_grav, kind='cubic')
         interp_lamb_bary = interpolate.interp1d(m_bary, lamb, kind='cubic')

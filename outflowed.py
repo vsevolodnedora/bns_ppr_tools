@@ -457,7 +457,7 @@ class COMPUTE_OUTFLOW_SURFACE(EXTRACT_OUTFLOW_SURFACE):
 
         for v_n in v_ns:
             arr = []
-            print("\t--- {} ---".format(v_n)),
+            print("\t--- {} ---".format(v_n))
             for it in self.list_iterations:
                 data = self.get_reshaped_data(det, it, v_n)
                 arr.append(data)
@@ -2731,11 +2731,18 @@ if __name__ == '__main__':
         assert len(glob_detectors) > 0
         o_os = COMPUTE_OUTFLOW_SURFACE(glob_sim)
         # check if EOS file is correclty set
-        if not glob_eos == None: o_os.eos_fname = glob_eos
-        else: o_os.eos_fname = Paths.get_eos_fname_from_curr_dir(glob_sim)
-        if os.path.isfile(glob_eos) and glob_eos.__contains__(glob_sim.split('_')[0]): # is sim EOS is in eosfname
+        if glob_eos != None:
+            pass
+        else:
+            glob_eos = Paths.get_eos_fname_from_curr_dir(glob_sim)
+        assert os.path.isfile(glob_eos)
+        #
+        o_os.eos_fname = glob_eos
+        print("\tsetting eos: {}".format(glob_eos))
+        #
+        if os.path.isfile(glob_eos) and glob_eos.__contains__(str(glob_sim.split('_')[0])): # is sim EOS is in eosfname
             "Initializing serial reshape..."
-        elif click.confirm('Is the EOS fname correct? {}'.format(o_os.eos_fname), default=True):
+        elif click.confirm('Is the EOS fname correct? {}'.format(glob_eos), default=True):
             print("Initializing serial reshape...")
         else:
             exit(1)

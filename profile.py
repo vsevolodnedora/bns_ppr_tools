@@ -3866,6 +3866,11 @@ if __name__ == '__main__':
     if not os.path.isdir(glob_simdir + glob_sim):
         raise NameError("simulation dir: {} does not exist in rootpath: {} "
                         .format(glob_sim, glob_simdir))
+    if not os.path.isdir(glob_outdir):
+        raise NameError("output dir does not exist, please check: {}".format(glob_outdir))
+    #
+    Paths.gw170817 = glob_simdir
+    Paths.ppr_sims = glob_outdir
     # check if tasks are set properly
     if len(glob_tasklist) == 0:
         raise NameError("tasklist is empty. Set what tasks to perform with '-t' option")
@@ -3885,7 +3890,7 @@ if __name__ == '__main__':
     #
     if len(itprof) == 0:
         Printcolor.red("No profiles found. Please, extract profiles for {} "
-                         "and save them in /sim_dir/profiles/3d/".format(glob_sim))
+                         "and save them in /sim_dir/profiles/3d/ and/or update ittime.h5".format(glob_sim))
         exit(0)
     else:
         Printcolor.print_colored_string(["Available", "{}".format(len(itprof)), "profiles to postprocess"],
@@ -3949,8 +3954,7 @@ if __name__ == '__main__':
     # glob_outdir_sim = Paths.ppr_sims + glob_sim + '/'
 
     # set globals
-    Paths.gw170817 = glob_simdir
-    Paths.ppr_sims = glob_outdir
+
 
     # tasks
 
