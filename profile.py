@@ -1492,9 +1492,12 @@ class MAINMETHODS_STORE(MASK_STORE):
             w_lorentz[idx] = 0.0
 
             # Compute center of mass
-            modes[0].append(dxyz * ne.evaluate("sum(rho * w_lorentz * vol)"))
-            Ix = dxyz * ne.evaluate("sum(rho * w_lorentz * vol * x)")
-            Iy = dxyz * ne.evaluate("sum(rho * w_lorentz * vol * y)")
+            # modes[0].append(dxyz * ne.evaluate("sum(rho * w_lorentz * vol)"))
+            modes[0].append(dxyz * ne.evaluate("sum(rho)"))
+            # Ix = dxyz * ne.evaluate("sum(rho * w_lorentz * vol * x)")
+            # Iy = dxyz * ne.evaluate("sum(rho * w_lorentz * vol * y)")
+            Ix = dxyz * ne.evaluate("sum(rho * x)")
+            Iy = dxyz * ne.evaluate("sum(rho * y)")
             xc = Ix / modes[0][-1]
             yc = Iy / modes[0][-1]
             phi = ne.evaluate("arctan2(y - yc, x - xc)")
@@ -1507,7 +1510,8 @@ class MAINMETHODS_STORE(MASK_STORE):
             # Extract modes
             times.append(self.get_time_for_it(it, d1d2d3prof="prof"))
             for m in range(1, mmax + 1):
-                modes[m].append(dxyz * ne.evaluate("sum(rho * w_lorentz * vol * exp(-1j * m * phi))"))
+                modes[m].append(dxyz * ne.evaluate("sum(rho * exp(-1j * m * phi))"))
+                # modes[m].append(dxyz * ne.evaluate("sum(rho * w_lorentz * vol * exp(-1j * m * phi))"))
 
 
         return times, iterations, xcs, ycs, modes

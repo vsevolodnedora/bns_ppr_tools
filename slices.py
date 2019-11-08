@@ -53,7 +53,7 @@ from plotting_methods import PLOT_MANY_TASKS
 __slices__ = {
     "name": "slices",
     "outdir": "slices",
-    "tasklist": ["plot", "movie", "addm0"],
+    "tasklist": ["plot", "movie", "addm0", "dm"],
     "reflevels": [0, 1, 2, 3, 4, 5, 6]
 }
 
@@ -110,7 +110,7 @@ class LOAD_STORE_DATASETS(LOAD_ITTIME):
         self.list_outputs = self.get_list_outputs()
         isdata, self.iterations, self.times = \
             self.get_ittime(output="overall", d1d2d3prof="d2")
-
+        # print(self.iterations[0], self.iterations[-1]); exit(1)
 
         # self.output_it_map, self.it_time = \
         #     set_it_output_map(Paths.gw170817+self.sim+'/')
@@ -633,6 +633,70 @@ class COMPUTE_STORE(EXTRACT_FOR_RL):
     def __init__(self, sim):
         EXTRACT_FOR_RL.__init__(self, sim)
 
+    def get_rho_modes_for_rl(self, rl=6, mmax=8):
+        import numexpr as ne
+
+        iterations = self.iterations  # apply limits on it
+        #
+        times = []
+        modes = [[] for m in range(mmax + 1)]
+        xcs = []
+        ycs = []
+        #
+        for idx, it in enumerate(iterations):
+            print("\tprocessing iteration: {}/{}".format(idx, len(iterations)))
+            # get z=0 slice
+            # lapse = o_slice.get_data_rl(it, "xy", rl, "lapse")
+            rho = o_slice.get_data_rl(it, "xy", rl, "rho")
+            # o_slice.get_data_rl(it, "xy", rl, "vol")
+            # w_lorentz = o_slice.get_data_rl(it, "xy", rl, "w_lorentz")
+
+            delta = self.get_grid_v_n_rl(it, "xy", rl, "delta")#[:-1]
+            #
+            dxyz = np.prod(delta)
+            x = self.get_grid_v_n_rl(it, "xy", rl, "x")
+            y = self.get_grid_v_n_rl(it, "xy", rl, "y")
+            # z = self.get_grid_v_n_rl(it, "xy", rl, "z")
+            # x = x[:, :, 0]
+            # y = y[:, :, 0]
+
+            # apply mask to cut off the horizon
+            # rho[lapse < 0.15] = 0
+
+            # Exclude region outside refinement levels
+            idx = np.isnan(rho)
+            rho[idx] = 0.0
+            # vol[idx] = 0.0
+            # w_lorentz[idx] = 0.0
+
+            # Compute center of mass
+            # modes[0].append(dxyz * ne.evaluate("sum(rho * w_lorentz * vol)"))
+            # Ix = dxyz * ne.evaluate("sum(rho * w_lorentz * vol * x)")
+            # Iy = dxyz * ne.evaluate("sum(rho * w_lorentz * vol * y)")
+            # xc = Ix / modes[0][-1]
+            # yc = Iy / modes[0][-1]
+            # phi = ne.evaluate("arctan2(y - yc, x - xc)")
+            #
+            modes[0].append(dxyz * ne.evaluate("sum(rho)"))
+            Ix = dxyz * ne.evaluate("sum(rho * x)")
+            Iy = dxyz * ne.evaluate("sum(rho * y)")
+            xc = Ix / modes[0][-1]
+            yc = Iy / modes[0][-1]
+            phi = ne.evaluate("arctan2(y - yc, x - xc)")
+
+
+            # phi = ne.evaluate("arctan2(y, x)")
+
+            xcs.append(xc)
+            ycs.append(yc)
+
+            # Extract modes
+            times.append(self.get_time_for_it(it, d1d2d3prof="d2"))
+            for m in range(1, mmax + 1):
+                # modes[m].append(dxyz * ne.evaluate("sum(rho * w_lorentz * vol * exp(-1j * m * phi))"))
+                modes[m].append(dxyz * ne.evaluate("sum(rho * exp(-1j * m * phi))"))
+
+        return times, iterations, xcs, ycs, modes
 
 class CYLINDRICAL_GRID:
     """
@@ -1437,6 +1501,21 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
         def_dic_xy['cmap'] = 'inferno'
     else: raise NameError("v_n:{} not recognized".format(v_n))
 
+    #
+    contour_dic_xy = {
+        'task': 'contour',
+        'ptype': 'cartesian', 'aspect': 1.,
+        'xarr': x_arr, "yarr": y_arr, "zarr": data_arr, 'levels': [1.e13 / 6.176e+17],
+        'position': (2, 1),  # 'title': '[{:.1f} ms]'.format(time_),
+        'colors':['black'], 'lss':["-"], 'lws':[1.],
+        'v_n_x': 'x', 'v_n_y': 'y', 'v_n': 'rho',
+        'xscale': None, 'yscale': None,
+        'fancyticks': True,
+        'sharex': False,  # removes angular citkscitks
+        'fontsize': 14,
+        'labelsize': 14}
+
+
     # setting boundaries for plots
     xmin, xmax, ymin, ymax, zmin, zmax = REFLEVEL_LIMITS.get(rl)
     def_dic_xy['xmin'], def_dic_xy['xmax'] = xmin, xmax
@@ -1469,6 +1548,9 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
 
     def_dic_xy["it"] = int(it)
     o_plot.set_plot_dics.append(def_dic_xy)
+
+    if v_n == "rho":
+        o_plot.set_plot_dics.append(contour_dic_xy)
 
     o_plot.main()
     o_plot.set_plot_dics = []
@@ -1618,6 +1700,8 @@ def make_movie(v_ns, rls, rootdir, rewrite=False):
                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
                 )
 
+#
+
 def add_q_r_t_to_prof_xyxz(v_ns, rls):
     # glob_sim = "LS220_M14691268_M0_LK_SR"
     glob_profxyxz_path = Paths.ppr_sims+glob_sim+'/profiles/'
@@ -1697,6 +1781,49 @@ def add_q_r_t_to_prof_xyxz(v_ns, rls):
     #     fpathxy = glob_profxyxz_path + str(int(it)) + '/' + "profile.xy.h5"
     #     fpathxz = glob_profxyxz_path + str(int(it)) + '/' + "profile.xz.h5"
 
+#
+
+
+def compute_density_modes(o_slice, rls, outdir, rewrite=True):
+
+
+    if not len(rls) == 1:
+        raise NameError("for task 'dm' please set one reflevel: --rl ")
+    #
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
+    #
+    rl = rls[0]
+    #
+    mmax = 8
+    #
+    fname = "rho_modes.h5"
+    fpath = outdir + fname
+    #
+    if True:#try:
+        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+            if os.path.isfile(fpath): os.remove(fpath)
+            Printcolor.print_colored_string(["task:", "rho modes", "rl:", str(rl), "mmax:", str(mmax), ":", "computing"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+            times, iterations, xcs, ycs, modes = o_slice.get_rho_modes_for_rl(rl=rl, mmax=mmax)
+            dfile = h5py.File(fpath, "w")
+            dfile.create_dataset("times", data=times)  # times that actually used
+            dfile.create_dataset("iterations", data=iterations)  # iterations for these times
+            dfile.create_dataset("xc", data=xcs)  # x coordinate of the center of mass
+            dfile.create_dataset("yc", data=ycs)  # y coordinate of the center of mass
+            for m in range(mmax + 1):
+                group = dfile.create_group("m=%d" % m)
+                group["int_phi"] = np.zeros(0, )  # NOT USED (suppose to be data for every 'R' in disk and NS)
+                group["int_phi_r"] = np.array(modes[m]).flatten()  # integrated over 'R' data
+            dfile.close()
+        else:
+            Printcolor.print_colored_string(["task:", "rho modes", "rl:", str(rl), "mmax:", str(mmax), ":", "skipping"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+    # except:
+    #     Printcolor.print_colored_string(["task:", "rho modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
+    #                          ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+
+
 """ ================================================================================================================ """
 
 if __name__ == '__main__':
@@ -1755,6 +1882,8 @@ if __name__ == '__main__':
     # set globals
     Paths.gw170817 = glob_simdir
     Paths.ppr_sims = glob_outdir
+    #
+    # print(Paths.gw170817); exit(1)
     #
     if len(glob_tasklist) == 1 and "all" in glob_tasklist:
         # do all tasksk
@@ -1852,3 +1981,7 @@ if __name__ == '__main__':
             if len(glob_v_ns) == len(o_slice.list_v_ns):
                 glob_v_ns = o_slice.list_neut_v_ns
             add_q_r_t_to_prof_xyxz(glob_v_ns, glob_reflevels)
+
+        if task == "dm":
+            outdir = Paths.ppr_sims + glob_sim + '/' + __slices__["outdir"] + '/'
+            compute_density_modes(o_slice, glob_reflevels, outdir, rewrite=glob_overwrite)

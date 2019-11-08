@@ -42,9 +42,6 @@ from plotting_methods import PLOT_MANY_TASKS
 from combine import ADD_METHODS_ALL_PAR
 
 path.append(Paths.mkn)
-
-# from mkn_bayes import MKN
-
 try:
     from mkn_bayes import MKN
 except ImportError:
@@ -53,16 +50,34 @@ except ImportError:
     except ImportError:
         raise ImportError("Failed to import mkn from MKN (set path is: {} ".format(Paths.mkn))
 
+
 # ---
-__mkn__ = {"tasklist":["nrmkn", "plotmkn"]}
+__mkn__ = {"tasklist":["nrmkn", "plotmkn", "mkn", "print_table"],
+           "geometries":["iso","aniso"],
+           "components":["dynamics", "spiral", "wind", "secular"],
+           "detectors":[0,1],
+           "masks":["geo","bern_geoend"],
+           "bands":["g", "z", "Ks"]}
 # ---
 
 class COMPUTE_LIGHTCURVE():
 
-    def __init__(self, sim):
+    def __init__(self, sim, outdir=None):
 
-        self.o_data = ADD_METHODS_ALL_PAR(sim)
-
+        self.sim = sim
+        self.output_fname = 'mkn_model.h5'
+        #
+        if sim != None:
+            self.o_data = ADD_METHODS_ALL_PAR(sim)
+        else:
+            self.o_data = None
+        #
+        if outdir == None:
+            self.outdir = Paths.ppr_sims+self.sim+'/mkn/'
+            self.outfpath = Paths.ppr_sims+self.sim+'/mkn/' + self.output_fname
+        else:
+            self.outdir = outdir
+            self.outfpath = self.outdir + self.output_fname
         # if criteria == '' or criteria == 'geo':
         #     self.path_to_outflow_dir = LISTS.loc_of_sims + sim + '/outflow_{}/'.format(det)
         # elif criteria == 'bern' or criteria == ' bern':
@@ -73,14 +88,16 @@ class COMPUTE_LIGHTCURVE():
         #     self.path_to_outflow_dir = LISTS.loc_of_sims + sim + '/outflow_{}_b_w/'.format(det)
         # else:
         #     raise NameError("Criteria '{}' is not recongnized".format(criteria))
-        self.sim = sim
-        self.output_fname = 'mkn_model.h5'
 
         self.dyn_ejecta_profile_fpath = ""
         self.psdyn_ejecta_profile_fpath = ""
 
-        self.set_use_dyn_NR = True
-        self.set_use_bern_NR = True
+        if self.sim == None:
+            self.set_use_dyn_NR = False
+            self.set_use_bern_NR = False
+        else:
+            self.set_use_dyn_NR = True
+            self.set_use_bern_NR = True
         self.set_dyn_iso_aniso       = "aniso"
         self.set_psdyn_iso_aniso     = "aniso"
         self.set_wind_iso_aniso      = "aniso"
@@ -107,7 +124,7 @@ class COMPUTE_LIGHTCURVE():
 
         self.glob_params = {'lc model'   : 'grossman',  # model for the lightcurve (grossman or villar)
                        #              'mkn model': 'aniso1comp',  # possible choices: iso1comp, iso2comp, iso3comp, aniso1comp, aniso2comp, aniso3comp
-                       'omega frac':0.5,      # fraction of the solid angle filled by the ejecta
+                       'omega frac':1.0,      # fraction of the solid angle filled by the ejecta
                        'rad shell': False,     # exclude the free streaming part
                        'v_min':     1.e-7,    # minimal velocity for the Grossman model
                        'n_v':       400,      # number of points for the Grossman model
@@ -134,16 +151,19 @@ class COMPUTE_LIGHTCURVE():
         self.source_name = 'AT2017gfo'
         # self.source_name = 'AT2017gfo view_angle=180/12.' # change the source properties
 
-        mdisk = self.o_data.get_par("Mdisk3D")
-        if np.isnan(mdisk):
-            raise ValueError("mass of the disk is not avilable (nan) for sim:{}".format(self.sim))
+        if self.sim != None:
+            mdisk = self.o_data.get_par("Mdisk3D")
+            if np.isnan(mdisk):
+                raise ValueError("mass of the disk is not avilable (nan) for sim:{}".format(self.sim))
+        else:
+            mdisk = 0.012
 
         self.glob_vars = {'m_disk':     mdisk, # mass of the disk [Msun], useful if the ejecta is expressed as a fraction of the disk mass
-                         'eps0':        1.5e19, # prefactor of the nuclear heating rate [erg/s/g]
-                         'view_angle':  None,  # [deg]; if None, it uses the one in source properties
-                         'source_distance': None,  # [pc] ; if None, it uses the one in source properties
+                         'eps0':        2e19, # prefactor of the nuclear heating rate [erg/s/g]
+                         'view_angle':  180/12.,  # [deg]; if None, it uses the one in source properties
+                         'source_distance': 40.,  # [pc] ; if None, it uses the one in source properties
                          'T_floor_LA':  1000., # floor temperature for Lanthanides [K]
-                         'T_floor_Ni':  3500., # floor temperature for Nikel [K]
+                         'T_floor_Ni':  5000., # floor temperature for Nikel [K]
                          'a_eps_nuc':   0.5, # variation of the heating rate due to weak r-process heating: first parameter
                          'b_eps_nuc':   2.5, # variation of the heating rate due to weak r-process heating: second parameter
                          't_eps_nuc':   1.0} # variation of the heating rate due to weak r-process heating: time scale [days]
@@ -152,9 +172,12 @@ class COMPUTE_LIGHTCURVE():
 
     def set_dyn_par_var(self, iso_or_aniso, det=0,mask="dyn"):
 
-        mej = self.o_data.get_outflow_par(det,mask,"Mej_tot")
-        if np.isnan(mej):
-            raise ValueError("Ejecta mass for det:{} mask:{} is not avialble (nan)".format(det,mask))
+        if not self.sim == None and self.set_use_dyn_NR:
+            mej = self.o_data.get_outflow_par(det,mask,"Mej_tot")
+            if np.isnan(mej):
+                raise ValueError("Ejecta mass for det:{} mask:{} is not avialble (nan)".format(det,mask))
+        else:
+            mej = 0.015
 
         if iso_or_aniso == 'iso':
             self.ejecta_params['dynamics'] = {'mass_dist':'uniform', 'vel_dist':'uniform', 'op_dist':'uniform',
@@ -173,22 +196,22 @@ class COMPUTE_LIGHTCURVE():
                                            'step_angle_op':     None,
                                            'T_floor':           1000}
         elif iso_or_aniso == 'aniso':
-            self.ejecta_params['dynamics'] = {'mass_dist':'sin', 'vel_dist':'uniform', 'op_dist':'step'   ,
-                                       'therm_model':'BKWM', 'eps_ye_dep':"PBR",'v_law':'poly', 'use_kappa_table':False,
-                                              'entropy':10, 'tau':20}
+            self.ejecta_params['dynamics'] = {'mass_dist':'sin2', 'vel_dist':'uniform', 'op_dist':'step',
+                                              'therm_model':'BKWM', 'eps_ye_dep':'PBR', 'entropy': 20., 'tau':5,
+                                              'v_law':'poly'}#, 'use_kappa_table':False}
             self.ejecta_vars['dynamics'] = {'xi_disk':          None,
                                            'm_ej':              mej, # 0.00169045, # - LS220 | 0.00263355 - DD2
                                            'step_angle_mass':   None,
                                            'high_lat_flag':     None,
-                                           'central_vel':       0.20, # changed from 0.33
+                                           'central_vel':       0.30, # changed from 0.33
                                            'high_lat_vel':      None,
                                            'low_lat_vel':       None,
                                            'step_angle_vel':    None,
                                            'central_op':        None,
-                                           'high_lat_op':       1.,  # F:1
-                                           'low_lat_op':        10., # F:30    # does not work for NR
-                                           'step_angle_op':     math.radians(45.),
-                                           'T_floor':           1000} # F:30
+                                           'high_lat_op':       5.,  # F:1
+                                           'low_lat_op':        20., # F:30    # does not work for NR
+                                           'step_angle_op':     np.pi/4,
+                                           'T_floor':           None} # F:30
         elif iso_or_aniso == "":
             pass
         else:
@@ -198,9 +221,12 @@ class COMPUTE_LIGHTCURVE():
 
     def set_spiral_par_var(self, iso_or_aniso, det=0, mask="bern_geoend"):
 
-        mej = self.o_data.get_outflow_par(det,mask,"Mej_tot")
-        if np.isnan(mej):
-            raise ValueError("Ejecta mass for det:{} mask:{} is not avialble (nan)".format(det,mask))
+        if not self.sim == None and self.set_use_bern_NR:
+            mej = self.o_data.get_outflow_par(det,mask,"Mej_tot")
+            if np.isnan(mej):
+                raise ValueError("Ejecta mass for det:{} mask:{} is not avialble (nan)".format(det,mask))
+        else:
+            mej = 0.002
 
         if iso_or_aniso == 'iso':
             self.ejecta_params['dynamics'] = {'mass_dist':'uniform', 'vel_dist':'uniform', 'op_dist':'uniform',
@@ -235,7 +261,7 @@ class COMPUTE_LIGHTCURVE():
                                            'low_lat_op':        30., # F:30    # does not work for NR
                                            'override_m_ej':     False,  # for manual import
                                            'step_angle_op':     math.radians(15.),
-                                           'T_floor':           1000} # F:30
+                                           'T_floor':           None} # F:30
         elif iso_or_aniso == "":
             pass
         else:
@@ -262,22 +288,22 @@ class COMPUTE_LIGHTCURVE():
                                         'step_angle_op':    None,
                                         'T_floor':          1000}
         elif iso_or_aniso == 'aniso':
-            self.ejecta_params['wind'] = {'mass_dist':'step', 'vel_dist':'uniform', 'op_dist':'step'   ,
-                                       'therm_model':'BKWM', 'eps_ye_dep':'LR','v_law':'poly', 'entropy':20, 'tau':33}
+            self.ejecta_params['wind'] = {'mass_dist':'step', 'vel_dist':'uniform', 'op_dist':'step',
+                                          'therm_model':'BKWM', 'eps_ye_dep':'PBR', 'entropy': 10., 'tau':33, 'v_law':'poly'}
             self.ejecta_vars['wind'] = {
-                         'xi_disk':         0.02, # 0.1 default
-                         'm_ej':            None,
-                         'step_angle_mass': math.radians(60.),
+                         'xi_disk':         None, # 0.1 default
+                         'm_ej':            0.004,
+                         'step_angle_mass': np.pi/6.,
                          'high_lat_flag':   True,
-                         'central_vel':     0.068, #  V:0.08
+                         'central_vel':     0.1, #  V:0.08
                          'high_lat_vel':    None,
                          'low_lat_vel':     None,
                          'step_angle_vel':  None,
                          'central_op':      None,
-                         'high_lat_op':     0.5, # 0.1
+                         'high_lat_op':     1.0, # 0.1
                          'low_lat_op':      5.0, # F
-                         'step_angle_op':   math.radians(45.),
-                         'T_floor':         1000} # F: 45 | might need # N:30
+                         'step_angle_op':   np.pi/6.,
+                         'T_floor':         None} # F: 45 | might need # N:30
         elif iso_or_aniso == "":
             pass
         else:
@@ -304,21 +330,21 @@ class COMPUTE_LIGHTCURVE():
                             'T_floor':           1000}
         elif iso_or_aniso == 'aniso':
             self.ejecta_params['secular'] = {'mass_dist':'sin2', 'vel_dist':'uniform', 'op_dist':'uniform',
-                                       'therm_model':'BKWM', 'eps_ye_dep':'LR','v_law':'poly', 'entropy':20, 'tau':33}
+                                             'therm_model':'BKWM', 'eps_ye_dep':'PBR', 'entropy': 10., 'tau':33, 'v_law':'poly'}
             self.ejecta_vars['secular'] = {
-                            'xi_disk':          0.1, # default: 0.2
-                            'm_ej':             None,
+                            'xi_disk':          None, # default: 0.2
+                            'm_ej':             0.03,
                             'step_angle_mass':  None,
                             'high_lat_flag':    None,
-                            'central_vel':      0.04, # F: 0.04 def:0.06
+                            'central_vel':      0.08, # F: 0.04 def:0.06
                             'high_lat_vel':     None,
                             'low_lat_vel':      None,
                             'step_angle_vel':   None,
-                            'central_op':       5.0, #
+                            'central_op':       10.0, #
                             'low_lat_op':       None,
                             'high_lat_op':      None,
                             'step_angle_op':    None,
-                            'T_floor':          1000}
+                            'T_floor':          None}
         elif iso_or_aniso == "":
             pass
         else:
@@ -418,9 +444,9 @@ class COMPUTE_LIGHTCURVE():
         if len(self.glob_params.keys()) == 0:
             raise ValueError("parameters are not set. Use 'set_par_war()' for that")
 
-        if not os.path.isdir(Paths.ppr_sims+self.sim+'/mkn/'):
-            print("making directory {}".format(Paths.ppr_sims+self.sim+'/mkn/'))
-            os.mkdir(Paths.ppr_sims+self.sim+'/mkn/')
+        if not os.path.isdir(self.outdir):
+            print("making directory {}".format(self.outdir))
+            os.mkdir(self.outdir)
 
         print('I am initializing the model')
         # glob_params, glob_vars, ejecta_params, shell_vars, source_name = self.mkn_parameters()
@@ -456,7 +482,7 @@ class COMPUTE_LIGHTCURVE():
             # from shutil import move
             from shutil import copyfile
             # move('./mkn_model.txt', self.path_to_outflow_dir + 'mkn_model.txt')
-            copyfile('./mkn_model.h5', Paths.ppr_sims+self.sim+'/mkn/' + self.output_fname)
+            copyfile('./mkn_model.h5', self.outfpath)
 
         os.chdir(Paths.home)
         return logL
@@ -500,7 +526,7 @@ class COMPUTE_LIGHTCURVE():
         print('\\footnotesize')
 
         # table of glob. parameters
-        print('\\begin{tabular}[t]{ p{3.2cm} c }')
+        print('\\begin{tabular}[t]{ p{2.0cm} c }')
         print('\\hline')
 
         # printing rows
@@ -510,7 +536,7 @@ class COMPUTE_LIGHTCURVE():
 
         # table of glob. vars
         print('\\end{tabular}')
-        print('\\begin{tabular}[t]{ p{3.2cm} c }')
+        print('\\begin{tabular}[t]{ p{2.0cm} c }')
         print('\\hline')
 
         for v_n, value in zip(self.glob_vars.keys(), self.glob_vars.values()):
@@ -531,18 +557,32 @@ class COMPUTE_LIGHTCURVE():
 
             # dyn_ej_pars, dyn_ej_vars = self.mkn_parameters_dynamics()
 
-            print('\\begin{tabular}[t]{ p{3.cm} c }')
+            print('\\begin{tabular}[t]{ p{2.cm} c }')
             print('Dynamic & \\\\')
             print('\\hline')
 
-            for v_n, value in zip(self.ejecta_params["dynamical"].keys(), self.ejecta_params["dynamical"].values()):
-                print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+            for v_n, value in zip(self.ejecta_params["dynamics"].keys(), self.ejecta_params["dynamics"].values()):
+                if value == None:
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, float) or isinstance(value, int):
+                    print(' {}  &  {:.2f} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, str):
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                else:
+                    raise ValueError("value:{} is niether float nor string".format(value))
             print('\\hline')
 
             print('\\hline')
 
-            for v_n, value in zip(self.ejecta_vars["dynamical"].keys(), self.ejecta_vars["dynamical"].values()):
-                print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+            for v_n, value in zip(self.ejecta_vars["dynamics"].keys(), self.ejecta_vars["dynamics"].values()):
+                if value == None:
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, float) or isinstance(value, int):
+                    print(' {}  &  {:.2f} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, str):
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                else:
+                    raise ValueError("value:{} is niether float nor string".format(value))
             print('\\hline')
 
             print('\\end{tabular}')
@@ -551,18 +591,32 @@ class COMPUTE_LIGHTCURVE():
 
             # wind_pars, wind_vars = self.mkn_parameters_wind()
 
-            print('\\begin{tabular}[t]{ p{3.cm} c }')
+            print('\\begin{tabular}[t]{ p{2.cm} c }')
             print('Wind & \\\\')
             print('\\hline')
 
             for v_n, value in zip(self.ejecta_params["wind"].keys(), self.ejecta_params["wind"].values()):
-                print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                if value == None:
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, float) or isinstance(value, int):
+                    print(' {}  &  {:.2f} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, str):
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                else:
+                    raise ValueError("value:{} is niether float nor string".format(value))
             print('\\hline')
 
             print('\\hline')
 
             for v_n, value in zip(self.ejecta_vars["wind"].keys(), self.ejecta_vars["wind"].values()):
-                print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                if value == None:
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, float) or isinstance(value, int):
+                    print(' {}  &  {:.2f} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, str):
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                else:
+                    raise ValueError("value:{} is niether float nor string".format(value))
             print('\\hline')
 
             print('\\end{tabular}')
@@ -571,18 +625,32 @@ class COMPUTE_LIGHTCURVE():
 
             # secular_pars, secular_vars = self.mkn_parameters_secular()
 
-            print('\\begin{tabular}[t]{ p{3.cm} c }')
+            print('\\begin{tabular}[t]{ p{2.cm} c }')
             print('Secualr & \\\\')
             print('\\hline')
 
             for v_n, value in zip(self.ejecta_params["secular"].keys(), self.ejecta_params["secular"].values()):
-                print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                if value == None:
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, float) or isinstance(value, int):
+                    print(' {}  &  {:.2f} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, str):
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                else:
+                    raise ValueError("value:{} is niether float nor string".format(value))
             print('\\hline')
 
             print('\\hline')
 
             for v_n, value in zip(self.ejecta_vars["secular"].keys(), self.ejecta_vars["secular"].values()):
-                print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                if value == None:
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, float) or isinstance(value, int):
+                    print(' {}  &  {:.2f} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, str):
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                else:
+                    raise ValueError("value:{} is niether float nor string".format(value))
             print('\\hline')
 
             print('\\end{tabular}')
@@ -709,37 +777,41 @@ class COMPUTE_LIGHTCURVE():
 
 class LOAD_LIGHTCURVE():
 
-    def __init__(self, sim):
-
+    def __init__(self, sim, indir=None):
+        #
         self.sim = sim
         self.default_fname = "mkn_model.h5"
-        self.models_dir = "mkn/"
+        #
+        if indir != None:
+            self.indir = indir
+            fpaths = glob(indir + "mkn_model*.h5")
+        else:
+            self.models_dir = "mkn/"
+            self.indir = Paths.ppr_sims + sim + "/" + self.models_dir
+            fpaths = glob(self.indir + "mkn_model*.h5")
+        #
+        if len(fpaths) == 0: raise IOError("No mkn files found {}".format(self.indir + "mkn_model*.h5"))
+        #
         self.filter_fpath = Paths.mkn + Files.filt_at2017gfo
-
-        # self.list_model_fnames = ["mkn_model.h5", "mkn_model1.h5", "mkn_model2.h5", "mkn_model3.h5", "mkn_model4.h5",
-        #                           'mkn_model2_t50.h5', 'mkn_model2_t100.h5', 'mkn_model2_t150.h5', 'mkn_model2_t200.h5']
-
-        fpaths = glob(Paths.ppr_sims + sim + "/" + self.models_dir + "mkn_model*.h5")
-
-        if len(fpaths) == 0: raise IOError("No mkn files found {}"
-                                           .format(Paths.ppr_sims + sim + "/" + self.models_dir + "mkn_model*.h5"))
+        #
+        #
         flist = []
         for file_ in fpaths:
             flist.append(file_.split('/')[-1])
         self.list_model_fnames = flist
-
-
+        #
+        #
         self.list_obs_filt_fnames = ["AT2017gfo.h5"]
         self.list_fnames = self.list_model_fnames + self.list_obs_filt_fnames
-
+        #
         self.list_attrs = ["spiral", "dynamics", "wind", "secular"]
         self.attrs_matrix = [[{}
                               for z in range(len(self.list_attrs))]
                               for y in range(len(self.list_fnames))]
-
+        #
         self.data_matrix = [{}
                              for y in range(len(self.list_fnames))]
-
+        #
         self.filters = {}
 
     def check_fname(self, fname=''):
@@ -769,7 +841,7 @@ class LOAD_LIGHTCURVE():
     def load_mkn_model(self, fname=''):
 
         if fname == '': fname = self.default_fname
-        model_fpath = Paths.ppr_sims + self.sim + "/" + self.models_dir + fname
+        model_fpath = self.indir + fname
 
         dict_model = {}
 
@@ -829,9 +901,9 @@ class LOAD_LIGHTCURVE():
 
 class EXTRACT_LIGHTCURVE(LOAD_LIGHTCURVE):
 
-    def __init__(self, sim):
-        LOAD_LIGHTCURVE.__init__(self, sim)
-        self.list_bands = ["g", "z", "Ks"]
+    def __init__(self, sim, indir=None):
+        LOAD_LIGHTCURVE.__init__(self, sim, indir)
+        self.list_bands = __mkn__["bands"]
         self.do_extract_parameters = True
 
         self.model_params = [[{"spiral":{}, "dynamics":{}, "wind":{}, "secular":{}}
@@ -1226,10 +1298,9 @@ class EXTRACT_LIGHTCURVE(LOAD_LIGHTCURVE):
 
 class COMBINE_LIGHTCURVES(EXTRACT_LIGHTCURVE):
 
-    def __init__(self, sim):
+    def __init__(self, sim, indir=None):
 
-        EXTRACT_LIGHTCURVE.__init__(self, sim)
-
+        EXTRACT_LIGHTCURVE.__init__(self, sim, indir)
 
     def get_model_peaks(self, band, files_name_gen=r"mkn_model2_m*.h5"):
 
@@ -1333,15 +1404,16 @@ class COMBINE_LIGHTCURVES(EXTRACT_LIGHTCURVE):
 
 
 def do_tasks():
-    o_mkn = COMPUTE_LIGHTCURVE(glob_sim)
 
     for task in glob_tasklist:
         if task == "nrmkn":
             #
+            o_mkn = COMPUTE_LIGHTCURVE(glob_sim, glob_outdir)
+            #
             assert len(glob_detectors) == len(glob_masks)
             assert len(glob_components) == len(glob_masks)
             #
-            o_mkn.set_glob_par_var_source(True, True)
+            # o_mkn.set_glob_par_var_source(True, True)
             #
             for component, detector, mask in zip(glob_components, glob_detectors, glob_masks):
                 if component == "dynamics":
@@ -1358,10 +1430,60 @@ def do_tasks():
             o_mkn.set_glob_par_var_source(True, True)# use both NR files
             #
             o_mkn.compute_save_lightcurve(True)# save output
+        if task == "print_table":
+            #
+            o_mkn = COMPUTE_LIGHTCURVE(glob_sim, glob_outdir)
+            # o_mkn.set_glob_par_var_source(False, False)
+            assert glob_sim== None
+            assert len(glob_detectors) == 0
+            assert len(glob_masks) == 0
+            assert len(glob_components) > 0
+            assert len(glob_geometries) > 0
+            assert len(glob_geometries) == len(glob_components)
+            for component, geometry in zip(glob_components, glob_geometries):
+                if component == "dynamics":
+                    o_mkn.set_dyn_par_var(geometry)
+                if component == "spiral":
+                    o_mkn.set_spiral_par_var(geometry)
+                if component == "wind":
+                    o_mkn.set_wind_par_war(geometry)
+                if component == "secular":
+                    o_mkn.set_secular_par_war(geometry)
+            #
+            o_mkn.set_glob_par_var_source(False, False)
+            #
+            o_mkn.print_latex_table_of_glob_pars()
+            print("\n")
+            o_mkn.print_latex_table_of_ejecta_pars()
+            exit(0)
+
+        if task == "mkn":
+            #
+            o_mkn = COMPUTE_LIGHTCURVE(glob_sim, glob_outdir)
+            # o_mkn.set_glob_par_var_source(False, False)
+            assert glob_sim== None
+            assert len(glob_detectors) == 0
+            assert len(glob_masks) == 0
+            assert len(glob_components) > 0
+            assert len(glob_geometries) > 0
+            assert len(glob_geometries) == len(glob_components)
+            for component, geometry in zip(glob_components, glob_geometries):
+                if component == "dynamics":
+                    o_mkn.set_dyn_par_var(geometry)
+                if component == "spiral":
+                    o_mkn.set_spiral_par_var(geometry)
+                if component == "wind":
+                    o_mkn.set_wind_par_war(geometry)
+                if component == "secular":
+                    o_mkn.set_secular_par_war(geometry)
+            #
+            o_mkn.set_glob_par_var_source(False, False)
+            o_mkn.compute_save_lightcurve(True)
         if task == "plotmkn":
             assert len(glob_mknfname) > 0
             assert len(glob_bands) > 0
-            o_res = COMBINE_LIGHTCURVES(glob_sim)
+            #
+            o_res = COMBINE_LIGHTCURVES(glob_sim, glob_outdir)
             o_plot = PLOT_MANY_TASKS()
             #
             figname = ''
@@ -1371,7 +1493,7 @@ def do_tasks():
                     figname = figname + '_'
             figname = figname + '.png'
             #
-            figpath = Paths.ppr_sims + glob_sim + '/' + "mkn/"
+            figpath = glob_outdir
             #
             o_plot.gen_set["figdir"] = figpath
             o_plot.gen_set["type"] = "cartesian"
@@ -1440,19 +1562,24 @@ def do_tasks():
 
             o_plot.main()
 
+
 if __name__ == "__main__":
     #
     # python mkn_interface.py -s DD2_M13641364_M0_LK_SR_R04 -t nrmkn -c dynamics spiral -m geo bern_geoend -d 0 0
     # python mkn_interface.py -s DD2_M13641364_M0_LK_SR_R04 -t plotmkn -f mkn_model.h5 -b g z Ks
     #
+    # python mkn_interface.py -o /data01/numrel/vsevolod.nedora/figs/mkn_test/new_code/ -t mkn -c dynamics wind secular -g aniso aniso aniso
+    # python mkn_interface.py -o /data01/numrel/vsevolod.nedora/figs/mkn_test/new_code/ -t plotmkn -b g z Ks -f mkn_model.h5
+    #
     parser = ArgumentParser(description="postprocessing pipeline")
-    parser.add_argument("-s", dest="sim", required=True, help="task to perform")
+    parser.add_argument("-s", dest="sim", default=None, required=False, help="task to perform")
     parser.add_argument("-t", dest="tasklist", required=False, nargs='+', default=[], help="tasks to perform")
     parser.add_argument("-d", dest="detectors", nargs='+', required=False, default=[], help="detectors to use (0, 1...)")
     parser.add_argument("-m", dest="masks", nargs='+', required=False, default=[], help="mask names")
     parser.add_argument("-c", dest="components", nargs='+', required=False, default=[], help="components to use")
     parser.add_argument("-f", dest="fname", nargs='+', required=False, default=[], help="mkn.h5 files to load (models)")
     parser.add_argument("-b", dest="bands", nargs='+', required=False, default=[], help="bands to plot (models)")
+    parser.add_argument("-g", dest="geometries", nargs='+', required=False, default=[], help="geometries for non-NR components")
     #
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
@@ -1470,20 +1597,58 @@ if __name__ == "__main__":
     glob_detectors = np.array(args.detectors, dtype=int)
     glob_overwrite = args.overwrite
     glob_mkn = args.code
+    glob_geometries = args.geometries
     glob_mknfname = args.fname
     glob_bands = args.bands
-    simdir = Paths.gw170817 + glob_sim + '/'
-    resdir = Paths.ppr_sims + glob_sim + '/'
+    # simdir = Paths.gw170817 + glob_sim + '/'
+    # resdir = Paths.ppr_sims + glob_sim + '/'
     mkndir = glob_mkn
-
-
     # check if the simulations dir exists
-    if not os.path.isdir(glob_simdir + glob_sim):
-        raise NameError("simulation dir: {} does not exist in rootpath: {} "
-                        .format(glob_sim, glob_simdir))
+    if glob_sim == None and glob_outdir == Paths.ppr_sims:
+        raise NameError("Either set -s for simulation to save output for, or "
+                        "set -o path to output")
+    elif glob_sim != None and glob_outdir == Paths.ppr_sims:
+        glob_outdir = Paths.ppr_sims + glob_sim + '/mkn/'
+        if not os.path.isdir(glob_outdir):
+            os.mkdir(glob_outdir)
+    elif glob_sim == None and glob_outdir != Paths.ppr_sims:
+        pass
+    else:
+        raise IOError("Unrecognized -o '{}' and -s '{}' combination"
+                      .format(glob_outdir, glob_sim))
+    # check the paramgeters
     if not os.path.isdir(glob_outdir):
-        raise NameError("output dir does not exist: {}"
-                        .format(glob_outdir))
+        raise NameError("output directory does not exist: {}".format(glob_outdir))
+    #
+    if len(glob_components) > 0:
+        for component in glob_components:
+            if not component in __mkn__["components"]:
+                raise NameError("component:{} is not recognized. Use one of the:{}"
+                                .format(component, __mkn__["components"]))
+    #
+    if len(glob_geometries) > 0:
+        for geometry in glob_geometries:
+            if not geometry in __mkn__["geometries"]:
+                raise NameError("geometry:{} is not recognized. Use one of the:{}"
+                                .format(geometry, __mkn__["geometries"]))
+    #
+    if len(glob_bands) > 0:
+        for band in glob_bands:
+            if not band in __mkn__["bands"]:
+                raise NameError("band:{} is not recognized. Use one of the:{}"
+                                .format(band, __mkn__["bands"]))
+    #
+    if len(glob_masks) > 0:
+        for mask in glob_masks:
+            if not mask in __mkn__["masks"]:
+                raise NameError("mask:{} is not recognized. Use one of the:{}"
+                                .format(mask, __mkn__["masks"]))
+    #
+    if len(glob_detectors) > 0:
+        for det in glob_detectors:
+            if not det in __mkn__["detectors"]:
+                raise NameError("detector:{} is not recognized. Use one of the:{}"
+                                .format(det, __mkn__["detectors"]))
     if not os.path.isdir(mkndir):
         raise NameError("mkn source code directory does not exist".format(mkndir))
     # check if tasks are set properly
@@ -1506,11 +1671,13 @@ if __name__ == "__main__":
     else:
         raise NameError("for '--overwrite' option use 'yes' or 'no'. Given: {}"
                         .format(glob_overwrite))
-    glob_outdir_sim = Paths.ppr_sims + glob_sim + '/'
+    # glob_outdir_sim = Paths.ppr_sims + glob_sim + '/'
     # set globals
-    Paths.gw170817 = glob_simdir
-    Paths.ppr_sims = glob_outdir
+    # Paths.gw170817 = glob_simdir
+    # Paths.ppr_sims = glob_outdir
     Paths.mkn = mkndir
+    #
+
     #
     do_tasks()
     #

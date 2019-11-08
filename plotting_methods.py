@@ -138,13 +138,60 @@ class BASIC_PARTS():
         if "legend" in dic.keys():
             ldic = dic["legend"]
             if len(ldic.keys()) > 0:
-                print("legend")
-                if 'bbox_to_anchor' in ldic.keys():
-                    ax.legend(fancybox=False, bbox_to_anchor=ldic['bbox_to_anchor'],#(1.0, 0.3),
-                          loc=ldic['loc'], shadow=False, ncol=ldic['ncol'], fontsize=ldic['fontsize'])
+                # print("legend")
+                if 'shadow' in ldic.keys() and ldic['shadow']:
+                    shadow = True
                 else:
-                    ax.legend(fancybox=False,
-                          loc=ldic['loc'], shadow=False, ncol=ldic['ncol'], fontsize=ldic['fontsize'])
+                    shadow = False
+                #
+                if 'framealpha' in ldic.keys() and ldic['framealpha'] != None:
+                    framealpha = ldic['framealpha']
+                else:
+                    framealpha = 0.7
+                #
+                if 'borderaxespad' in ldic.keys() and ldic['borderaxespad'] != None:
+                    borderaxespad = ldic['borderaxespad']
+                else:
+                    borderaxespad = 0.5
+                #
+                if 'bbox_to_anchor' in ldic.keys():
+                    legend1 = ax.legend(fancybox=True, bbox_to_anchor=ldic['bbox_to_anchor'],  # (1.0, 0.3),
+                              loc=ldic['loc'], shadow=shadow, ncol=ldic['ncol'], fontsize=ldic['fontsize'],
+                              framealpha=framealpha, borderaxespad=borderaxespad)
+                else:
+                    legend1 = ax.legend(fancybox=True,
+                              loc=ldic['loc'], shadow=shadow, ncol=ldic['ncol'], fontsize=ldic['fontsize'],
+                              framealpha=framealpha, borderaxespad=borderaxespad)
+
+        if "legend" in dic.keys() and "legend2" in dic.keys():
+            ldic2 = dic["legend2"]
+            if len(ldic.keys()) > 0:
+                # print("legend")
+                if 'shadow' in ldic2.keys() and ldic2['shadow']:
+                    shadow = True
+                else:
+                    shadow = False
+                #
+                if 'framealpha' in ldic2.keys() and ldic2['framealpha'] != None:
+                    framealpha = ldic2['framealpha']
+                else:
+                    framealpha = 0.7
+                #
+                if 'borderaxespad' in ldic2.keys() and ldic2['borderaxespad'] != None:
+                    borderaxespad = ldic2['borderaxespad']
+                else:
+                    borderaxespad = 0.5
+                #
+                if 'bbox_to_anchor' in ldic2.keys():
+                    ax.legend(fancybox=True, bbox_to_anchor=ldic2['bbox_to_anchor'],  # (1.0, 0.3),
+                              loc=ldic2['loc'], shadow=shadow, ncol=ldic2['ncol'], fontsize=ldic2['fontsize'],
+                              framealpha=framealpha, borderaxespad=borderaxespad)
+                    ax.add_artist(legend1)
+                else:
+                    ax.legend(fancybox=True,
+                              loc=ldic2['loc'], shadow=shadow, ncol=ldic2['ncol'], fontsize=ldic2['fontsize'],
+                              framealpha=framealpha, borderaxespad=borderaxespad)
+                    ax.add_artist(legend1)
 
     def remover_some_ticks(self, ax, dic):
 
@@ -271,6 +318,25 @@ class BASIC_PARTS():
 
         return im
 
+
+    @staticmethod
+    def mscatter(x, y, ax=None, m=None, **kw):
+        import matplotlib.markers as mmarkers
+        if not ax: ax = plt.gca()
+        sc = ax.scatter(x, y, **kw)
+        if (m is not None) and (len(m) == len(x)):
+            paths = []
+            for marker in m:
+                if isinstance(marker, mmarkers.MarkerStyle):
+                    marker_obj = marker
+                else:
+                    marker_obj = mmarkers.MarkerStyle(marker)
+                path = marker_obj.get_path().transformed(
+                    marker_obj.get_transform())
+                paths.append(path)
+            sc.set_paths(paths)
+        return sc
+
     @staticmethod
     def plot_scatter(ax, dic, x_arr, y_arr, z_arr):
         vmin = dic["vmin"]
@@ -288,30 +354,55 @@ class BASIC_PARTS():
             if dic["norm"] == "log":
                 vmax = z_arr.flatten()[np.where(z_arr < 0, z_arr, -np.inf).argmax()]
         cm = plt.cm.get_cmap(dic['cmap'])
-
+        #
         if dic["norm"] == "norm" or dic["norm"] == "linear" or dic["norm"] == None:
             norm = Normalize(vmin=vmin, vmax=vmax)
         elif dic["norm"] == "log":
-            exit(1)
+            # exit(1)
             assert vmin > 0
             assert vmax > 0
             norm = LogNorm(vmin=vmin, vmax=vmax)
         else:
             raise NameError("unrecognized norm: {} in task {}"
                             .format(dic["norm"], dic["v_n"]))
-
-
-        if "marker" in dic.keys() and dic["marker"] != None:
-            if "label" in dic.keys() and dic['label'] != None:
-                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, marker=dic["marker"], label=dic['label'])
+        #
+        if "edgecolors" in dic.keys() and dic["edgecolors"] != None:
+            if "marker" in dic.keys() and dic["marker"] != None:
+                if "label" in dic.keys() and dic['label'] != None:
+                    sc = BASIC_PARTS.mscatter(x_arr, y_arr, ax=ax, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, m=dic["marker"], label=dic['label'], alpha=dic['alpha'], edgecolors=dic["edgecolors"]) # edgecolors="black"
+                else:
+                    sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], marker=dic["marker"], cmap=cm, alpha=dic['alpha'], edgecolors=dic["edgecolors"])
             else:
-                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], marker=dic["marker"], cmap=cm)
+                if "label" in dic.keys() and dic['label'] != None:
+                    sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, label=dic['label'], alpha=dic['alpha'], edgecolors=dic["edgecolors"])
+                else:
+                    sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, alpha=dic['alpha'], edgecolors=dic["edgecolors"])
         else:
-            if "label" in dic.keys() and dic['label'] != None:
-                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, label=dic['label'])
+            if "marker" in dic.keys() and dic["marker"] != None:
+                if "label" in dic.keys() and dic['label'] != None:
+                    sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, marker=dic["marker"],
+                                    label=dic['label'], alpha=dic['alpha'])  # edgecolors="black"
+                else:
+                    sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], marker=dic["marker"], cmap=cm,
+                                    alpha=dic['alpha'])
             else:
-                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm)
+                if "label" in dic.keys() and dic['label'] != None:
+                    sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, label=dic['label'],
+                                    alpha=dic['alpha'])
+                else:
+                    sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, alpha=dic['alpha'])
         return sc
+
+
+
+    @staticmethod
+    def plot_countour(ax, dic, x_arr, y_arr, z_arr):
+
+        # cp = ax.contour(x_arr, y_arr, z_arr, colors=dic['colors'], levels=dic['levels'],
+        #                 linestyles=dic['lss'], linewidths=['lws'])
+        cp = ax.contour(x_arr, y_arr, z_arr, colors="black", levels=dic['levels'],
+                        linestyles="-", linewidths=1.)
+        # ax.clabel(cp, inline=True, fontsize=10)
 
     def fill_arr_with_vmin(self, arr, dic):
 
@@ -334,10 +425,69 @@ class BASIC_PARTS():
                     bottom=True, top=True, left=True, right=True
                 )
 
+        if 'yaxiscolor' in dic.keys() and dic['yaxiscolor'] != None:
+            ldic = dic['yaxiscolor']
+            if 'bottom' in ldic: ax.spines['bottom'].set_color(ldic['bottom'])
+            if 'top' in ldic: ax.spines['top'].set_color(ldic['top'])
+            if 'right' in ldic: ax.spines['right'].set_color(ldic['right'])
+            if 'left' in ldic: ax.spines['left'].set_color(ldic['left'])
+
+        if 'xaxiscolor' in dic.keys() and dic['xaxiscolor'] != None:
+            ax.xaxis.label.set_color(dic['xaxiscolor'])
+
+        # if 'yaxiscolor' in dic.keys() and dic['yaxiscolor'] != None:
+        #     # ax.spines['bottom'].set_color(dic['yaxiscolor'])
+        #     # ax.spines['top'].set_color(dic['yaxiscolor'])
+        #     ax.spines['right'].set_color(dic['yaxiscolor'])
+        #     ax.spines['left'].set_color(dic['yaxiscolor'])
+        #     ax.yaxis.label.set_color(dic['yaxiscolor'])
+
+        if "tick_params" in dic.keys() and dic["tick_params"] != {}:
+            ax.tick_params(**dic["tick_params"])
+
+
+        #
+        #
+        # if 'yaxiscolor' in dic.keys() and dic['yaxiscolor'] != {}:
+        #     ldic = dic['yaxiscolor']
+        #     ax.spines['right'].set_color(ldic['right'])
+        #     ax.spines['left'].set_color(ldic['left'])
+        #     ax.yaxis.label.set_color(ldic['label'])
+        # if 'ytickcolor' in dic.keys() and dic['ytickcolor'] != {}:
+        #     ldic = dic['ytickcolor']
+        #     if 'left' in ldic.keys():
+        #         ax.tick_params(axis='y', left=True, colors=ldic['left'])
+        #     if 'right' in ldic.keys():
+        #         ax.tick_params(axis='y', right=True, colors = ldic['right'])
+        # if 'yminortickcolor' in dic.keys() and dic['yminortickcolor'] != {}:
+        #     ldic = dic['yminortickcolor']
+        #     if 'left' in ldic.keys():
+        #         ax.tick_params(axis='y', which='minor', left=True, colors=ldic['left'])
+        #     if 'right' in ldic.keys():
+        #         ax.tick_params(axis='y', which='minor', right=True, colors=ldic['right'])
+
+
+        #
+        # if 'yaxiscolor' in dic.keys() and dic['yaxiscolor'] != {}:
+        #     ldic = dic['yaxiscolor']
+        #     assert 'right' in ldic.keys()
+        #     assert 'left' in ldic.keys()
+        #     assert 'tick' in ldic.keys()
+        #     assert 'label' in ldic.keys()
+        #     ax.spines['right'].set_color(ldic['right'])
+        #     ax.spines['left'].set_color(ldic['left'])
+        #     # ax.tick_params(axis='x', colors='red')
+        #     ax.tick_params(axis='y', colors=ldic['tick'])
+        #     ax.tick_params(axis='y', which='minor', colors=ldic['tick'])
+        #     ax.tick_params(axis='y', which='minor', colors=ldic['tick'])
+        #     ax.yaxis.label.set_color(ldic['label'])
 
         if 'minorticks' in dic.keys():
             if dic["minorticks"]:
                 ax.minorticks_on()
+
+        if 'xticks' in dic.keys() and dic['xticks'] != None:
+            ax.set_xticks(dic['xticks'])
 
         if dic['task'] == 'outflow corr':
             if dic['v_n_x'] == 'theta':
@@ -1417,9 +1567,14 @@ class PLOT_TASK(BASIC_PARTS):
             assert "xarr" in dic.keys()
             assert "yarr" in dic.keys()
             assert "zarr" in dic.keys()
-            return self.plot_scatter(ax, dic, dic["xarr"], dic["yarr"], dic["zarr"])
+            return self.plot_scatter(ax, dic, np.array(dic["xarr"]), np.array(dic["yarr"]), np.array(dic["zarr"]))
         elif dic['task'] == "text":
             return self.plot_text2(ax, dic)
+        elif dic['task'] == 'contour':
+            assert "xarr" in dic.keys()
+            assert "yarr" in dic.keys()
+            assert "zarr" in dic.keys()
+            return self.plot_countour(ax, dic, dic["xarr"], dic["yarr"], dic["zarr"])
         else:
             raise NameError("dic['task'] is not recognized ({})".format(dic["task"]))
 

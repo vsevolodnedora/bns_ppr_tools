@@ -27,7 +27,7 @@ class Paths:
     skynet =    '/data01/numrel/vsevolod.nedora/Data/skynet/'
     output =    '/data01/numrel/vsevolod.nedora/output/'
     plots =     '/data01/numrel/vsevolod.nedora/figs/'
-    mkn =       '/data01/numrel/vsevolod.nedora/macrokilonova_bayes/source/'
+    mkn =       '/data01/numrel/vsevolod.nedora/macrokilonova_bayes_old/source/'
     home =      '/data01/numrel/vsevolod.nedora/bns_ppr_tools/'
     SLy4_hydo=  '/data01/numrel/vsevolod.nedora/Data/EOS/SLy4/SLy4_hydro_14-Dec-2017.h5'
     # skynet =   '/data01/numrel/vsevolod.nedora/scripts_server/ejecta/skynet/'
@@ -371,7 +371,10 @@ class Labels:
         elif v_n == 'diskmass':
             return r'$M_{\rm{disk}}$ $[M_{\odot}]$'
 
-        elif v_n == 'ejmass':
+        elif v_n == 'Mdisk3Dmax':
+            return r'$M_{\rm{disk;max}}$ $[M_{\odot}]$'
+
+        elif v_n == 'ejmass' or v_n == "Mej_tot":
             return r'$M_{\rm{ej}}$ $[10^{-2}M_{\odot}]$'
 
         elif v_n == 'ejmass3':
@@ -380,8 +383,17 @@ class Labels:
         elif v_n == "vel_inf":
             return r"$\upsilon_{\infty}$ [c]"
 
+        elif v_n == "vel_inf_ave":
+            return r"$<\upsilon_{\infty}>$ [c]"
+
         elif v_n == "Y_e" or v_n == "ye" or v_n == "Ye":
             return r"$Y_e$"
+
+        elif v_n == "Lambda":
+            return r"$\tilde{\Lambda}$"
+
+        elif v_n == "Ye_ave":
+            return r"$<Y_e>$"
 
         elif v_n == 'flux':
             return r'$\dot{M}$'

@@ -1796,11 +1796,11 @@ class LOAD_INIT_DATA:
 
     def get_par(self, v_n):
         if not v_n in self.par_dic.keys():
-            print("Error. v_n:{} is not in init_data.keys()\n{}"
-                  .format(v_n, self.par_dic))
+            print("Error. v_n:{} sim:{} is not in init_data.keys()\n{}"
+                  .format(v_n, self.sim, self.par_dic))
         if not v_n in self.list_v_ns:
-            raise NameError("v_n:{} not in self.list_v_ns[] {} \n\nUpdate the list."
-                            .format(v_n, self.list_v_ns))
+            raise NameError("v_n:{} sim:{} not in self.list_v_ns[] {} \n\nUpdate the list."
+                            .format(v_n, self.sim, self.list_v_ns))
 
         par = self.par_dic[v_n]
         try:
