@@ -666,6 +666,8 @@ class HISTOGRAM_EDGES:
         elif v_n == "phi": return np.linspace(0.06, 6.29, 93)
         elif v_n == "vel_inf" or v_n == "vel_inf_bern": return np.linspace(0., 1., 50)
         elif v_n == "entropy": return np.linspace(0, 200, 100)
+        elif v_n == "temperature": #return 10.0 ** np.linspace(-2, 2, 100)
+            return np.linspace(0, 5, 100)
         else:
             raise NameError("no hist edges found for v_n:{}".format(v_n))
 
@@ -868,7 +870,7 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
 
         COMPUTE_OUTFLOW_SURFACE_H5.__init__(self, sim)
 
-        self.list_masks = ["geo", "bern", "bern_geoend"]
+        self.list_masks = ["geo", "bern", "bern_geoend", "Y_e04_geoend", "theta60_geoend"]
         if add_mask != None and not add_mask in self.list_masks:
             self.list_masks.append(add_mask)
 
@@ -966,10 +968,35 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
         elif mask == "Y_e04_geoend":
             # 1 - data above Ye=0.4 and 0 - below
             ye = self.get_full_arr(det, "Y_e")
-            mask_ye = ye > 0.4
+            mask_ye = ye >= 0.4
             mask_bern = self.get_mask(det, "bern")
             mask_geo_end = self.__time_mask_end_geo(det)
             return mask_ye & mask_bern & mask_geo_end
+        elif mask == "theta60_geoend":
+            # 1 - data above Ye=0.4 and 0 - below
+            theta = self.get_full_arr(det, "theta")
+            # print((theta / np.pi * 180.).min(), (theta / np.pi * 180.).max())
+            # exit(1)
+            theta_ = 90 - (theta * 180 / np.pi)
+            # print(theta_); #exit(1)
+            theta_mask = (theta_ > 60.) | (theta_ < -60)
+            # print(np.sum(theta_mask.astype(int)))
+            # assert np.sum(theta_mask.astype(int)) > 0
+            newmask = theta_mask[np.newaxis, : , :]
+
+            # fluxdens = self.get_full_arr(det, "fluxdens")
+            # newmask = np.zeros(fluxdens.shape)
+            # for i in range(len(newmask[:, 0, 0])):
+            #     newmask[i, :, :].fill(theta_mask)
+
+            print(newmask.shape)
+            # exit(1)
+            # mask_ye = ye >= 0.4
+            mask_bern = self.get_mask(det, "bern")
+            print(mask_bern.shape)
+            # print(mask_bern.shape)
+            mask_geo_end = self.__time_mask_end_geo(det)
+            return newmask & mask_bern & mask_geo_end
         elif str(mask).__contains__("_tmax"):
             # 1 - data below tmax and 0 - above
             base_mask_name = str(str(mask).split("_tmax")[0])
@@ -1061,7 +1088,7 @@ class EJECTA(ADD_MASK):
     def __init__(self, sim, add_mask=None):
         ADD_MASK.__init__(self, sim, add_mask)
 
-        self.list_hist_v_ns = ["Y_e", "theta", "phi", "vel_inf", "entropy"]
+        self.list_hist_v_ns = ["Y_e", "theta", "phi", "vel_inf", "entropy", "temperature"]
 
         self.list_corr_v_ns = ["Y_e theta", "vel_inf theta"]
 
@@ -2088,6 +2115,8 @@ def outflowed_historgrams(o_outflow, detectors, masks, v_ns, rewrite=False):
                             'labelsize': 14,
                             'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
                         }
+                        # if v_n == "tempterature":
+
 
                         plot_dic = Limits.in_dic(plot_dic)
 
@@ -2153,7 +2182,7 @@ def outflowed_correlations(o_outflow, detectors, masks, v_ns, rewrite=False):
                             'cbar': {
                                 'location': 'right .03 .0', 'label': Labels.labels("mass"),#  'fmt': '%.1f',
                                 'labelsize': 14, 'fontsize': 14},
-                            'cmap': 'inferno',
+                            'cmap': 'inferno_r', 'set_under': 'white', 'set_over': 'black',
                             'xlabel': Labels.labels(v_n1), 'ylabel': Labels.labels(v_n2),
                             'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
                             'xscale': "linear", 'yscale': "linear", 'norm': 'log',
@@ -2167,6 +2196,10 @@ def outflowed_correlations(o_outflow, detectors, masks, v_ns, rewrite=False):
                             'labelsize': 14
                         }
                         corr_dic2 = Limits.in_dic(corr_dic2)
+
+                        corr_dic2["axhline"] = {"y":60, "linestyle":"-", "linewidth":0.5,"color":"black"}
+                        corr_dic2["axvline"] = {"x":0.4, "linestyle":"-", "linewidth":0.5, "color":"black"}
+
                         o_plot.set_plot_dics.append(corr_dic2)
                         #
 
@@ -2661,7 +2694,7 @@ def outflowed_mkn_profile(o_outflow, detectors, masks, rewrite=False):
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 if __name__ == '__main__':
-
+    #
     parser = ArgumentParser(description="postprocessing pipeline")
     parser.add_argument("-s", dest="sim", required=True, help="name of the simulation dir")
     parser.add_argument("-t", dest="tasklist", nargs='+', required=False, default=[], help="list of tasks to to")
@@ -2676,11 +2709,11 @@ if __name__ == '__main__':
     parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")
     #
     parser.add_argument("--eos", dest="eosfpath", required=False, default=None, help="Hydro EOS to use")
-
+    #
     # examples
     # python outflowed.py -s SLy4_M13641364_M0_SR -t d1hist -v Y_e vel_inf theta phi entropy -d 0 -m geo --overwrite yes
     # python outflowed.py -s SLy4_M13641364_M0_SR -t d1corr -v Y_e theta vel_inf theta -d 0 -m geo --overwrite yes
-
+    #
     args = parser.parse_args()
     glob_sim = args.sim
     glob_eos = args.eosfpath

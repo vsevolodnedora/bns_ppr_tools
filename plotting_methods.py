@@ -154,10 +154,15 @@ class BASIC_PARTS():
                 else:
                     borderaxespad = 0.5
                 #
+                if 'borderayespad' in ldic.keys() and ldic['borderayespad'] != None:
+                    borderaxespad = ldic['borderayespad']
+                else:
+                    borderaxespad = 0.5
+                #
                 if 'bbox_to_anchor' in ldic.keys():
                     legend1 = ax.legend(fancybox=True, bbox_to_anchor=ldic['bbox_to_anchor'],  # (1.0, 0.3),
                               loc=ldic['loc'], shadow=shadow, ncol=ldic['ncol'], fontsize=ldic['fontsize'],
-                              framealpha=framealpha, borderaxespad=borderaxespad)
+                              framealpha=framealpha, borderaxespad=borderaxespad, borderayespad=ldic['borderayespad'])
                 else:
                     legend1 = ax.legend(fancybox=True,
                               loc=ldic['loc'], shadow=shadow, ncol=ldic['ncol'], fontsize=ldic['fontsize'],
@@ -268,8 +273,14 @@ class BASIC_PARTS():
                 z_arr = -1 * np.ma.masked_array(z_arr, z_arr > 0)
             elif dic["mask"] == "x>0":
                 z_arr = np.ma.masked_array(z_arr, x_arr > 0)
+            elif dic["mask"].__contains__("x>"):
+                val = float(str(dic["mask"]).split("x>")[-1])
+                z_arr = np.ma.masked_array(z_arr, x_arr > val)
             elif dic["mask"] == "x<0":
                 z_arr = np.ma.masked_array(z_arr, x_arr < 0)
+            elif dic["mask"].__contains__("x<"):
+                val = float(str(dic["mask"]).split("x<")[-1])
+                z_arr = np.ma.masked_array(z_arr, x_arr < val)
             elif dic["mask"].__contains__("z>"):
                 val = float(dic["mask"].split("z>")[-1])
                 # assert val < z_arr.max()
@@ -309,15 +320,15 @@ class BASIC_PARTS():
         else:
             raise NameError("unrecognized norm: {} in task {}"
                             .format(dic["norm"], dic["v_n"]))
-
-        # print("vmin:{} vmax:{}".format(vmin, vmax))
-        # print("norm:{}".format(norm))
-
+        #
         im = ax.pcolormesh(x_arr, y_arr, z_arr, norm=norm, cmap=dic["cmap"])#, vmin=dic["vmin"], vmax=dic["vmax"])
         im.set_rasterized(True)
-
+        if 'set_under' in dic.keys() and dic['set_under'] != None:
+            im.cmap.set_over(dic['set_under'])
+        if 'set_over' in dic.keys() and dic['set_over'] != None:
+            im.cmap.set_over(dic['set_over'])
+        #
         return im
-
 
     @staticmethod
     def mscatter(x, y, ax=None, m=None, **kw):
@@ -393,14 +404,12 @@ class BASIC_PARTS():
                     sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, alpha=dic['alpha'])
         return sc
 
-
-
     @staticmethod
     def plot_countour(ax, dic, x_arr, y_arr, z_arr):
 
         # cp = ax.contour(x_arr, y_arr, z_arr, colors=dic['colors'], levels=dic['levels'],
         #                 linestyles=dic['lss'], linewidths=['lws'])
-        cp = ax.contour(x_arr, y_arr, z_arr, colors="black", levels=dic['levels'],
+        cp = ax.contour(x_arr, y_arr, z_arr, colors=dic['colors'], levels=dic['levels'],
                         linestyles="-", linewidths=1.)
         # ax.clabel(cp, inline=True, fontsize=10)
 
@@ -598,31 +607,35 @@ class BASIC_PARTS():
 
     def plot_generic_vertical_line(self, ax, dic):
 
-        value = dic['value']
+        ax.axvline(**dic["axvline"])
 
-        if 'label' in dic.keys():
-            if dic['label'] == None:
-                ax.axvline(x=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'])
-            else:
-                # exit(1)
-                ax.axvline(x=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'], label=dic['label'])
-        else:
-            ax.axvline(x=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'])
+        # value = dic['value']
+        #
+        # if 'label' in dic.keys():
+        #     if dic['label'] == None:
+        #         ax.axvline(x=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'])
+        #     else:
+        #         # exit(1)
+        #         ax.axvline(x=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'], label=dic['label'])
+        # else:
+        #     ax.axvline(x=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'])
 
         return 0
 
     def plot_generic_horisontal_line(self, ax, dic):
 
-        value = dic['value']
+        ax.axhline(**dic["axhline"])
 
-        if 'label' in dic.keys():
-            if dic['label'] == None:
-                ax.axhline(y=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'])
-            else:
-                # exit(1)
-                ax.axhline(y=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'], label=dic['label'])
-        else:
-            ax.axhline(y=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'])
+        # value = dic['value']
+        #
+        # if 'label' in dic.keys():
+        #     if dic['label'] == None:
+        #         ax.axvline(x=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'])
+        #     else:
+        #         # exit(1)
+        #         ax.axvline(x=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'], label=dic['label'])
+        # else:
+        #     ax.axvline(x=value, linestyle=dic['ls'], color=dic['color'], linewidth=dic['lw'])
 
         return 0
 
@@ -1434,7 +1447,9 @@ class PLOT_TASK(BASIC_PARTS):
         if "normalize" in dic.keys():
             if dic["normalize"]:
                 z_arr = z_arr / np.sum(z_arr)
-        z_arr = np.maximum(z_arr, 1e-10)
+
+        # z_arr = np.maximum(z_arr, 1e-10)
+        
         if dic["v_n_x"] in ["theta"]:
             x_arr = 90 - (x_arr * 180 / np.pi)
         if dic["v_n_y"] in ["theta"]:
@@ -1463,7 +1478,7 @@ class PLOT_TASK(BASIC_PARTS):
         if dic['normalize']: massarr /= np.sum(massarr)
 
         if dic["v_n_x"] == "theta":
-            self.plot_generic_line(ax, dic, (dataarr / np.pi * 180.), massarr)
+            self.plot_generic_line(ax, dic, 90 - (dataarr * 180 / np.pi), massarr)
         elif dic["v_n_x"] == "phi":
             self.plot_generic_line(ax, dic, (dataarr / np.pi * 180.), massarr)
         elif dic["v_n_x"] == "Y_e" or dic["v_n_x"] == "Ye" or dic["v_n_x"] == "ye":
@@ -1547,6 +1562,11 @@ class PLOT_TASK(BASIC_PARTS):
         return 0
 
     def plot_task(self, ax, dic):
+
+        if "axvline" in dic.keys():
+            self.plot_generic_vertical_line(ax, dic)
+        if "axhline" in dic.keys():
+            self.plot_generic_horisontal_line(ax, dic)
 
         if dic["task"] == "hist1d":
             return self.plot_hist1d(ax, dic)
@@ -1931,11 +1951,11 @@ class PLOT_MANY_TASKS(PLOT_TASK):
                     else:
                         cbar.set_label(cdic['label'], fontsize=cdic["fontsize"])
 
-                else:
-                    if location != "bottom":
-                        cbar.ax.set_title(r"{}".format(str(cdic["v_n"]).replace('_', '\_')), fontsize=cdic["fontsize"])
-                    else:
-                        cbar.set_label(r"{}".format(str(cdic["v_n"]).replace('_', '\_')), fontsize=cdic["fontsize"])
+                # else:
+                #     if location != "bottom":
+                #         cbar.ax.set_title(r"{}".format(str(cdic["v_n"]).replace('_', '\_')), fontsize=cdic["fontsize"])
+                #     else:
+                #         cbar.set_label(r"{}".format(str(cdic["v_n"]).replace('_', '\_')), fontsize=cdic["fontsize"])
 
                 cbar.ax.tick_params(labelsize=cdic["labelsize"])
     #

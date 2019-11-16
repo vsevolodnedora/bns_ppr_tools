@@ -179,7 +179,7 @@ class LOAD_FILES(LOAD_ITTIME):
 
         self.list_detectors = [0, 1]
 
-        self.list_masks = ["geo", "bern", "bern_geoend", "Y_e04_geoend"]
+        self.list_masks = ["geo", "bern", "bern_geoend", "Y_e04_geoend", "theta60_geoend"]
         if add_mask != None and not add_mask in self.list_masks:
             self.list_masks.append(add_mask)
 
@@ -1036,6 +1036,12 @@ class TEX_TABLES:
         elif v_n == "Mej_tot" and mask=="bern_geoend": return "$M_{\\text{ej}}^{\\text{w}}$"
         elif v_n == "Ye_ave" and mask=="bern_geoend": return "$\\langle Y_e ^{\\text{w}}  \\rangle$"
         elif v_n == "vel_inf_ave" and mask=="bern_geoend": return "$\\langle \\upsilon_{\\text{ej}}^{\\text{w}} \\rangle$"
+        elif v_n == "Mej_tot" and mask=="theta60_geoend": return "$M_{\\text{ej}}^{\\theta>60}$"
+        elif v_n == "Ye_ave" and mask=="theta60_geoend": return "$\\langle Y_e ^{\\theta>60}  \\rangle$"
+        elif v_n == "vel_inf_ave" and mask=="theta60_geoend": return "$\\langle \\upsilon_{\\text{ej}}^{\\theta>60} \\rangle$"
+        elif v_n == "Mej_tot" and mask=="Y_e04_geoend": return "$M_{\\text{ej}}^{Ye>0.4}$"
+        elif v_n == "Ye_ave" and mask=="Y_e04_geoend": return "$\\langle Y_e ^{Ye>0.4}  \\rangle$"
+        elif v_n == "vel_inf_ave" and mask=="Y_e04_geoend": return "$\\langle \\upsilon_{\\text{ej}}^{Ye>0.4} \\rangle$"
         elif v_n == "res": return "res"
         else:
             raise NameError("No label found for outflow v_n: {} and mask: {} ".format(v_n, mask))
@@ -3989,17 +3995,19 @@ def plot_total_fluxes_q1_and_qnot1(mask):
     # colors+=["black", "red", "green"]
     # lss   +=["--", "--", "--"]
 
-    sims = ["DD2_M13641364_M0_LK_SR_R04", "BLh_M13641364_M0_LK_SR"]
-    lbls = [r"DD2 136 136", r"BLh 136 136"]
-    masks= [mask, mask]
-    colors=["blue", "black"]
-    lss   =["-", "-"]
+    sims = ["DD2_M14971245_M0_SR", "DD2_M13641364_M0_SR", "DD2_M15091235_M0_LK_SR", "BLh_M13641364_M0_LK_SR", "LS220_M14691268_M0_LK_SR"]
+    lbls = [r"DD2_M14971245_M0_SR".replace('_', '\_'), r"DD2_M13641364_M0_SR".replace('_', '\_'),
+            r"DD2_M15091235_M0_LK_SR".replace('_', '\_'), r"BLh_M13641364_M0_LK_SR".replace('_', '\_'),
+            r"LS220_M14691268_M0_LK_SR".replace('_', '\_')]
+    masks= [mask, mask, mask, mask, mask]
+    colors=["blue", "green", "cyan", "black", "red"]
+    lss   =["-", "-", "-", "-", '-']
 
-    sims += ["DD2_M15091235_M0_LK_SR", "LS220_M14691268_M0_LK_SR"]
-    lbls += ["DD2 151 124", "LS220 150 127"]
-    masks+= [mask, mask]
-    colors+=["blue", "red"]
-    lss   +=["--", "--"]
+    # sims += ["DD2_M15091235_M0_LK_SR", "LS220_M14691268_M0_LK_SR"]
+    # lbls += ["DD2 151 124", "LS220 150 127"]
+    # masks+= [mask, mask]
+    # colors+=["blue", "red"]
+    # lss   +=["--", "--"]
 
 
     i_x_plot = 1
@@ -4020,20 +4028,20 @@ def plot_total_fluxes_q1_and_qnot1(mask):
         plot_dic = {
             'task': 'line', 'ptype': 'cartesian',
             'position': (1, 1),
-            'xarr': timearr * 1e3, 'yarr': massarr * 1e2,
+            'xarr': timearr * 1e3, 'yarr': massarr * 1e4,
             'v_n_x': "time", 'v_n_y': "mass",
             'color': color, 'ls': ls, 'lw': 0.8, 'ds': 'default', 'alpha': 1.0,
-            'xmin': 0, 'xmax': 110, 'ymin': 0, 'ymax': 3.0,
-            'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels("ejmass"),
+            'xmin': 0, 'xmax': 110, 'ymin': 0, 'ymax': 2.5,
+            'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels("ejmass4"),
             'label': lbl, 'yscale': 'linear',
             'fancyticks': True, 'minorticks': True,
             'fontsize': 14,
             'labelsize': 14,
-            'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+            'legend': {'loc': 'best', 'ncol': 1, 'fontsize': 11} # 'loc': 'best', 'ncol': 2, 'fontsize': 18
         }
         if mask == "geo": plot_dic["ymax"] = 1.
 
-        if sim == sims[-1]:
+        if sim >= sims[-1]:
             plot_dic['legend'] = {'loc': 'best', 'ncol': 1, 'fontsize': 12}
 
         o_plot.set_plot_dics.append(plot_dic)
@@ -5814,34 +5822,37 @@ def plot_den_unb__vel_z_sly4_evol():
     """ --- --- --- """
 
 
+    '''sly4 '''
+    simlist = ["SLy4_M13641364_M0_SR", "SLy4_M13641364_M0_SR", "SLy4_M13641364_M0_SR", "SLy4_M13641364_M0_SR"]
+    # itlist = [434176, 475136, 516096, 565248]
+    # itlist = [606208, 647168, 696320, 737280]
+    # itlist = [434176, 516096, 647168, 737280]
+    ''' ls220 '''
+    simlist = ["LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_SR"]#, "LS220_M14691268_M0_LK_SR"]
+    itlist = [1515520, 1728512, 1949696]#, 2162688]
+    ''' dd2 '''
+    simlist = ["DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_SR_R04"]#, "DD2_M13641364_M0_LK_SR_R04"]
+    itlist = [1111116,1741554,2213326]#,2611022]
+    #
+    simlist = ["DD2_M13641364_M0_LK_SR_R04", "BLh_M13641364_M0_LK_SR", "LS220_M14691268_M0_LK_SR", "SLy4_M13641364_M0_SR"]
+    itlist = [2611022, 1974272, 1949696, 737280]
+    #
+
+    #
     o_plot = PLOT_MANY_TASKS()
     o_plot.gen_set["figdir"] = Paths.plots + 'all2/'
     o_plot.gen_set["type"] = "cartesian"
-    o_plot.gen_set["figsize"] = (16.8, 8.0)  # <->, |] # to match hists with (8.5, 2.7)
-    o_plot.gen_set["figname"] = "sly4_136136_evol2.png"#"DD2_1512_slices.png" # LS_1412_slices
+    o_plot.gen_set["figsize"] = (4*len(simlist), 6.0)  # <->, |] # to match hists with (8.5, 2.7)
+    o_plot.gen_set["figname"] = "disk_structure_last.png".format(simlist[0])#"DD2_1512_slices.png" # LS_1412_slices
     o_plot.gen_set["sharex"] = False
     o_plot.gen_set["sharey"] = True
     o_plot.gen_set["dpi"] = 128
     o_plot.gen_set["subplots_adjust_h"] = -0.35
     o_plot.gen_set["subplots_adjust_w"] = 0.05
     o_plot.set_plot_dics = []
-
-    '''sly4 '''
-    simlist = ["SLy4_M13641364_M0_SR", "SLy4_M13641364_M0_SR", "SLy4_M13641364_M0_SR", "SLy4_M13641364_M0_SR"]
-    # itlist = [434176, 475136, 516096, 565248]
-    # itlist = [606208, 647168, 696320, 737280]
-    itlist = [434176, 516096, 647168, 737280]
-    ''' ls220 '''
-    # simlist = ["LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_SR"]
-    # itlist = [1515520, 1728512, 1949696, 2162688]
-    ''' dd2 '''
-    # simlist = ["DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_SR_R04"]
-    # itlist = [1111116,1741554,2213326,2611022]
-
-
-
-    rl = 2
-
+    #
+    rl = 3
+    #
     o_plot.gen_set["figsize"] = (4.2*len(simlist), 8.0)  # <->, |] # to match hists with (8.5, 2.7)
 
     plot_x_i = 1
@@ -5854,6 +5865,8 @@ def plot_den_unb__vel_z_sly4_evol():
         tmerg = d1class.get_par("tmerg")
         xmin, xmax, ymin, ymax, zmin, zmax = UTILS.get_xmin_xmax_ymin_ymax_zmin_zmax(rl)
 
+
+
         # --------------------------------------------------------------------------
 
         # --------------------------------------------------------------------------
@@ -5863,6 +5876,23 @@ def plot_den_unb__vel_z_sly4_evol():
         data_arr = d3class.get_data(it, rl, "xz", v_n)
         x_arr = d3class.get_data(it, rl, "xz", "x")
         z_arr = d3class.get_data(it, rl, "xz", "z")
+        # print(data_arr); exit(1)
+
+        contour_dic_xz = {
+            'task': 'contour',
+            'ptype': 'cartesian', 'aspect': 1.,
+            'xarr': x_arr, "yarr": z_arr, "zarr": data_arr, 'levels': [1.e13 / 6.176e+17],
+            'position': (1, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
+            'colors': ['white'], 'lss': ["-"], 'lws': [1.],
+            'v_n_x': 'x', 'v_n_y': 'y', 'v_n': 'rho',
+            'xscale': None, 'yscale': None,
+            'fancyticks': True,
+            'sharey': False,
+            'sharex': True,  # removes angular citkscitks
+            'fontsize': 14,
+            'labelsize': 14}
+        o_plot.set_plot_dics.append(contour_dic_xz)
+
         rho_dic_xz = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
                       'xarr': x_arr, "yarr": z_arr, "zarr": data_arr,
                       'position': (1, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
@@ -5874,7 +5904,8 @@ def plot_den_unb__vel_z_sly4_evol():
                       'mask': mask, 'cmap': 'Greys', 'norm': "log",
                       'fancyticks': True,
                       'minorticks':True,
-                      'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3), 'fontsize': 14},
+                      'title': {"text": sim.replace('_', '\_'), 'fontsize': 12},
+                      #'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3), 'fontsize': 14},
                       'sharey': False,
                       'sharex': True,  # removes angular citkscitks
                       'fontsize': 14,
@@ -5884,6 +5915,22 @@ def plot_den_unb__vel_z_sly4_evol():
         data_arr = d3class.get_data(it, rl, "xy", v_n)
         x_arr = d3class.get_data(it, rl, "xy", "x")
         y_arr = d3class.get_data(it, rl, "xy", "y")
+
+        contour_dic_xy = {
+            'task': 'contour',
+            'ptype': 'cartesian', 'aspect': 1.,
+            'xarr': x_arr, "yarr": y_arr, "zarr": data_arr, 'levels': [1.e13 / 6.176e+17],
+            'position': (2, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
+            'colors': ['white'], 'lss': ["-"], 'lws': [1.],
+            'v_n_x': 'x', 'v_n_y': 'y', 'v_n': 'rho',
+            'xscale': None, 'yscale': None,
+            'fancyticks': True,
+            'sharey': False,
+            'sharex': True,  # removes angular citkscitks
+            'fontsize': 14,
+            'labelsize': 14}
+        o_plot.set_plot_dics.append(contour_dic_xy)
+
         rho_dic_xy = {'task': 'colormesh', 'ptype': 'cartesian', 'aspect': 1.,
                       'xarr': x_arr, "yarr": y_arr, "zarr": data_arr,
                       'position': (2, plot_x_i),  # 'title': '[{:.1f} ms]'.format(time_),
@@ -5930,7 +5977,7 @@ def plot_den_unb__vel_z_sly4_evol():
                       'mask': mask, 'cmap': 'Blues', 'norm': "log",
                       'fancyticks': True,
                        'minorticks': True,
-                       'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3), 'fontsize': 14},
+                       'title': {},#{"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3), 'fontsize': 14},
                       'sharex': True,  # removes angular citkscitks
                       'sharey': False,
                       'fontsize': 14,
@@ -5973,7 +6020,7 @@ def plot_den_unb__vel_z_sly4_evol():
         mask = "x<0"
         #
         v_n = "Ye"
-        cmap = "Reds"
+        cmap = "bwr_r"
         #
         data_arr = d3class.get_data(it, rl, "xz", v_n)
         x_arr = d3class.get_data(it, rl, "xz", "x")
@@ -5984,12 +6031,12 @@ def plot_den_unb__vel_z_sly4_evol():
                        'cbar': {},
                        'fill_vmin': False,  # fills the x < vmin with vmin
                        'v_n_x': 'x', 'v_n_y': 'z', 'v_n': v_n,
-                       'xmin': xmin, 'xmax': xmax, 'ymin': zmin, 'ymax': zmax, 'vmin': 0.1, 'vmax': 0.5,
+                       'xmin': xmin, 'xmax': xmax, 'ymin': zmin, 'ymax': zmax, 'vmin': 0.05, 'vmax': 0.5,
                        'xscale': None, 'yscale': None,
                        'mask': mask, 'cmap': cmap, 'norm': None,
                        'fancyticks': True,
-                     'minorticks': True,
-                     'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3), 'fontsize': 14},
+                       'minorticks': True,
+                       'title': {},#{"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3), 'fontsize': 14},
                        'sharey': False,
                        'sharex': True,  # removes angular citkscitks
                        'fontsize': 14,
@@ -6005,12 +6052,12 @@ def plot_den_unb__vel_z_sly4_evol():
                        'cbar': {},
                        'fill_vmin': False,  # fills the x < vmin with vmin
                        'v_n_x': 'x', 'v_n_y': 'y', 'v_n': v_n,
-                       'xmin': xmin, 'xmax': xmax, 'ymin': ymin, 'ymax': ymax, 'vmin': 0.1, 'vmax': 0.5,
+                       'xmin': xmin, 'xmax': xmax, 'ymin': ymin, 'ymax': ymax, 'vmin': 0.01, 'vmax': 0.5,
                        'xscale': None, 'yscale': None,
                        'mask': mask, 'cmap': cmap, 'norm': None,
                        'fancyticks': True,
-                     'minorticks': True,
-                     'title': {},
+                       'minorticks': True,
+                       'title': {},
                        'sharey': False,
                        'sharex': False,  # removes angular citkscitks
                        'fontsize': 14,
@@ -6033,7 +6080,7 @@ def plot_den_unb__vel_z_sly4_evol():
         if not np.isnan(tcoll) and t >= tcoll:
             print(tcoll, t)
             v_n = "lapse"
-            mask = "z>0.5"
+            mask = "z>0.15"
             data_arr = d3class.get_data(it, rl, "xz", v_n)
             x_arr = d3class.get_data(it, rl, "xz", "x")
             z_arr = d3class.get_data(it, rl, "xz", "z")
@@ -6047,8 +6094,9 @@ def plot_den_unb__vel_z_sly4_evol():
                             'xscale': None, 'yscale': None,
                             'mask': mask, 'cmap': 'Greys', 'norm': None,
                             'fancyticks': True,
-                            'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3),
-                                      'fontsize': 14},
+                            'minorticks': True,
+                            'title': {},#,{"text": r'$t-t_{merg}:$' + r'${:.1f}$ [ms]'.format((t - tmerg) * 1e3),
+                                      #'fontsize': 14},
                             'sharey': False,
                             'sharex': True,  # removes angular citkscitks
                             'fontsize': 14,
@@ -6069,6 +6117,7 @@ def plot_den_unb__vel_z_sly4_evol():
                             'xscale': None, 'yscale': None,
                             'mask': mask, 'cmap': 'Greys', 'norm': None,
                             'fancyticks': True,
+                            'minorticks': True,
                             'title': {},
                             'sharey': False,
                             'sharex': False,  # removes angular citkscitks
@@ -6412,6 +6461,405 @@ def plot_desity_modes2():
     o_plot.main()
     exit(1)
 
+""" ---------------------------------------------- MIXED ------------------------------------------------------------"""
+
+def plot_2ejecta_1disk_timehists():
+
+    # columns
+    sims = ["DD2_M14971245_M0_SR", "DD2_M13641364_M0_SR", "DD2_M15091235_M0_LK_SR", "BLh_M13641364_M0_LK_SR", "LS220_M14691268_M0_LK_SR"]
+    # rows
+    masks2 = ["bern_geoend", "bern_geoend", "bern_geoend", "bern_geoend"]
+    masks1 = ["geo", "geo", "geo", "geo"]
+    v_ns = ["vel_inf", "Y_e", "theta", "temperature"]
+    v_ns_diks = ["Ye", "velz", "theta", "temp"]
+    det = 0
+    norm_to_m = 0
+    _fpath = "slices/" + "rho_modes.h5"
+    #
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots+"all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (14.0, 10.0)  # <->, |]
+    o_plot.gen_set["figname"] = "timecorr_ej_disk.png"
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = True
+    o_plot.gen_set["dpi"] = 128
+    o_plot.gen_set["subplots_adjust_h"] = 0.03 # w
+    o_plot.gen_set["subplots_adjust_w"] = 0.01
+    o_plot.set_plot_dics = []
+    #
+    i_col = 1
+    for sim in sims:
+        #
+        o_data = ADD_METHODS_ALL_PAR(sim)
+        #
+        i_row = 1
+        # Time of the merger
+        fpath = Paths.ppr_sims + sim + "/" + "waveforms/" + "tmerger.dat"
+        if not os.path.isfile(fpath):
+            raise IOError("File does not exist: {}".format(fpath))
+        tmerg = float(np.loadtxt(fname=fpath, unpack=True)) * Constants.time_constant  # ms
+
+        # Total Ejecta Mass
+        for v_n, mask1, ls in zip(["Mej_tot", "Mej_tot"], ["geo", "bern_geoend"], ["--", "-"]):
+            # Time to end dynamical ejecta
+            fpath = Paths.ppr_sims + sim + "/" + "outflow_{}/".format(det) + mask1 + '/' + "total_flux.dat"
+            if not os.path.isfile(fpath):
+                raise IOError("File does not exist: {}".format(fpath))
+            timearr, mass = np.loadtxt(fname=fpath, unpack=True, usecols=(0, 2))
+            tend = float(timearr[np.where(mass >= (mass.max() * 0.98))][0]) * 1e3  # ms
+            tend = tend - tmerg
+            # print(time*1e3); exit(1)
+            # Dybamical
+            timearr = (timearr * 1e3) - tmerg
+            mass = mass * 1e2
+            plot_dic = {
+                'task': 'line', 'ptype': 'cartesian',
+                'position': (i_row, i_col),
+                'xarr': timearr, 'yarr': mass,
+                'v_n_x': "time", 'v_n_y': "mass",
+                'color': "black", 'ls': ls, 'lw': 0.8, 'ds': 'default', 'alpha': 1.0,
+                'ymin': 0.05, 'ymax': 2.9, 'xmin': timearr.min(), 'xmax': timearr.max(),
+                'xlabel': Labels.labels("t-tmerg"), 'ylabel': "M $[M_{\odot}]$",
+                'label': None, 'yscale': 'linear',
+                'fontsize': 14,
+                'labelsize': 14,
+                'fancyticks': True,
+                'minorticks': True,
+                'sharex': True,  # removes angular citkscitks
+                'sharey': True,
+                'title':{"text": sim.replace('_', '\_'), 'fontsize': 12},
+                'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+            }
+            if sim == sims[0]:
+                plot_dic["sharey"] = False
+                if mask1 == "geo":
+                    plot_dic['label'] = r"$M_{\rm{ej}}$ $[10^{-2} M_{\odot}]$"
+                else:
+                    plot_dic['label'] = r"$M_{\rm{ej}}^{\rm{w}}$ $[10^{-2} M_{\odot}]$"
+
+            o_plot.set_plot_dics.append(plot_dic)
+        # Total Disk Mass
+        timedisk_massdisk = o_data.get_disk_mass()
+        timedisk = timedisk_massdisk[:, 0]
+        massdisk = timedisk_massdisk[:, 1]
+        timedisk = (timedisk * 1e3) - tmerg
+        massdisk = massdisk * 1e1
+        plot_dic = {
+            'task': 'line', 'ptype': 'cartesian',
+            'position': (i_row, i_col),
+            'xarr': timedisk, 'yarr': massdisk,
+            'v_n_x': "time", 'v_n_y': "mass",
+            'color': "black", 'ls': ':', 'lw': 0.8, 'ds': 'default', 'alpha': 1.0,
+            'ymin': 0.05, 'ymax': 3.0, 'xmin': timearr.min(), 'xmax': timearr.max(),
+            'xlabel': Labels.labels("t-tmerg"), 'ylabel':  "M $[M_{\odot}]$",
+            'label': None, 'yscale': 'linear',
+            'fontsize': 14,
+            'labelsize': 14,
+            'fancyticks': True,
+            'minorticks': True,
+            'sharex': True,  # removes angular citkscitks
+            'sharey': True,
+            # 'title': {"text": sim.replace('_', '\_'), 'fontsize': 12},
+            'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+        }
+        if sim == sims[0]:
+            plot_dic["sharey"] = False
+            plot_dic['label'] = r"$M_{\rm{disk}}$ $[10^{-1} M_{\odot}]$"
+            plot_dic['legend'] = {'loc': 'best', 'ncol': 1, 'fontsize': 9, 'framealpha':0.}
+        o_plot.set_plot_dics.append(plot_dic)
+        #
+        i_row = i_row + 1
+
+        # DEBSITY MODES
+        o_dm = LOAD_DENSITY_MODES(sim)
+        o_dm.gen_set['fname'] = Paths.ppr_sims + sim + "/" + _fpath
+        #
+        mags1 = o_dm.get_data(1, "int_phi_r")
+        mags1 = np.abs(mags1)
+        # if sim == "DD2_M13641364_M0_SR": print("m1", mags1)#; exit(1)
+        if norm_to_m != None:
+            # print('Normalizing')
+            norm_int_phi_r1d = o_dm.get_data(norm_to_m, 'int_phi_r')
+            # print(norm_int_phi_r1d); exit(1)
+            mags1 = mags1 / abs(norm_int_phi_r1d)[0]
+        times = o_dm.get_grid("times")
+        #
+        assert len(times) > 0
+        # if sim == "DD2_M13641364_M0_SR": print("m0", abs(norm_int_phi_r1d)); exit(1)
+        #
+        times = (times * 1e3) - tmerg  # ms
+        #
+        densmode_m1 = {
+            'task': 'line', 'ptype': 'cartesian',
+            'xarr': times, 'yarr': mags1,
+            'position': (i_row, i_col),
+            'v_n_x': 'times', 'v_n_y': 'int_phi_r abs',
+            'ls': '-', 'color': 'black', 'lw': 0.8, 'ds': 'default', 'alpha': 1.,
+            'label': None, 'ylabel': None, 'xlabel': Labels.labels("t-tmerg"),
+            'xmin': timearr.min(), 'xmax': timearr.max(), 'ymin': 1e-4, 'ymax': 1e0,
+            'xscale': None, 'yscale': 'log', 'legend': {},
+            'fontsize': 14,
+            'labelsize': 14,
+            'fancyticks': True,
+            'minorticks': True,
+            'sharex': True,  # removes angular citkscitks
+            'sharey': True
+        }
+        #
+        mags2 = o_dm.get_data(2, "int_phi_r")
+        mags2 = np.abs(mags2)
+        print(mags2)
+        if norm_to_m != None:
+            # print('Normalizing')
+            norm_int_phi_r1d = o_dm.get_data(norm_to_m, 'int_phi_r')
+            # print(norm_int_phi_r1d); exit(1)
+            mags2 = mags2 / abs(norm_int_phi_r1d)[0]
+        # times = (times - tmerg) * 1e3 # ms
+        # print(abs(norm_int_phi_r1d)); exit(1)
+        densmode_m2 = {
+            'task': 'line', 'ptype': 'cartesian',
+            'xarr': times, 'yarr': mags2,
+            'position': (i_row, i_col),
+            'v_n_x': 'times', 'v_n_y': 'int_phi_r abs',
+            'ls': '-', 'color': 'gray', 'lw': 0.5, 'ds': 'default', 'alpha': 1.,
+            'label': None, 'ylabel': r'$C_m/C_0$', 'xlabel': Labels.labels("t-tmerg"),
+            'xmin': timearr.min(), 'xmax': timearr.max(), 'ymin': 1e-4, 'ymax': 9e-1,
+            'xscale': None, 'yscale': 'log',
+            'legend': {},
+            'fontsize': 14,
+            'labelsize': 14,
+            'fancyticks': True,
+            'minorticks': True,
+            'sharex': True,  # removes angular citkscitks
+            'sharey': True,
+            'title': {}#{'text': "Density Mode Evolution", 'fontsize': 14}
+            # 'sharex': True
+        }
+        #
+        if sim == sims[0]:
+            densmode_m1['label'] = r"$m=1$"
+            densmode_m2['label'] = r"$m=2$"
+        if sim == sims[0]:
+            densmode_m1["sharey"] = False
+            densmode_m1['label'] = r"$m=1$"
+            densmode_m1['legend'] = {'loc': 'upper center', 'ncol': 2, 'fontsize': 9, 'framealpha':0., 'borderayespad':0.}
+        if sim == sims[0]:
+            densmode_m2["sharey"] = False
+            densmode_m2['label'] = r"$m=2$"
+            densmode_m2['legend'] = {'loc': 'upper center', 'ncol': 2, 'fontsize': 9, 'framealpha':0., 'borderayespad':0.}
+
+        o_plot.set_plot_dics.append(densmode_m2)
+        o_plot.set_plot_dics.append(densmode_m1)
+        i_row = i_row + 1
+
+        # TIME CORR EJECTA
+        for v_n, mask1, mask2 in zip(v_ns, masks1, masks2):
+            # Time to end dynamical ejecta
+            fpath = Paths.ppr_sims + sim + "/" + "outflow_{}/".format(det) + mask1 + '/' + "total_flux.dat"
+            if not os.path.isfile(fpath):
+                raise IOError("File does not exist: {}".format(fpath))
+            timearr, mass = np.loadtxt(fname=fpath, unpack=True, usecols=(0,2))
+            tend = float(timearr[np.where(mass >= (mass.max() * 0.98))][0]) * 1e3 # ms
+            tend = tend - tmerg
+            #print(time*1e3); exit(1)
+            # Dybamical
+            #
+            fpath = Paths.ppr_sims + sim + "/" + "outflow_{}/".format(det) + mask1 + '/' + "timecorr_{}.h5".format(v_n)
+            if not os.path.isfile(fpath):
+                raise IOError("File does not exist: {}".format(fpath))
+            # loadind data
+            dfile = h5py.File(fpath, "r")
+            timearr = np.array(dfile["time"]) - tmerg
+            v_n_arr = np.array(dfile[v_n])
+            mass = np.array(dfile["mass"])
+            timearr, v_n_arr = np.meshgrid(timearr, v_n_arr)
+            # mass = np.maximum(mass, mass.min())
+            #
+            corr_dic2 = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
+                'task': 'corr2d', 'dtype': 'corr', 'ptype': 'cartesian',
+                'xarr': timearr, 'yarr': v_n_arr, 'zarr': mass,
+                'position': (i_row, i_col),
+                'v_n_x': "time", 'v_n_y': v_n, 'v_n': 'mass', 'normalize': True,
+                'cbar': {},
+                'cmap': 'inferno_r',
+                'xlabel': Labels.labels("time"), 'ylabel': Labels.labels(v_n, alternative=True),
+                'xmin': timearr.min(), 'xmax': timearr.max(), 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
+                'xscale': "linear", 'yscale': "linear", 'norm': 'log',
+                'mask_below': None, 'mask_above': None,
+                'title': {},  # {"text": o_corr_data.sim.replace('_', '\_'), 'fontsize': 14},
+                # 'text': {'text': lbl.replace('_', '\_'), 'coords': (0.05, 0.9), 'color': 'white', 'fs': 12},
+                'axvline': {"x":tend, "linestyle":"--", "color":"black", "linewidth":1.},
+                'mask': "x>{}".format(tend),
+                'fancyticks': True,
+                'minorticks': True,
+                'sharex': True,  # removes angular citkscitks
+                'sharey': True,
+                'fontsize': 14,
+                'labelsize': 14
+            }
+            if sim == sims[0]:
+                corr_dic2["sharey"] = False
+            if v_n == v_ns[-1]:
+                corr_dic2["sharex"] = False
+
+            if v_n == "vel_inf":
+                corr_dic2['ymin'], corr_dic2['ymax'] = 0., 0.45
+            elif v_n == "Y_e":
+                corr_dic2['ymin'], corr_dic2['ymax'] = 0.05, 0.45
+            elif v_n == "temperature":
+                corr_dic2['ymin'], corr_dic2['ymax'] = 0.1, 1.8
+
+            o_plot.set_plot_dics.append(corr_dic2)
+
+            # WIND
+            fpath = Paths.ppr_sims + sim + "/" + "outflow_{}/".format(det) + mask2 + '/' + "timecorr_{}.h5".format(v_n)
+            if not os.path.isfile(fpath):
+                raise IOError("File does not exist: {}".format(fpath))
+            # loadind data
+            dfile = h5py.File(fpath, "r")
+            timearr = np.array(dfile["time"]) - tmerg
+            v_n_arr = np.array(dfile[v_n])
+            mass = np.array(dfile["mass"])
+            timearr, v_n_arr = np.meshgrid(timearr, v_n_arr)
+            # print(timearr);exit(1)
+            # mass = np.maximum(mass, mass.min())
+            #
+            corr_dic2 = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
+                'task': 'corr2d', 'dtype': 'corr', 'ptype': 'cartesian',
+                'xarr': timearr, 'yarr': v_n_arr, 'zarr': mass,
+                'position': (i_row, i_col),
+                'v_n_x': "time", 'v_n_y': v_n, 'v_n': 'mass', 'normalize': True,
+                'cbar': {},
+                'cmap': 'inferno_r',
+                'xlabel': Labels.labels("time"), 'ylabel': Labels.labels(v_n, alternative=True),
+                'xmin': timearr.min(), 'xmax': timearr.max(), 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
+                'xscale': "linear", 'yscale': "linear", 'norm': 'log',
+                'mask_below': None, 'mask_above': None,
+                'title': {},  # {"text": o_corr_data.sim.replace('_', '\_'), 'fontsize': 14},
+                # 'text': {'text': lbl.replace('_', '\_'), 'coords': (0.05, 0.9), 'color': 'white', 'fs': 12},
+                'mask': "x<{}".format(tend),
+                'fancyticks': True,
+                'minorticks': True,
+                'sharex': True,  # removes angular citkscitks
+                'sharey': True,
+                'fontsize': 14,
+                'labelsize': 14
+            }
+            if sim == sims[0]:
+                corr_dic2["sharey"] = False
+            if v_n == v_ns[-1] and len(v_ns_diks) == 0:
+                corr_dic2["sharex"] = False
+
+            if v_n == "vel_inf":
+                corr_dic2['ymin'], corr_dic2['ymax'] = 0., 0.45
+            elif v_n == "Y_e":
+                corr_dic2['ymin'], corr_dic2['ymax'] = 0.05, 0.45
+            elif v_n == "theta":
+                corr_dic2['ymin'], corr_dic2['ymax'] = 0, 85
+            elif v_n == "temperature":
+                corr_dic2['ymin'], corr_dic2['ymax'] = 0, 1.8
+
+            if sim == sims[-1] and v_n == v_ns[-1]:
+                corr_dic2['cbar'] = {'location': 'right .02 0.', 'label': Labels.labels("mass"),
+                                   # 'right .02 0.' 'fmt': '%.1e',
+                                   'labelsize': 14,  # 'aspect': 6.,
+                                   'fontsize': 14}
+
+            o_plot.set_plot_dics.append(corr_dic2)
+            i_row = i_row + 1
+
+        # DISK
+        if len(v_ns_diks) > 0:
+            d3_corr = LOAD_RES_CORR(sim)
+            iterations = d3_corr.list_iterations
+            #
+            for v_n in v_ns_diks:
+                # Loading 3D data
+                print("v_n:{}".format(v_n))
+                times = []
+                bins = []
+                values = []
+                for it in iterations:
+                    fpath = Paths.ppr_sims + sim + "/" + "profiles/" + str(it) + "/" + "hist_{}.dat".format(v_n)
+                    if os.path.isfile(fpath):
+                        times.append(d3_corr.get_time_for_it(it, "prof"))
+                        print("\tLoading it:{} t:{}".format(it, times[-1]))
+                        data = np.loadtxt(fpath, unpack=False)
+                        bins = data[:, 0]
+                        values.append(data[:, 1])
+                    else:
+                        print("\tFile not found it:{}".format(fpath))
+
+                assert len(times) > 0
+                times = np.array(times) * 1e3
+                bins = np.array(bins)
+                values = np.reshape(np.array(values), newshape=(len(times), len(bins))).T
+                #
+                times = times - tmerg
+                #
+                values = values / np.sum(values)
+                values = np.maximum(values, 1e-10)
+                #
+                def_dic = {'task': 'colormesh', 'ptype': 'cartesian',  # 'aspect': 1.,
+                           'xarr': times, "yarr": bins, "zarr": values,
+                           'position': (i_row, i_col),  # 'title': '[{:.1f} ms]'.format(time_),
+                           'cbar': {},
+                           'v_n_x': 'x', 'v_n_y': 'z', 'v_n': v_n,
+                           'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels(v_n, alternative=True),
+                           'xmin': timearr.min(), 'xmax': timearr.max(), 'ymin': bins.min(), 'ymax': bins.max(),
+                           'vmin': 1e-6,
+                           'vmax': 1e-2,
+                           'fill_vmin': False,  # fills the x < vmin with vmin
+                           'xscale': None, 'yscale': None,
+                           'mask': None, 'cmap': 'inferno_r', 'norm': "log",
+                           'fancyticks': True,
+                           'minorticks': True,
+                           'title': {},
+                           # "text": r'$t-t_{merg}:$' + r'${:.1f}$'.format((time_ - tmerg) * 1e3), 'fontsize': 14
+                           # 'sharex': True,  # removes angular citkscitks
+                           'text': {},
+                           'fontsize': 14,
+                           'labelsize': 14,
+                           'sharex': True,
+                           'sharey': True,
+                           }
+                if sim == sims[-1] and v_n == v_ns_diks[-1]:
+                    def_dic['cbar'] = {'location': 'right .02 0.', #'label': Labels.labels("mass"),
+                                       # 'right .02 0.' 'fmt': '%.1e',
+                                       'labelsize': 14,  # 'aspect': 6.,
+                                       'fontsize': 14}
+                if v_n == v_ns[0]:
+                    def_dic['text'] = {'coords': (1.0, 1.05), 'text': sim.replace("_", "\_"), 'color': 'black',
+                                       'fs': 16}
+                if v_n == "Ye":
+                    def_dic['ymin'] = 0.05
+                    def_dic['ymax'] = 0.45
+                if v_n == "velz":
+                    def_dic['ymin'] = -.25
+                    def_dic['ymax'] = .25
+                elif v_n == "temp":
+                    # def_dic['yscale'] = "log"
+                    def_dic['ymin'] = 1e-1
+                    def_dic['ymax'] = 2.5e1
+                elif v_n == "theta":
+                    def_dic['ymin'] = 0
+                    def_dic['ymax'] = 85
+                    def_dic["yarr"] = 90 - (def_dic["yarr"] / np.pi * 180.)
+                #
+                if v_n == v_ns_diks[-1]:
+                    def_dic["sharex"] = False
+                if sim == sims[0]:
+                    def_dic["sharey"] = False
+
+
+                o_plot.set_plot_dics.append(def_dic)
+                i_row = i_row + 1
+
+        i_col = i_col + 1
+    o_plot.main()
+    exit(1)
+
 if __name__ == '__main__':
 
     ''' density modes '''
@@ -6427,7 +6875,10 @@ if __name__ == '__main__':
 
     ''' ejecta properties '''
 
-    # plot_total_fluxes_q1_and_qnot1("bern_geoend")
+    plot_total_fluxes_q1_and_qnot1("Y_e04_geoend")
+    # plot_total_fluxes_q1_and_qnot1("theta60_geoend")
+    # plot_2ejecta_1disk_timehists()
+    # plot_2ejecta_1disk_timehists()
 
     ''' disk ejecta summory properties '''
 
@@ -6488,7 +6939,7 @@ if __name__ == '__main__':
 
 
     ''' --- COMPARISON TABLE --- '''
-    tbl = COMPARISON_TABLE()
+    # tbl = COMPARISON_TABLE()
 
     ### --- effect of viscosity
     # tbl.print_mult_table([["DD2_M15091235_M0_LK_SR", "DD2_M14971245_M0_SR"],
@@ -6514,81 +6965,95 @@ if __name__ == '__main__':
     # exit(0)
 
     #### --- resulution effect on simulations with viscosity
-    tbl.print_mult_table([["DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_LR_R04", "DD2_M13641364_M0_LK_HR_R04"],
-                         ["DD2_M15091235_M0_LK_SR", "DD2_M15091235_M0_LK_HR"],          # no
-                         ["LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_HR"],      # no
-                         ["SFHo_M13641364_M0_LK_SR", "SFHo_M13641364_M0_LK_HR"],        # no
-                         ["SFHo_M14521283_M0_LK_SR", "SFHo_M14521283_M0_LK_HR"]],       # no
-                         [r"\hline",
-                          r"\hline",
-                          r"\hline",
-                          r"\hline",
-                          r"\hline"],
-                         comment=r"{Resolution effect to on the outflow properties and disk mass on the simulations with "
-                         r"subgird turbulence. Here the $t_{\text{disk}}$ "
-                         r"is the maximum postmerger time, for which the 3D is available for both simulations "
-                         r"For that time, the disk mass is interpolated using linear inteprolation. The "
-                         r"$\Delta t_{\text{wind}}$ is the maximum common time window between the time at "
-                         r"which dynamical ejecta reaches 98\% of its total mass and the end of the simulation "
-                         r"Cases where $t_{\text{disk}}$ or $\Delta t_{\text{wind}}$ is N/A indicate the absence "
-                         r"of the ovelap between 3D data fro simulations or absence of this data entirely and "
-                         r"absence of overlap between the time window in which the spiral-wave wind is computed "
-                         r"which does not allow to do a proper, one-to-one comparison. $\Delta$ is a estimated "
-                         r"change as $|value_1 - value_2|/value_1$ in percentage }",
-                         label=r"{tbl:res_effect_vis}"
-                         )
-    exit(0)
+    # tbl.print_mult_table([["DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_LR_R04", "DD2_M13641364_M0_LK_HR_R04"], # HR too short
+    #                      ["DD2_M15091235_M0_LK_SR", "DD2_M15091235_M0_LK_HR"],          # no
+    #                      ["LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_HR"],      # no
+    #                      ["SFHo_M13641364_M0_LK_SR", "SFHo_M13641364_M0_LK_HR"],        # no
+    #                      ["SFHo_M14521283_M0_LK_SR", "SFHo_M14521283_M0_LK_HR"]],       # no
+    #                      [r"\hline",
+    #                       r"\hline",
+    #                       r"\hline",
+    #                       r"\hline",
+    #                       r"\hline"],
+    #                      comment=r"{Resolution effect to on the outflow properties and disk mass on the simulations with "
+    #                      r"subgird turbulence. Here the $t_{\text{disk}}$ "
+    #                      r"is the maximum postmerger time, for which the 3D is available for both simulations "
+    #                      r"For that time, the disk mass is interpolated using linear inteprolation. The "
+    #                      r"$\Delta t_{\text{wind}}$ is the maximum common time window between the time at "
+    #                      r"which dynamical ejecta reaches 98\% of its total mass and the end of the simulation "
+    #                      r"Cases where $t_{\text{disk}}$ or $\Delta t_{\text{wind}}$ is N/A indicate the absence "
+    #                      r"of the ovelap between 3D data fro simulations or absence of this data entirely and "
+    #                      r"absence of overlap between the time window in which the spiral-wave wind is computed "
+    #                      r"which does not allow to do a proper, one-to-one comparison. $\Delta$ is a estimated "
+    #                      r"change as $|value_1 - value_2|/value_1$ in percentage }",
+    #                      label=r"{tbl:res_effect_vis}"
+    #                      )
+    # exit(0)
 
     
     #### --- resolution effect on simulations without voscosity
-    tbl.print_mult_table([["DD2_M13641364_M0_SR_R04", "DD2_M13641364_M0_LR_R04", "DD2_M13641364_M0_HR_R04"], # DD2_M13641364_M0_LR_R04
-                         ["DD2_M14971245_M0_SR", "DD2_M14971246_M0_LR", "DD2_M14971245_M0_HR"], # DD2_M14971246_M0_LR
-                         ["LS220_M13641364_M0_SR", "LS220_M13641364_M0_LR", "LS220_M13641364_M0_HR"], # LS220_M13641364_M0_LR
-                         ["LS220_M14691268_M0_SR", "LS220_M14691268_M0_LR", "LS220_M14691268_M0_HR"], # LS220_M14691268_M0_LR
-                         ["SFHo_M13641364_M0_SR", "SFHo_M13641364_M0_HR"], # no
-                         ["SFHo_M14521283_M0_SR", "SFHo_M14521283_M0_HR"]], # no
-                         [r"\hline",
-                          r"\hline",
-                          r"\hline",
-                          r"\hline",
-                          r"\hline",
-                          r"\hline"],
-                         comment=r"{Resolution effec to on the outflow properties and disk mass on the simulations without "
-                         r"subgird turbulence. Here the $t_{\text{disk}}$ "
-                         r"is the maximum postmerger time, for which the 3D is available for both simulations "
-                         r"For that time, the disk mass is interpolated using linear inteprolation. The "
-                         r"$\Delta t_{\text{wind}}$ is the maximum common time window between the time at "
-                         r"which dynamical ejecta reaches 98\% of its total mass and the end of the simulation "
-                         r"Cases where $t_{\text{disk}}$ or $\Delta t_{\text{wind}}$ is N/A indicate the absence "
-                         r"of the ovelap between 3D data fro simulations or absence of this data entirely and "
-                         r"absence of overlap between the time window in which the spiral-wave wind is computed "
-                         r"which does not allow to do a proper, one-to-one comparison. $\Delta$ is a estimated "
-                         r"change as $|value_1 - value_2|/value_1$ in percentage }",
-                         label=r"{tbl:res_effect}"
-                         )
-
-
-    exit(0)
+    # tbl.print_mult_table([["DD2_M13641364_M0_SR_R04", "DD2_M13641364_M0_LR_R04", "DD2_M13641364_M0_HR_R04"], # DD2_M13641364_M0_LR_R04
+    #                      ["DD2_M14971245_M0_SR", "DD2_M14971246_M0_LR", "DD2_M14971245_M0_HR"], # DD2_M14971246_M0_LR
+    #                      ["LS220_M13641364_M0_SR", "LS220_M13641364_M0_LR", "LS220_M13641364_M0_HR"], # LS220_M13641364_M0_LR
+    #                      ["LS220_M14691268_M0_SR", "LS220_M14691268_M0_LR", "LS220_M14691268_M0_HR"], # LS220_M14691268_M0_LR
+    #                      ["SFHo_M13641364_M0_SR", "SFHo_M13641364_M0_HR"], # no
+    #                      ["SFHo_M14521283_M0_SR", "SFHo_M14521283_M0_HR"]], # no
+    #                      [r"\hline",
+    #                       r"\hline",
+    #                       r"\hline",
+    #                       r"\hline",
+    #                       r"\hline",
+    #                       r"\hline"],
+    #                      comment=r"{Resolution effec to on the outflow properties and disk mass on the simulations without "
+    #                      r"subgird turbulence. Here the $t_{\text{disk}}$ "
+    #                      r"is the maximum postmerger time, for which the 3D is available for both simulations "
+    #                      r"For that time, the disk mass is interpolated using linear inteprolation. The "
+    #                      r"$\Delta t_{\text{wind}}$ is the maximum common time window between the time at "
+    #                      r"which dynamical ejecta reaches 98\% of its total mass and the end of the simulation "
+    #                      r"Cases where $t_{\text{disk}}$ or $\Delta t_{\text{wind}}$ is N/A indicate the absence "
+    #                      r"of the ovelap between 3D data fro simulations or absence of this data entirely and "
+    #                      r"absence of overlap between the time window in which the spiral-wave wind is computed "
+    #                      r"which does not allow to do a proper, one-to-one comparison. $\Delta$ is a estimated "
+    #                      r"change as $|value_1 - value_2|/value_1$ in percentage }",
+    #                      label=r"{tbl:res_effect}"
+    #                      )
+    #
+    #
+    # exit(0)
 
     ''' --- OVERALL TABLE --- '''
     tbl = TEX_TABLES()
 
-    tbl.print_mult_table([simulations["BLh"]["q=1"], simulations["BLh"]["q=1.3"], simulations["BLh"]["q=1.4"], simulations["BLh"]["q=1.7"], simulations["BLh"]["q=1.8"],
-                          simulations["DD2"]["q=1"], simulations["DD2"]["q=1.1"], simulations["DD2"]["q=1.2"], simulations["DD2"]["q=1.4"],
-                          simulations["LS220"]["q=1"], simulations["LS220"]["q=1.1"], simulations["LS220"]["q=1.2"], simulations["LS220"]["q=1.4"], simulations["LS220"]["q=1.7"],
-                          simulations["SFHo"]["q=1"], simulations["SFHo"]["q=1.1"], simulations["SFHo"]["q=1.4"],
-                          simulations["SLy4"]["q=1"], simulations["SLy4"]["q=1.1"]],
-                         [r"\hline", r"\hline", r"\hline", r"\hline",
-                          r"\hline\hline",
-                          r"\hline", r"\hline", r"\hline",
-                          r"\hline\hline",
-                          r"\hline", r"\hline", r"\hline", r"\hline",
-                          r"\hline\hline",
-                          r"\hline", r"\hline",
-                          r"\hline\hline",
-                          r"\hline", r"\hline"])
+    # tbl.print_mult_table([simulations["BLh"]["q=1"], simulations["BLh"]["q=1.3"], simulations["BLh"]["q=1.4"], simulations["BLh"]["q=1.7"], simulations["BLh"]["q=1.8"],
+    #                       simulations["DD2"]["q=1"], simulations["DD2"]["q=1.1"], simulations["DD2"]["q=1.2"], simulations["DD2"]["q=1.4"],
+    #                       simulations["LS220"]["q=1"], simulations["LS220"]["q=1.1"], simulations["LS220"]["q=1.2"], simulations["LS220"]["q=1.4"], simulations["LS220"]["q=1.7"],
+    #                       simulations["SFHo"]["q=1"], simulations["SFHo"]["q=1.1"], simulations["SFHo"]["q=1.4"],
+    #                       simulations["SLy4"]["q=1"], simulations["SLy4"]["q=1.1"]],
+    #                      [r"\hline", r"\hline", r"\hline", r"\hline",
+    #                       r"\hline\hline",
+    #                       r"\hline", r"\hline", r"\hline",
+    #                       r"\hline\hline",
+    #                       r"\hline", r"\hline", r"\hline", r"\hline",
+    #                       r"\hline\hline",
+    #                       r"\hline", r"\hline",
+    #                       r"\hline\hline",
+    #                       r"\hline", r"\hline"])
 
+    tbl.init_data_v_ns = ["EOS", "q", "note", "res", "vis"]
+    tbl.init_data_prec = ["", ".1f", "", "", ""]
+    #
+    tbl.col_d3_gw_data_v_ns = []
+    tbl.col_d3_gw_data_prec = []
+    #
+    tbl.outflow_data_v_ns = ['Mej_tot', 'Ye_ave', 'vel_inf_ave',
+                              'Mej_tot', 'Ye_ave', 'vel_inf_ave']
+    tbl.outflow_data_prec = [".4f", ".3f", ".3f",
+                              ".4f", ".3f", ".3f"]
+    tbl.outflow_data_mask = ["theta60_geoend", "theta60_geoend", "theta60_geoend", "theta60_geoend",
+                              "Y_e04_geoend", "Y_e04_geoend", "Y_e04_geoend", "Y_e04_geoend"]
 
+    tbl.print_mult_table([["DD2_M14971245_M0_SR", "DD2_M13641364_M0_SR", "DD2_M15091235_M0_LK_SR", "BLh_M13641364_M0_LK_SR", "LS220_M14691268_M0_LK_SR"]],
+                         [r"\hline"])
 
 
     # par = COMPUTE_PAR("LS220_M14691268_M0_LK_SR")

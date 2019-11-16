@@ -698,6 +698,17 @@ class COMPUTE_STORE(EXTRACT_FOR_RL):
 
         return times, iterations, xcs, ycs, modes
 
+    def density_with_radis(self):
+
+        v_n = "rho"
+        rl = 0
+        it = self.iterations[0]
+        #
+        x = self.get_grid_v_n_rl(it, "xy", rl, "x")
+        y = self.get_grid_v_n_rl(it, "xy", rl, "y")
+        r = np.sqrt(x**2 + y**2)
+        rho = o_slice.get_data_rl(it, "xy", rl, "rho")
+
 class CYLINDRICAL_GRID:
     """
         Creates a stretched cylindrical grid and allows
@@ -1320,6 +1331,8 @@ class ADD_METHODS_FOR_2DINT_DATA(LOAD_INT_DATA_2D):
             raise NameError("Unknown 'mod' parameter:{} ".format(mod))
 
 
+
+
 """ ===============================================================================================================  """
 
 def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
@@ -1822,6 +1835,10 @@ def compute_density_modes(o_slice, rls, outdir, rewrite=True):
     # except:
     #     Printcolor.print_colored_string(["task:", "rho modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
     #                          ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+
+#
+
+
 
 
 """ ================================================================================================================ """

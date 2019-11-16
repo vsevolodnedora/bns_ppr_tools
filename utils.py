@@ -356,11 +356,18 @@ class Labels:
         pass
 
     @staticmethod
-    def labels(v_n):
+    def labels(v_n, alternative=False):
         # solar
 
         if v_n == 'theta':
-            return r"Angle from orbital plane"
+            if alternative:
+                return r"$\theta$"
+            else:
+                return r"Angle from orbital plane"
+
+        if v_n == 'temp' or v_n == "temperature":
+            return r"$T$ [GEO]"
+
 
         elif v_n == 'phi':
             return r"Azimuthal angle"
@@ -379,6 +386,9 @@ class Labels:
 
         elif v_n == 'ejmass3':
             return r'$M_{\rm{ej}}$ $[10^{-3}M_{\odot}]$'
+
+        elif v_n == 'ejmass4':
+            return r'$M_{\rm{ej}}$ $[10^{-4}M_{\odot}]$'
 
         elif v_n == "vel_inf":
             return r"$\upsilon_{\infty}$ [c]"
@@ -473,6 +483,8 @@ class Limits:
             return 0., 360
         elif v_n in ["entropy", "s"]:
             return 0, 120.
+        elif v_n in ["temperature", "temp"]:
+            return 0, 5.
         else:
             raise NameError("limit for v_n:{} is not found"
                             .format(v_n))
