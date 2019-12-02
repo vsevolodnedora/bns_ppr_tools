@@ -13,33 +13,29 @@
 # To use: run the analysis.py                                                     #
 ###################################################################################
 from __future__ import division
-from sys import path
-
-from py.path import local
-
-path.append('modules/')
-import matplotlib
-# matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from matplotlib import rc
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-import warnings
 import os.path
 import click
-
-warnings.filterwarnings("ignore",category=matplotlib.mplDeprecation)
-
-from scidata.carpet.interp import Interpolator
-
-
+import h5py
 from math import log10
 import sys
 from argparse import ArgumentParser
-
-import h5py
-
 import time
+from scidata.carpet.interp import Interpolator
+
+# from py.path import local
+
+# path.append('modules/')
+# import matplotlib
+# matplotlib.use("Agg")
+# import matplotlib.pyplot as plt
+# from matplotlib import rc
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
+# import warnings
+
+# import click
+
+# warnings.filterwarnings("ignore",category=matplotlib.mplDeprecation)
 
 
 

@@ -1,9 +1,9 @@
 from __future__ import division
 from sys import path
-path.append('modules/')
-import matplotlib.pyplot as plt
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
+# path.append('modules/')
+# import matplotlib.pyplot as plt
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
 from numpy import inf
 from glob import glob
 import numpy as np

@@ -1,50 +1,59 @@
 from __future__ import division
 from sys import path
 path.append('modules/')
-from _curses import raw
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import ticker
-import matplotlib.pyplot as plt
-from matplotlib import rc
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-import scivis.units as ut # for tmerg
-import statsmodels.formula.api as smf
-import scipy.optimize as opt
-from math import pi, sqrt
-import matplotlib as mpl
-import pandas as pd
-import numpy as np
-from glob import glob
-import itertools
 import os.path
-import cPickle
 import click
-import time
-import copy
 import h5py
-import csv
-import os
 from argparse import ArgumentParser
 from math import pi, log10
-import time
 import sys
-
 from scidata.utils import locate
 import scidata.carpet.hdf5 as h5
-import scidata.xgraph as xg
 from scidata.carpet.interp import Interpolator
 
-from scipy import interpolate
-cmap = plt.get_cmap("viridis")
+
+# from _curses import raw
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+# from matplotlib import ticker
+# import matplotlib.pyplot as plt
+# from matplotlib import rc
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
+# import scivis.units as ut # for tmerg
+# import statsmodels.formula.api as smf
+# import scipy.optimize as opt
+# from math import pi, sqrt
+# import matplotlib as mpl
+# import pandas as pd
+# import numpy as np
+# from glob import glob
+# import itertools
+# import os.path
+# import cPickle
+# import click
+# import time
+# import copy
+# import h5py
+# import csv
+# import os
+#
+# import time
+
+
+
+# import scidata.xgraph as xg
+
+
+# from scipy import interpolate
+# cmap = plt.get_cmap("viridis")
 # from sklearn.linear_model import LinearRegression-
-from scipy.optimize import fmin
-from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
-    MultipleLocator
-from matplotlib.colors import LogNorm, Normalize
+# from scipy.optimize import fmin
+# from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
+#     MultipleLocator
+# from matplotlib.colors import LogNorm, Normalize
 
+# from utils import *
 from utils import *
-
 from preanalysis import LOAD_ITTIME
 from plotting_methods import PLOT_MANY_TASKS
 

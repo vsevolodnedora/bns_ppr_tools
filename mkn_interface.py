@@ -1,41 +1,45 @@
 from __future__ import division
 from sys import path
 path.append('modules/')
-
-from _curses import raw
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import ticker
-import matplotlib.pyplot as plt
-from matplotlib import rc
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-import scivis.units as ut # for tmerg
-import statsmodels.formula.api as smf
-from math import pi, log10, sqrt
-import scipy.optimize as opt
-import matplotlib as mpl
-import pandas as pd
-import numpy as np
-import itertools
 import os.path
-import cPickle
 import math
-import time
-import copy
 import h5py
-import csv
-import os
-from glob import glob
 from argparse import ArgumentParser
 
-from scidata.utils import locate
-import scidata.carpet.hdf5 as h5
-import scidata.xgraph as xg
+# from _curses import raw
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+# from matplotlib import ticker
+# import matplotlib.pyplot as plt
+# from matplotlib import rc
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
+# import scivis.units as ut # for tmerg
+# import statsmodels.formula.api as smf
+# from math import pi, log10, sqrt
+# import scipy.optimize as opt
+# import matplotlib as mpl
+# import pandas as pd
+# import numpy as np
+# import itertools
 
-from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
-    MultipleLocator
-from matplotlib.colors import LogNorm, Normalize
-from matplotlib.colors import Normalize, LogNorm
+# import cPickle
+
+# import time
+# import copy
+
+# import csv
+# import os
+# from glob import glob
+
+
+# from scidata.utils import locate
+# import scidata.carpet.hdf5 as h5
+# import scidata.xgraph as xg
+
+# from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
+#     MultipleLocator
+# from matplotlib.colors import LogNorm, Normalize
+# from matplotlib.colors import Normalize, LogNorm
 
 from utils import *
 from plotting_methods import PLOT_MANY_TASKS

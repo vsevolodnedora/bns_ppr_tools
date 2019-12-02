@@ -1,6 +1,7 @@
 from __future__ import division
 from sys import path
 import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
@@ -1786,12 +1787,12 @@ class PLOT_MANY_TASKS(PLOT_TASK):
 
                 for dic in self.set_plot_dics:
                     if (n_col + 1) == int(dic['position'][1]) and (n_row + 1) == int(dic['position'][0]):
-                        print("\tPlotting n_row:{} n_col:{}".format(n_row, n_col))
+                        # print("\tPlotting n_row:{} n_col:{}".format(n_row, n_col))
 
                         # ax
                         self.set_min_max_scale(ax, dic, n_col, n_row)
 
-                        print("\t\tsubplot:{}".format(ax))
+                        # print("\t\tsubplot:{}".format(ax))
                         # dic = self.plot_dic_matrix[n_col][n_row]
                         if isinstance(dic, int):
                             print("Warning: Dictionary for row:{} col:{} not set".format(n_row, n_col))
@@ -1870,7 +1871,7 @@ class PLOT_MANY_TASKS(PLOT_TASK):
             if not isinstance(cdic, dict):
                 raise NameError("'cbar' must be dic")
             if len(cdic.keys()) > 0 :
-                print("\tColobar for n_row:{} n_col:{}".format(n_row, n_col))
+                # print("\tColobar for n_row:{} n_col:{}".format(n_row, n_col))
                 location = cdic["location"].split(' ')[0]
                 shift_h = float(cdic["location"].split(' ')[1])
                 shift_w = float(cdic["location"].split(' ')[2])

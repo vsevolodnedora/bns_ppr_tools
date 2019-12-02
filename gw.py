@@ -1,24 +1,33 @@
 #!/usr/bin/env python
 #!/usr/bin/python
-
-# Import data analysis tools
-import math
+from __future__ import division
+from sys import path
+path.append('modules/')
 from math import pi
-import numpy as np
-import os
-from pprint import pprint
-import re
-import scidata.multipole as multipole
-from scidata.utils import diff, fixed_freq_int_1, fixed_freq_int_2, integrate
-from scidata.windows import exponential as window
-from scipy.signal import detrend
-import sys
-from argparse import ArgumentParser
-
 # Matplotlib
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from argparse import ArgumentParser
+
+import scidata.multipole as multipole
+from scidata.utils import diff, fixed_freq_int_1, fixed_freq_int_2, integrate
+from scidata.windows import exponential as window
+from scipy.signal import detrend
+
+# Import data analysis tools
+# import math
+
+# import numpy as np
+# import os
+# from pprint import pprint
+# import re
+
+# import sys
+
+
+# Matplotlib
+
 
 
 from utils import *
@@ -501,6 +510,9 @@ def tmerg_tcoll(dens_drop=5., fraction=0.01):
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
     plt.savefig(w_dir + plot_name, bbox_inches='tight', dpi=128)
     plt.close()
+
+    Printcolor.yellow("Please note, that {} and {} might be inacurate. Check the plot."
+                      .format(outfile_tmerg, outfile_tcoll))
 
 if __name__ == '__main__':
     parser = ArgumentParser(description="postprocessing pipeline")

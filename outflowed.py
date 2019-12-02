@@ -1,52 +1,62 @@
 from __future__ import division
+import sys
 from sys import path
 path.append('modules/')
-
-from _curses import raw
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import ticker
-import matplotlib.pyplot as plt
-from matplotlib import rc
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
 import units as ut # for tmerg
-import statsmodels.formula.api as smf
 from math import pi, log10, sqrt
-import scipy.optimize as opt
-import matplotlib as mpl
-import pandas as pd
-import numpy as np
-# import itertools-
 import os.path
-import cPickle
-import time
 import copy
 import h5py
-import csv
-import sys
-import os
-import re
 import click
 from argparse import ArgumentParser
 from scipy.interpolate import RegularGridInterpolator
-
-from multiprocessing import Pool
 
 import warnings
 import matplotlib.cbook
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
-from scidata.utils import locate
-import scidata.carpet.hdf5 as h5
-import scidata.xgraph as xg
-
-from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
-    MultipleLocator
-from matplotlib.colors import LogNorm, Normalize
-from matplotlib.colors import Normalize, LogNorm
-
 import multiprocessing as mp
 from functools import partial
+
+# from _curses import raw
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+# from matplotlib import ticker
+# import matplotlib.pyplot as plt
+# from matplotlib import rc
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
+
+# import statsmodels.formula.api as smf
+
+# import scipy.optimize as opt
+# import matplotlib as mpl
+# import pandas as pd
+# import numpy as np
+# import itertools-
+
+# import cPickle
+# import time
+
+# import csv
+
+# import os
+# import re
+
+
+# from multiprocessing import Pool
+
+
+
+# from scidata.utils import locate
+# import scidata.carpet.hdf5 as h5
+# import scidata.xgraph as xg
+#
+# from matplotlib.ticker import AutoMinorLocator, FixedLocator, NullFormatter, \
+#     MultipleLocator
+# from matplotlib.colors import LogNorm, Normalize
+# from matplotlib.colors import Normalize, LogNorm
+
+
 
 from utils import *
 
@@ -1156,8 +1166,13 @@ class EJECTA(ADD_MASK):
         weights = mask * self.get_full_arr(det, "fluxdens") * \
                   self.get_full_arr(det, "surface_element") * \
                   dt[:, np.newaxis, np.newaxis]
-
-        assert np.sum(weights) > 0
+        #
+        if np.sum(weights) == 0.:
+            Printcolor.red("sum(weights) = 0. For det:{} mask:{} there is not mass"
+                           .format(det, mask))
+            raise ValueError("sum(weights) = 0. For det:{} mask:{} there is not mass"
+                           .format(det, mask))
+        #
         return weights
 
     def get_hist(self, det, mask, v_n, edge):
@@ -2079,7 +2094,7 @@ def outflowed_historgrams(o_outflow, detectors, masks, v_ns, rewrite=False):
             outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
             for v_n in v_ns:
                 fpath = outdir + "/hist_{}.dat".format(v_n)
-                if True:
+                try:
                     if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                         if os.path.isfile(fpath): os.remove(fpath)
                         Printcolor.print_colored_string(
@@ -2127,7 +2142,14 @@ def outflowed_historgrams(o_outflow, detectors, masks, v_ns, rewrite=False):
                         Printcolor.print_colored_string(
                             ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "skipping"],
                             ["blue",   "green", "blue", "green",          "blue", "green","blue","green","", "blue"])
-                else:
+                except KeyboardInterrupt:
+                    Printcolor.red("Forced termination... done")
+                    exit(1)
+                except ValueError:
+                    Printcolor.print_colored_string(
+                        ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "ValueError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except:
                     Printcolor.print_colored_string(
                         ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "failed"],
                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
@@ -2141,7 +2163,7 @@ def outflowed_correlations(o_outflow, detectors, masks, v_ns, rewrite=False):
             outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
             for v_n1, v_n2 in zip(v_ns[::2],v_ns[1::2]):
                 fpath = outdir + "corr_{}_{}.h5".format(v_n1, v_n2)
-                if True:
+                try:
                     if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                         if os.path.isfile(fpath): os.remove(fpath)
                         Printcolor.print_colored_string(
@@ -2244,7 +2266,15 @@ def outflowed_correlations(o_outflow, detectors, masks, v_ns, rewrite=False):
                         Printcolor.print_colored_string(
                             ["task:", "d1corr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}_{}".format(v_n1, v_n2), ":", "skipping"],
                             ["blue",   "green", "blue", "green",          "blue", "green","blue","green","", "blue"])
-                else:
+                except KeyboardInterrupt:
+                    Printcolor.red("Forced termination... done")
+                    exit(1)
+                except ValueError:
+                    Printcolor.print_colored_string(
+                        ["task:", "d1corr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}_{}".format(v_n1, v_n2),
+                         ":", "ValueError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except:
                     Printcolor.print_colored_string(
                         ["task:", "d1corr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}_{}".format(v_n1, v_n2), ":", "failed"],
                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
@@ -2258,7 +2288,7 @@ def outflowed_timecorr(o_outflow, detectors, masks, v_ns, rewrite=False):
             outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
             for v_n in v_ns:
                 fpath = outdir + "timecorr_{}.h5".format(v_n)
-                if True:
+                try:
                     if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                         if os.path.isfile(fpath): os.remove(fpath)
                         Printcolor.print_colored_string(
@@ -2370,7 +2400,15 @@ def outflowed_timecorr(o_outflow, detectors, masks, v_ns, rewrite=False):
                         Printcolor.print_colored_string(
                             ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":", "skipping"],
                             ["blue",   "green", "blue", "green",          "blue", "green","blue","green","", "blue"])
-                else:
+                except KeyboardInterrupt:
+                    Printcolor.red("Forced termination... done")
+                    exit(1)
+                except ValueError:
+                    Printcolor.print_colored_string(
+                        ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":",
+                         "ValueError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except:
                     Printcolor.print_colored_string(
                         ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":", "failed"],
                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
@@ -2381,7 +2419,7 @@ def outflowed_totmass(o_outflow, detectors, masks, rewrite=False):
         for mask in masks:
             outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
             fpath = outdir + "total_flux.dat"
-            if True:
+            try:
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
                     Printcolor.print_colored_string(
@@ -2426,7 +2464,14 @@ def outflowed_totmass(o_outflow, detectors, masks, rewrite=False):
                     Printcolor.print_colored_string(
                         ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
                         ["blue", "green", "blue", "green", "blue", "green",  "", "blue"])
-            else:
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
+                Printcolor.print_colored_string(
+                    ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
                 Printcolor.print_colored_string(
                     ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
@@ -2437,7 +2482,7 @@ def outflowed_massaverages(o_outflow, detectors, masks, rewrite=False):
         for mask in masks:
             outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
             fpath = outdir + "mass_averages.h5"
-            if True:
+            try:
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
                     Printcolor.print_colored_string(
@@ -2461,7 +2506,14 @@ def outflowed_massaverages(o_outflow, detectors, masks, rewrite=False):
                     Printcolor.print_colored_string(
                         ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
                         ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-            else:
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
+                Printcolor.print_colored_string(
+                    ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
                 Printcolor.print_colored_string(
                     ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
@@ -2472,7 +2524,7 @@ def outflowed_ejectatau(o_outflow, detectors, masks, rewrite=False):
         for mask in masks:
             outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
             fpath = outdir + "ejecta.h5"
-            if True:
+            try:
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
                     Printcolor.print_colored_string(
@@ -2499,7 +2551,14 @@ def outflowed_ejectatau(o_outflow, detectors, masks, rewrite=False):
                     Printcolor.print_colored_string(
                         ["task:", "ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
                         ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-            else:
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
+                Printcolor.print_colored_string(
+                    ["task:", "ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
                 Printcolor.print_colored_string(
                     ["task:", "ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
@@ -2510,7 +2569,7 @@ def outflowed_yields(o_outflow, detectors, masks, rewrite=False):
         for mask in masks:
             outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
             fpath = outdir + "yields.h5"
-            if True:
+            try:
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
                     Printcolor.print_colored_string(
@@ -2578,7 +2637,14 @@ def outflowed_yields(o_outflow, detectors, masks, rewrite=False):
                     Printcolor.print_colored_string(
                         ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
                         ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-            else:
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
+                Printcolor.print_colored_string(
+                    ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
                 Printcolor.print_colored_string(
                     ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
@@ -2589,7 +2655,7 @@ def outflowed_mkn_profile(o_outflow, detectors, masks, rewrite=False):
         for mask in masks:
             outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
             fpath = outdir + "ejecta_profile.dat"
-            if True:
+            try:
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
                     Printcolor.print_colored_string(
@@ -2688,7 +2754,14 @@ def outflowed_mkn_profile(o_outflow, detectors, masks, rewrite=False):
                     Printcolor.print_colored_string(
                         ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
                         ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-            else:
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
+                Printcolor.print_colored_string(
+                    ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
                 Printcolor.print_colored_string(
                     ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
