@@ -27,7 +27,7 @@ class Paths:
     skynet =    '/data01/numrel/vsevolod.nedora/Data/skynet/'
     output =    '/data01/numrel/vsevolod.nedora/output/'
     plots =     '/data01/numrel/vsevolod.nedora/figs/'
-    mkn =       '/data01/numrel/vsevolod.nedora/macrokilonova_bayes_old/source/'
+    mkn =       '/data01/numrel/vsevolod.nedora/macrokilonova_bayes_new/source/'
     home =      '/data01/numrel/vsevolod.nedora/bns_ppr_tools/'
     SLy4_hydo=  '/data01/numrel/vsevolod.nedora/Data/EOS/SLy4/SLy4_hydro_14-Dec-2017.h5'
     # skynet =   '/data01/numrel/vsevolod.nedora/scripts_server/ejecta/skynet/'

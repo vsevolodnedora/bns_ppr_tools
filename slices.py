@@ -1380,6 +1380,8 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
                   'labelsize': 14
                   }
 
+
+
     # setting scales and limits for data
     if v_n == "rho":
         def_dic_xz['v_n'] = 'rho'
@@ -1564,6 +1566,56 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
 
     if v_n == "rho":
         o_plot.set_plot_dics.append(contour_dic_xy)
+
+    # plot reflevel boundaries
+    for rl in range(o_slice.nlevels):
+        try:
+            x_arr = o_slice.get_grid_v_n_rl(it, "xy", rl, "x")
+            y_arr = o_slice.get_grid_v_n_rl(it, "xy", rl, "y")
+            x_b = [x_arr.min(), x_arr.max()]
+            y_b = [y_arr.min(), y_arr.max()]
+            #
+            for x_b_line, y_b_line in zip([[x_b[0], x_b[-1]], [x_b[0], x_b[0]], [x_b[0], x_b[-1]], [x_b[-1], x_b[-1]]],
+                                          [[y_b[0], y_b[0]], [y_b[0], y_b[-1]], [y_b[-1], y_b[-1]], [y_b[-1], y_b[0]]]):
+                #
+                contour_dic_xy = {
+                    'task': 'line',
+                    'ptype': 'cartesian', 'aspect': 1.,
+                    'xarr': x_b_line, "yarr": y_b_line,
+                    'position': (2, 1),  # 'title': '[{:.1f} ms]'.format(time_),
+                    'color': 'cyan', 'ls': "-", 'lw': 1., 'alpha': 1., 'ds': 'default',
+                    'v_n_x': 'x', 'v_n_y': 'y', 'v_n': 'rho',
+                    'xscale': None, 'yscale': None,
+                    'fancyticks': True,
+                    'sharex': False,  # removes angular citkscitks
+                    'fontsize': 14,
+                    'labelsize': 14}
+                o_plot.set_plot_dics.append(contour_dic_xy)
+            #
+            x_arr = o_slice.get_grid_v_n_rl(it, "xz", rl, "x")
+            z_arr = o_slice.get_grid_v_n_rl(it, "xz", rl, "z")
+            x_b = [x_arr.min(), x_arr.max()]
+            z_b = [z_arr.min(), z_arr.max()]
+            #
+            for x_b_line, z_b_line in zip([[x_b[0], x_b[-1]], [x_b[0], x_b[0]], [x_b[0], x_b[-1]], [x_b[-1], x_b[-1]]],
+                                          [[z_b[0], z_b[0]], [z_b[0], z_b[-1]], [z_b[-1], z_b[-1]], [z_b[-1], z_b[0]]]):
+                #
+                contour_dic_xz = {
+                    'task': 'line',
+                    'ptype': 'cartesian', 'aspect': 1.,
+                    'xarr': x_b_line, "yarr": z_b_line,
+                    'position': (1, 1),  # 'title': '[{:.1f} ms]'.format(time_),
+                    'color': 'cyan', 'ls': "-", 'lw': 1., 'alpha': 1., 'ds': 'default',
+                    'v_n_x': 'x', 'v_n_y': 'y', 'v_n': 'rho',
+                    'xscale': None, 'yscale': None,
+                    'fancyticks': True,
+                    'sharex': False,  # removes angular citkscitks
+                    'fontsize': 14,
+                    'labelsize': 14}
+                o_plot.set_plot_dics.append(contour_dic_xz)
+        except IndexError:
+            Printcolor.print_colored_string(["it:", str(it), "rl:", str(rl), "IndexError"],
+                                            ["blue", "green", "blue", "green", "red"])
 
     o_plot.main()
     o_plot.set_plot_dics = []

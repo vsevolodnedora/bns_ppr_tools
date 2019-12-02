@@ -66,7 +66,6 @@ class COMPUTE_LIGHTCURVE():
 
         self.sim = sim
         self.output_fname = 'mkn_model.h5'
-        #
         if sim != None:
             self.o_data = ADD_METHODS_ALL_PAR(sim)
         else:
@@ -98,10 +97,10 @@ class COMPUTE_LIGHTCURVE():
         else:
             self.set_use_dyn_NR = True
             self.set_use_bern_NR = True
-        self.set_dyn_iso_aniso       = "aniso"
-        self.set_psdyn_iso_aniso     = "aniso"
-        self.set_wind_iso_aniso      = "aniso"
-        self.set_secular_iso_aniso   = "aniso"
+        self.set_dyn_iso_aniso       = None#"aniso"
+        self.set_psdyn_iso_aniso     = None#"aniso"
+        self.set_wind_iso_aniso      = None#"aniso"
+        self.set_secular_iso_aniso   = None#"aniso"
         # --dyn aniso --spirla
         self.glob_params    = {}
         self.glob_vars      = {}
@@ -151,12 +150,16 @@ class COMPUTE_LIGHTCURVE():
         self.source_name = 'AT2017gfo'
         # self.source_name = 'AT2017gfo view_angle=180/12.' # change the source properties
 
-        if self.sim != None:
-            mdisk = self.o_data.get_par("Mdisk3D")
-            if np.isnan(mdisk):
-                raise ValueError("mass of the disk is not avilable (nan) for sim:{}".format(self.sim))
+        if NR_data and NR2_data and self.set_wind_iso_aniso == None and self.set_secular_iso_aniso == None:
+            mdisk = None
         else:
-            mdisk = 0.012
+            if self.sim != None:
+                mdisk = self.o_data.get_par("Mdisk3D")
+                if np.isnan(mdisk):
+                    raise ValueError("mass of the disk is not avilable (nan) for sim:{}".format(self.sim))
+            else:
+                print("\tUsing default disk mass")
+                mdisk = 0.012
 
         self.glob_vars = {'m_disk':     mdisk, # mass of the disk [Msun], useful if the ejecta is expressed as a fraction of the disk mass
                          'eps0':        2e19, # prefactor of the nuclear heating rate [erg/s/g]
@@ -198,7 +201,7 @@ class COMPUTE_LIGHTCURVE():
         elif iso_or_aniso == 'aniso':
             self.ejecta_params['dynamics'] = {'mass_dist':'sin2', 'vel_dist':'uniform', 'op_dist':'step',
                                               'therm_model':'BKWM', 'eps_ye_dep':'PBR', 'entropy': 20., 'tau':5,
-                                              'v_law':'poly'}#, 'use_kappa_table':False}
+                                              'v_law':'poly', 'use_kappa_table':False}#, 'use_kappa_table':False}
             self.ejecta_vars['dynamics'] = {'xi_disk':          None,
                                            'm_ej':              mej, # 0.00169045, # - LS220 | 0.00263355 - DD2
                                            'step_angle_mass':   None,
@@ -438,7 +441,7 @@ class COMPUTE_LIGHTCURVE():
                                 .format(v_n, self.ejecta_vars['secular'].keys()))
             self.ejecta_vars['secular'][v_n] = value
 
-    def compute_save_lightcurve(self, write_output = True):
+    def compute_save_lightcurve(self, write_output = True ,fname = None):
         # glob_params, glob_vars, ejecta_params, shell_vars, source_name_d
 
         if len(self.glob_params.keys()) == 0:
@@ -467,7 +470,7 @@ class COMPUTE_LIGHTCURVE():
                                                 model.ejecta_params,
                                                 model.glob_vars,
                                                 model.glob_params)
-
+        # exit(1)
         print('I am computing the likelihood')
         logL = model.log_likelihood(r_ph, T_eff)
 
@@ -482,7 +485,10 @@ class COMPUTE_LIGHTCURVE():
             # from shutil import move
             from shutil import copyfile
             # move('./mkn_model.txt', self.path_to_outflow_dir + 'mkn_model.txt')
-            copyfile('./mkn_model.h5', self.outfpath)
+            if fname == None:
+                copyfile('./mkn_model.h5', self.outfpath)
+            else:
+                copyfile('./mkn_model.h5',  self.outdir + fname)
 
         os.chdir(Paths.home)
         return logL
@@ -544,16 +550,17 @@ class COMPUTE_LIGHTCURVE():
 
         print('\\hline')
         print('\\end{tabular}')
-        print('\\\caption{Global parameters (left) and global variables (right)}')
+        print('\\caption{Global parameters (left) and global variables (right)}')
+        print(r'\label{tbl:mkn_global}')
         print('\\end{table}')
 
-    def print_latex_table_of_ejecta_pars(self, dynamics=True, wind=True, secular=True):
+    def print_latex_table_of_ejecta_pars(self, components):
 
         print('\n')
         print('\\begin{table}[!ht]')
         print('\\footnotesize')
 
-        if dynamics:
+        if "dynamics" in components:
 
             # dyn_ej_pars, dyn_ej_vars = self.mkn_parameters_dynamics()
 
@@ -587,7 +594,41 @@ class COMPUTE_LIGHTCURVE():
 
             print('\\end{tabular}')
 
-        if wind:
+        if "spiral" in components:
+
+            # wind_pars, wind_vars = self.mkn_parameters_wind()
+
+            print('\\begin{tabular}[t]{ p{2.cm} c }')
+            print('Spiral & \\\\')
+            print('\\hline')
+
+            for v_n, value in zip(self.ejecta_params["spiral"].keys(), self.ejecta_params["spiral"].values()):
+                if value == None:
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, float) or isinstance(value, int):
+                    print(' {}  &  {:.2f} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, str):
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                else:
+                    raise ValueError("value:{} is niether float nor string".format(value))
+            print('\\hline')
+
+            print('\\hline')
+
+            for v_n, value in zip(self.ejecta_vars["spiral"].keys(), self.ejecta_vars["spiral"].values()):
+                if value == None:
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, float) or isinstance(value, int):
+                    print(' {}  &  {:.2f} \\\\'.format(v_n.replace('_', '\\_'), value))
+                elif isinstance(value, str):
+                    print(' {}  &  {} \\\\'.format(v_n.replace('_', '\\_'), value))
+                else:
+                    raise ValueError("value:{} is niether float nor string".format(value))
+            print('\\hline')
+
+            print('\\end{tabular}')
+
+        if "wind" in components:
 
             # wind_pars, wind_vars = self.mkn_parameters_wind()
 
@@ -621,7 +662,7 @@ class COMPUTE_LIGHTCURVE():
 
             print('\\end{tabular}')
 
-        if secular:
+        if "secular" in components:
 
             # secular_pars, secular_vars = self.mkn_parameters_secular()
 
@@ -656,6 +697,7 @@ class COMPUTE_LIGHTCURVE():
             print('\\end{tabular}')
 
         print('\\caption{Ejecta parameters}')
+        print(r'\label{tbl:mkn_components}')
         print('\\end{table}')
 
 
@@ -1399,10 +1441,6 @@ class COMBINE_LIGHTCURVES(EXTRACT_LIGHTCURVE):
 
 """ ==============================================| MAIN |==========================================================="""
 
-
-
-
-
 def do_tasks():
 
     for task in glob_tasklist:
@@ -1454,7 +1492,7 @@ def do_tasks():
             #
             o_mkn.print_latex_table_of_glob_pars()
             print("\n")
-            o_mkn.print_latex_table_of_ejecta_pars()
+            o_mkn.print_latex_table_of_ejecta_pars(glob_components)
             exit(0)
 
         if task == "mkn":

@@ -312,9 +312,6 @@ class STRAIN:
                                                     J_GW_dot_all[i], J_GW_all[i]))
         outfile.close()
 
-
-
-
 def tmerg_tcoll(dens_drop=5., fraction=0.01):
     """
 
@@ -387,26 +384,26 @@ def tmerg_tcoll(dens_drop=5., fraction=0.01):
     # in case, there is an increase of Amp after tcoll
     __time = time[time>tcoll]
     __amp = amp[time>tcoll]
-    if __amp.max() > fraction * maxA:
-        Printcolor.yellow("Warning. max Amp[(t > tcoll)] > {} maxA".format(fraction))
-        Printcolor.yellow("Searching for the t[minA] post tcoll...")
-        ind_pm_max = np.min(np.where(time >= __time[np.min(np.where(__amp >= __amp.max()))]))
-        indx_collapse2 = np.min(np.where((amp < fraction * maxA) & (time > time[ind_pm_max])))
-        tcoll2 = time[indx_collapse2]
-        if tcoll2 > tcoll and tcoll2 < time[-1] and tcoll2 < 0.9 * time[-1]:
-            Printcolor.red("Found tcoll2 > tcoll. Replacing tcoll...")
-            tcoll = tcoll2
-        elif tcoll2 == tcoll:
-            Printcolor.red("Found tcoll2 == tcoll. Method failed. Using wrong tcoll")
-            tcoll = tcoll2
-        elif tcoll2 > tcoll and tcoll2 == time[-1]:
-            Printcolor.red("Found tcoll2 == t[-1]. Method failed. Using End ofo sim. for tcoll")
-            tcoll = tcoll2
-        elif tcoll2 > (0.90 * time[-1]):
-            Printcolor.red("Found tcoll2 > 0.95*t[-1]. Method failed. Using 1st tcoll")
-            pass
-        else:
-            raise ValueError("no cases set")
+    # if __amp.max() > fraction * maxA:
+    #     Printcolor.yellow("Warning. max Amp[(t > tcoll)] > {} maxA".format(fraction))
+    #     Printcolor.yellow("Searching for the t[minA] post tcoll...")
+    #     ind_pm_max = np.min(np.where(time >= __time[np.min(np.where(__amp >= __amp.max()))]))
+    #     indx_collapse2 = np.min(np.where((amp < fraction * maxA) & (time > time[ind_pm_max])))
+    #     tcoll2 = time[indx_collapse2]
+    #     if tcoll2 > tcoll and tcoll2 < time[-1] and tcoll2 < 0.9 * time[-1]:
+    #         Printcolor.red("Found tcoll2 > tcoll. Replacing tcoll...")
+    #         tcoll = tcoll2
+    #     elif tcoll2 == tcoll:
+    #         Printcolor.red("Found tcoll2 == tcoll. Method failed. Using wrong tcoll")
+    #         tcoll = tcoll2
+    #     elif tcoll2 > tcoll and tcoll2 == time[-1]:
+    #         Printcolor.red("Found tcoll2 == t[-1]. Method failed. Using End ofo sim. for tcoll")
+    #         tcoll = tcoll2
+    #     elif tcoll2 > (0.90 * time[-1]):
+    #         Printcolor.red("Found tcoll2 > 0.95*t[-1]. Method failed. Using 1st tcoll")
+    #         pass
+    #     else:
+    #         raise ValueError("no cases set")
 
 
     if tcoll > 0.95 * time[-1]:

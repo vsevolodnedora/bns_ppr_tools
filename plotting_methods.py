@@ -155,18 +155,18 @@ class BASIC_PARTS():
                     borderaxespad = 0.5
                 #
                 if 'borderayespad' in ldic.keys() and ldic['borderayespad'] != None:
-                    borderaxespad = ldic['borderayespad']
+                    borderayespad = ldic['borderayespad']
                 else:
-                    borderaxespad = 0.5
+                    borderayespad = 0.5
                 #
                 if 'bbox_to_anchor' in ldic.keys():
                     legend1 = ax.legend(fancybox=True, bbox_to_anchor=ldic['bbox_to_anchor'],  # (1.0, 0.3),
                               loc=ldic['loc'], shadow=shadow, ncol=ldic['ncol'], fontsize=ldic['fontsize'],
-                              framealpha=framealpha, borderaxespad=borderaxespad, borderayespad=ldic['borderayespad'])
+                              framealpha=framealpha, borderaxespad=borderaxespad)#, borderayespad=borderayespad)
                 else:
                     legend1 = ax.legend(fancybox=True,
                               loc=ldic['loc'], shadow=shadow, ncol=ldic['ncol'], fontsize=ldic['fontsize'],
-                              framealpha=framealpha, borderaxespad=borderaxespad)
+                              framealpha=framealpha, borderaxespad=borderaxespad)#, borderayespad=borderayespad)
 
         if "legend" in dic.keys() and "legend2" in dic.keys():
             ldic2 = dic["legend2"]
@@ -219,11 +219,13 @@ class BASIC_PARTS():
         :param dic:
         :return:
         """
-        if 'text' in dic.keys() and dic['text'] != None and dic['text'] != {}:
-            coords = dic['text']['coords']
-            text = dic['text']['text']
-            color = dic['text']['color']
-            fs =    dic['text']['fs']
+        # exit(1)
+        if 'textold' in dic.keys() and dic['textold'] != None and dic['textold'] != {}:
+            coords = dic['textold']['coords']
+            text = dic['textold']['text']
+            color = dic['textold']['color']
+            fs =    dic['textold']['fs']
+            # exit(1)
             ax.text(coords[0], coords[1], text, color=color, fontsize=fs, transform=ax.transAxes)
 
     def plot_text2(self, ax, dic):
@@ -1568,6 +1570,9 @@ class PLOT_TASK(BASIC_PARTS):
         if "axhline" in dic.keys():
             self.plot_generic_horisontal_line(ax, dic)
 
+        if "textold" in dic.keys():
+            return self.plot_text(ax, dic)
+
         if dic["task"] == "hist1d":
             return self.plot_hist1d(ax, dic)
         elif dic["task"] == "corr2d":
@@ -1588,6 +1593,8 @@ class PLOT_TASK(BASIC_PARTS):
             assert "yarr" in dic.keys()
             assert "zarr" in dic.keys()
             return self.plot_scatter(ax, dic, np.array(dic["xarr"]), np.array(dic["yarr"]), np.array(dic["zarr"]))
+        elif dic['task'] == "textold":
+            return self.plot_text(ax, dic)
         elif dic['task'] == "text":
             return self.plot_text2(ax, dic)
         elif dic['task'] == 'contour':
