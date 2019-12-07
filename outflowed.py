@@ -68,7 +68,8 @@ from plotting_methods import PLOT_MANY_TASKS
 
 __outflowed__ = {
     "name": "outflowed",
-    "tasklist": ["reshape", "all", "hist", "timecorr", "corr", "totflux", "massave", "ejtau", "yeilds", "mknprof"],
+    "tasklist": ["reshape", "all", "hist", "timecorr", "corr", "totflux",
+                 "massave", "ejtau", "yeilds", "mknprof", "summary"],
     "detectors":[0,1]
 }
 
@@ -1959,8 +1960,9 @@ class EJECTA_PARS(EJECTA_NORMED_NUCLEO):
     @staticmethod
     def compute_ave_theta_rms(hist_theta):
         theta, theta_M = hist_theta[:, 0], hist_theta[:, 1]
-        theta -= pi / 2
-        theta_rms = 180. / pi * sqrt(np.sum(theta_M * theta ** 2) / np.sum(theta_M))
+        # print(theta, theta_M)
+        theta -= np.pi / 2.
+        theta_rms = (180. / np.pi) * sqrt(np.sum(theta_M * theta ** 2) / np.sum(theta_M))
         value = np.float(theta_rms)
         return value
 
@@ -2779,6 +2781,107 @@ def outflowed_mkn_profile(o_outflow, detectors, masks, rewrite=False):
                     ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
+def outflowed_summary(o_outflow, detectors, masks, rewrite=False):
+    #
+    for det in detectors:
+        for mask in masks:
+            outdir = Paths.ppr_sims + o_outflow.sim + '/' + "outflow_{}/".format(det) + mask + '/'
+            #
+            outfpath = outdir + "summary.txt"
+            try:
+                if (os.path.isfile(outfpath) and rewrite) or not os.path.isfile(outfpath):
+                    if os.path.isfile(outfpath): os.remove(outfpath)
+                    Printcolor.print_colored_string(
+                        ["task:", "summary", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                    # total flux
+                    fpath = outdir + "total_flux.dat"
+                    if os.path.isfile(fpath):
+                        data = np.array(np.loadtxt(fpath))
+                        mass_arr = data[:, 2]
+                        time_arr = data[:, 0]
+                        total_ej_mass = float(mass_arr[-1])
+                        time_end = float(time_arr[-1])# * Constants.time_constant * 1e-3 # s
+                    else:
+                        total_ej_mass = np.nan
+                        time_end = np.nan
+                        Printcolor.red("Missing: {}".format(fpath))
+                    # Y_e ave
+                    v_n = "Y_e"
+                    fpath = outdir + "hist_{}.dat".format(v_n)
+                    if os.path.isfile(fpath):
+                        hist = np.array(np.loadtxt(fpath))
+                        ye_ave = o_outflow.compute_ave_ye(np.sum(hist[:,1]), hist)
+                    else:
+                        ye_ave = np.nan
+                        Printcolor.red("Missing: {}".format(fpath))
+                    # s_ave
+                    v_n = "entropy"
+                    fpath = outdir + "hist_{}.dat".format(v_n)
+                    if os.path.isfile(fpath):
+                        hist = np.array(np.loadtxt(fpath))
+                        s_ave = o_outflow.compute_ave_s(np.sum(hist[:, 1]), hist)
+                    else:
+                        s_ave = np.nan
+                        Printcolor.red("Missing: {}".format(fpath))
+                    # vel inf
+                    v_n = "vel_inf"
+                    fpath = outdir + "hist_{}.dat".format(v_n)
+                    if os.path.isfile(fpath):
+                        hist = np.array(np.loadtxt(fpath))
+                        vel_inf_ave = o_outflow.compute_ave_vel_inf(np.sum(hist[:, 1]), hist)
+                    else:
+                        vel_inf_ave = np.nan
+                        Printcolor.red("Missing: {}".format(fpath))
+                    # E kin
+                    v_n = "vel_inf"
+                    fpath = outdir + "hist_{}.dat".format(v_n)
+                    if os.path.isfile(fpath):
+                        hist = np.array(np.loadtxt(fpath))
+                        e_kin_ave = o_outflow.compute_ave_ekin(np.sum(hist[:, 1]), hist)
+                    else:
+                        e_kin_ave = np.nan
+                        Printcolor.red("Missing: {}".format(fpath))
+                    # theta
+                    v_n = "theta"
+                    fpath = outdir + "hist_{}.dat".format(v_n)
+                    if os.path.isfile(fpath):
+                        hist = np.array(np.loadtxt(fpath))
+                        theta_rms = o_outflow.compute_ave_theta_rms(hist)
+                    else:
+                        theta_rms = np.nan
+                        Printcolor.red("Missing: {}".format(fpath))
+                    # writing the result
+                    with open(outfpath, 'w') as f1:
+                        f1.write("# ejecta properties for det:{} mask:{} \n".format(det, mask))
+                        f1.write("m_ej      {:.5f} [M_sun]  total ejected mass \n".format(total_ej_mass))
+                        f1.write("<Y_e>     {:.3f}            mass-averaged electron fraction \n".format(ye_ave))
+                        f1.write("<s>       {:.3f} [k_b]      mass-averaged entropy \n".format(s_ave))
+                        f1.write("<v_inf>   {:.3f} [c]        mass-averaged terminal velocity \n".format(vel_inf_ave))
+                        f1.write("<E_kin>   {:.3f} [c^2]      mass-averaged terminal kinetical energy \n".format(e_kin_ave))
+                        f1.write("theta_rms {:.2f} [degrees]  root mean squared angle of the ejecta (2 planes) \n".format(2. * theta_rms))
+                        f1.write("time_end  {:.3f} [s]        end data time \n".format(time_end))
+                else:
+                    Printcolor.print_colored_string(
+                        ["task:", "summary", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
+                Printcolor.print_colored_string(
+                    ["task:", "summary: total flux", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
+                Printcolor.print_colored_string(
+                    ["task:", "summary: total flux", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            #
+
+
+
+
+
 if __name__ == '__main__':
     #
     parser = ArgumentParser(description="postprocessing pipeline")
@@ -2857,14 +2960,14 @@ if __name__ == '__main__':
         assert os.path.isfile(glob_eos)
         #
         o_os.eos_fname = glob_eos
-        print("\tsetting eos: {}".format(glob_eos))
         #
         if os.path.isfile(glob_eos) and glob_eos.__contains__(str(glob_sim.split('_')[0])): # is sim EOS is in eosfname
-            "Initializing serial reshape..."
-        elif click.confirm('Is the EOS fname correct? {}'.format(glob_eos), default=True):
+            Printcolor.green("\tSetting EOS file as: {}".format(glob_eos))
             print("Initializing serial reshape...")
-        else:
-            exit(1)
+        else:# click.confirm('Is the EOS fname correct? {}'.format(glob_eos), default=True):
+            Printcolor.yellow("\tSetting EOS file as: {}".format(glob_eos))
+            print("Initializing serial reshape...")
+        #
         assert os.path.isfile(glob_eos)
         for det in glob_detectors:
             Printcolor.print_colored_string(
@@ -2882,11 +2985,12 @@ if __name__ == '__main__':
         if not glob_eos == None: pass
         else: glob_eos = Paths.get_eos_fname_from_curr_dir(glob_sim)
         if os.path.isfile(glob_eos) and glob_eos.__contains__(glob_sim.split('_')[0]): # is sim EOS is in eosfname
-            "Initializing parallel reshape..."
-        elif click.confirm('Is the EOS fname correct? {}'.format(glob_eos), default=True):
+            Printcolor.green("\tSetting EOS file as: {}".format(glob_eos))
             print("Initializing parallel reshape...")
-        else:
-            exit(1)
+        else:# click.confirm('Is the EOS fname correct? {}'.format(glob_eos), default=True):
+            Printcolor.yellow("\tSetting EOS file as: {}".format(glob_eos))
+            print("Initializing parallel reshape...")
+        #
         assert os.path.isfile(glob_eos)
         for det in glob_detectors:
             fname = "outflow_surface_det_%d_fluxdens.asc" % det
@@ -2936,6 +3040,7 @@ if __name__ == '__main__':
         outflowed_ejectatau(outflowed, glob_detectors, glob_masks, glob_overwrite)
         outflowed_yields(outflowed, glob_detectors, glob_masks, glob_overwrite)
         outflowed_mkn_profile(outflowed, glob_detectors, glob_masks, glob_overwrite)
+        outflowed_summary(outflowed, glob_detectors, glob_masks, glob_overwrite)
         exit(0)
 
     # selected tasks
@@ -2961,6 +3066,8 @@ if __name__ == '__main__':
             outflowed_yields(outflowed, glob_detectors, glob_masks, glob_overwrite)
         elif task == "mknprof":
             outflowed_mkn_profile(outflowed, glob_detectors, glob_masks, glob_overwrite)
+        elif task == "summary":
+            outflowed_summary(outflowed, glob_detectors, glob_masks, glob_overwrite)
         else:
             raise NameError("No method fund for task: {}".format(task))
 

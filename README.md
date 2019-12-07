@@ -68,6 +68,7 @@ system can be done in parallel. For that specify `-p 4` option, setting the numb
 `-t corr` creates and plots correlations (2D histograms) of pairs of variables that speified with option -v, like -v Y_e theta vel_inf theta  
 `-t totflux` creates and plots total flux of the ejecta  
 `-t massave` creates the mass averaged quantities  
+`-t summary` creates the summary.txt files with total fluxes and mass-average quantities of the ejecta  
 `-t ejtau` computes the 3D histogram, with Y_e, entropy and expansion timescale as axis  
 `-t yeilds` computes and plots nuclesynthetic yeilds  
 `-t mknprof` computes and plots angular profile of mass, Y_e and vel_inf for macrokilonova bayes code  
