@@ -51,6 +51,17 @@ system can be done in parallel. For that specify `-p 4` option, setting the numb
 
 
 2) do the comprehensive, easily extendeble analysis of this data. Available standart methods (-t otion). For that mask option (-m) has to set. For example: `-t geo` would stand for geodesic criteria to unbound material.  
+
+*Available masks:*  
+`-m geo` apply only geodesic criterion: einf >= set_min_eninf, which is 0 by default  
+`-m geo_entropy_below_10` is a `-m geo` with additional criterion for entropy to be below 10  
+`-m geo_entropy_above_10` is a `-m geo` with additional criterion for entropy to be above 10  
+`-m bern` apply bernoulli critrion ((enthalpy * (einf + 1) - 1) > set_min_eninf) & (enthalpy >= set_min_enthalpy), where set_min_eninf is by default 0. and set_min_enthalpy is a minimum enthalpy of the atmosphere. 1.0022 by default.  
+`-m bern_geoend` is a `-m bern` with an additional criterion for total cumulative ejected mass (using `-m geo`)  to reach 98% of its maximum value. Basically, it would compute ejecta after dynamical one has saturated.  
+`-m Y_e04_geoend` is a `-m bern_geoend` with and additional criterion on electron fraction to be above 0.4.  
+`-m theta60_geoend` is a `-m bern_geoend` with and additional criterion on the angle from binary plane to be above 60 degrees.    
+
+*Available tasks:*  
 `-t all` to do all the below mention tasks one after another  
 `-t hist` creates and plot histograms of variables that speified with option -v, like --v_n Y_e theta vel_inf  
 `-t timecorr` creates a correlation from set of histograms for different timesteps. Usefull to see the evolution  
@@ -60,7 +71,8 @@ system can be done in parallel. For that specify `-p 4` option, setting the numb
 `-t ejtau` computes the 3D histogram, with Y_e, entropy and expansion timescale as axis  
 `-t yeilds` computes and plots nuclesynthetic yeilds  
 `-t mknprof` computes and plots angular profile of mass, Y_e and vel_inf for macrokilonova bayes code  
-Example:
+
+*Example:*  
 `python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t all -m geo -d 0 --overwrite yes`  
 would perform all (-t all) the default analysis methods, for geodeiscally unbound materai (-m geo) for detector 0 (-d 0) and if the results are already present, it will overwrite them (--overwrite yes     
 

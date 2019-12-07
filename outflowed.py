@@ -880,7 +880,8 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
 
         COMPUTE_OUTFLOW_SURFACE_H5.__init__(self, sim)
 
-        self.list_masks = ["geo", "bern", "bern_geoend", "Y_e04_geoend", "theta60_geoend"]
+        self.list_masks = ["geo", "bern", "bern_geoend", "Y_e04_geoend", "theta60_geoend",
+                           "geo_entropy_above_10", "geo_entropy_below_10"]
         if add_mask != None and not add_mask in self.list_masks:
             self.list_masks.append(add_mask)
 
@@ -964,6 +965,18 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
             # 1 - if geodeisc is true
             einf = self.get_full_arr(det, "eninf")
             res = (einf >= self.set_min_eninf)
+        elif mask == "geo_entropy_below_10":
+            einf = self.get_full_arr(det, "eninf")
+            res = (einf >= self.set_min_eninf)
+            entropy = self.get_full_arr(det, "entropy")
+            mask_entropy = entropy < 10.
+            return res & mask_entropy
+        elif mask == "geo_entropy_above_10":
+            einf = self.get_full_arr(det, "eninf")
+            res = (einf >= self.set_min_eninf)
+            entropy = self.get_full_arr(det, "entropy")
+            mask_entropy = entropy > 10.
+            return res & mask_entropy
         elif mask == "bern":
             # 1 - if Bernulli is true
             enthalpy = self.get_full_comp_arr(det, "enthalpy")
