@@ -527,7 +527,12 @@ class LOAD_RESHAPE_SAVE_PARALLEL:
             os.mkdir(self.outdirtmp)
         #
         fname = "outflow_surface_det_%d_fluxdens.asc" % det
+        if not os.path.isdir(Paths.gw170817 + sim + "/"):
+            raise IOError("directory does not exist: {}".format(Paths.gw170817 + sim + "/"))
         self.flist = glob(Paths.gw170817 + sim + "/" + "output-????" + "/data/" + fname)
+        if len(self.flist) == 0:
+            raise IOError("No files found. Searching for: {} in {}".format(
+                          fname, Paths.gw170817 + sim + "/" + "output-????" + "/data/"))
         assert len(self.flist) > 0
         #
         self.grid = self.get_grid()
@@ -561,9 +566,6 @@ class LOAD_RESHAPE_SAVE_PARALLEL:
                     os.remove(fname)
             os.rmdir(self.outdirtmp)
         print("Done. {} is saved".format(outfname))
-
-
-
 
     def get_grid(self):
 
@@ -2917,9 +2919,8 @@ if __name__ == '__main__':
     # check given data
     if not glob_eos == None:
         if not os.path.isfile(glob_eos):
-            raise NameError("given eos fpaths deos not exist: {}".format(glob_eos))
-
-
+            raise NameError("given eos file paths does not exist: {}".format(glob_eos))
+    #
     if not os.path.isdir(glob_simdir + glob_sim):
         raise NameError("simulation dir: {} does not exist in rootpath: {} "
                         .format(glob_sim, glob_simdir))
