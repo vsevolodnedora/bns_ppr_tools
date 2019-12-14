@@ -48,22 +48,22 @@ from utils import *
 __rootoutdir__ = "profiles/"
 __profile__ = {"tasklist": ["all", "corr", "hist", "slice", "mass", "densmode", "vtk",
                             "plotall", "plotcorr", "plothist", "plotslice", "plotmass", "plotdensmode"]}
-__d3slicesvns__ = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "eps", "lapse", "velx", "vely", "velz",
+__d3slicesvns__ = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "entr", "eps", "lapse", "velx", "vely", "velz",
                     "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye'] + \
                     ["density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
                     "ang_mom", "ang_mom_flux", "theta", "r", "phi" ]
-__d3corrs__ = ["rho_r", "rho_Ye", "temp_Ye", "rho_theta", "velz_theta", "rho_ang_mom", "velz_Ye",
+__d3corrs__ = ["rho_r", "rho_Ye", "r_Ye", "temp_Ye", "rho_theta", "velz_theta", "rho_ang_mom", "velz_Ye",
                     "rho_ang_mom_flux", "rho_dens_unb_bern", "ang_mom_flux_theta",
                     "ang_mom_flux_dens_unb_bern", "inv_ang_mom_flux_dens_unb_bern",
                     "velz_dens_unb_bern", "Ye_dens_unb_bern", "theta_dens_unb_bern"]
-__d3histvns__      = ["r", "theta", "Ye", "temp", "velz", "rho", "dens_unb_bern"]
+__d3histvns__      = ["r", "theta", "Ye", "entr", "temp", "velz", "rho", "dens_unb_bern", "press"]
 __d3slicesplanes__ = ["xy", "xz"]
 __d3diskmass__ = "disk_mass.txt"
 __d3densitymodesfame__ = "density_modes_lap15.h5"
 # --- ploting ---
 __d3sliceplotvns__ = ["Ye", "velx", "rho", "ang_mom_flux","ang_mom","dens_unb_garch",
                       "dens_unb_bern","dens_unb_geo","vr","vphi","enthalpy",
-                        "density","temp","velz","vely","lapse","eps","press","vol","w_lorentz",
+                        "density","temp","velz","vely","lapse","entr","eps","press","vol","w_lorentz",
                       "Q_eff_nua", "Q_eff_nue", "Q_eff_nux"]
 __d3sliceplotrls__ = [0, 1, 2, 3, 4, 5, 6]
 
@@ -669,7 +669,7 @@ class LOAD_PROFILE(LOAD_ITTIME):
 
         self.list_prof_v_ns = [
                              "rho", "w_lorentz", "vol",  # basic
-                             "press", "eps", "lapse",    # basic + lapse
+                             "press", "entr", "eps", "lapse",    # basic + lapse
                              "velx", "vely", "velz",     # velocities
                              "gxx", "gxy", "gxz", "gyy", "gyz", "gzz",  # metric
                              "betax", "betay", "betaz",  # shift components
@@ -1170,6 +1170,12 @@ class MAINMETHODS_STORE(MASK_STORE):
             {"v_n": "phi", "edges": np.linspace(-np.pi, np.pi, 500)},
         ]
 
+        self.corr_task_dic_r_ye = [
+            # {"v_n": "rho",  "edges": 10.0 ** np.linspace(4.0, 16.0, 500) / rho_const},  # not in CGS :^
+            {"v_n": "r", "edges": np.linspace(0, 100, 500)},
+            {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)}
+        ]
+
         self.corr_task_dic_rho_r = [
             {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
             {"v_n": "r", "edges": np.linspace(0, 100, 500)}
@@ -1263,13 +1269,15 @@ class MAINMETHODS_STORE(MASK_STORE):
 
         # hist
 
-        self.hist_task_dic_r = {"v_n": "r", "edges": np.linspace(10, 200, 500)}
+        self.hist_task_dic_entropy = {"v_n": "entr", "edges": np.linspace(0., 200., 500)}
+        self.hist_task_dic_r = {"v_n": "r", "edges": np.linspace(10., 200., 500)}
         self.hist_task_dic_theta = {"v_n": "theta", "edges": np.linspace(0., np.pi / 2., 500)}
-        self.hist_task_dic_ye = {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}
-        self.hist_task_dic_temp = {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)}
-        self.hist_task_dic_velz = {"v_n": "velz", "edges": np.linspace(-1,1, 500)}
+        self.hist_task_dic_ye = {"v_n": "Ye",   "edges": np.linspace(0., 0.5, 500)}
+        self.hist_task_dic_temp = {"v_n": "temp", "edges": 10.0 ** np.linspace(-2., 2., 300)}
+        self.hist_task_dic_velz = {"v_n": "velz", "edges": np.linspace(-1., 1., 500)}
         self.hist_task_dic_rho = {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const}
         self.hist_task_dens_unb_bern = {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
+        self.hist_task_pressure = {"v_n": "press", "edges": 10.0 ** np.linspace(-13., 5., 300)}
 
     def get_min_max(self, it, v_n):
         self.check_it(it)
@@ -2688,8 +2696,13 @@ def d3_hist_for_it(it, d3corrclass, outdir, rewrite=False):
         elif v_n == "temp":  hist_dic = d3corrclass.hist_task_dic_temp
         elif v_n == "rho":   hist_dic = d3corrclass.hist_task_dic_rho
         elif v_n == "dens_unb_bern": hist_dic = d3corrclass.hist_task_dens_unb_bern
+        elif v_n == "press": hist_dic = d3corrclass.hist_task_pressure
+        elif v_n == "entr": hist_dic = d3corrclass.hist_task_dic_entropy
         else:raise NameError("hist v_n:{} is not recognized".format(v_n))
-        #
+        #             pressure = d3corrclass.get_prof_arr(it, 3, v_n)
+        #             print(pressure)
+        #             print(pressure.min(), pressure.max())
+        #             exit(1)
         fpath = outdir + "hist_{}.dat".format(v_n)
         #
         if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
@@ -2710,6 +2723,8 @@ def d3_corr_for_it(it, d3corrclass, outdir, rewrite=False):
         # chose a dictionary
         if v_ns == "rho_r":
             corr_task_dic = d3corrclass.corr_task_dic_rho_r
+        elif v_ns == "r_Ye":
+            corr_task_dic = d3corrclass.corr_task_dic_r_ye
         elif v_ns == "rho_Ye":
             corr_task_dic = d3corrclass.corr_task_dic_rho_ye
         elif v_ns == "temp_Ye":
@@ -3081,6 +3096,18 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                     def_dic_xz['vmax'] = 0.5
                     def_dic_xz['norm'] = None
                     def_dic_xz['cmap'] = 'inferno'
+                elif v_n == 'entr':
+                    def_dic_xy['v_n'] = 'entropy'
+                    def_dic_xy['vmin'] = 0.
+                    def_dic_xy['vmax'] = 100.
+                    def_dic_xy['norm'] = None
+                    def_dic_xy['cmap'] = 'inferno'
+
+                    def_dic_xz['v_n'] = 'entropy'
+                    def_dic_xz['vmin'] = 0.
+                    def_dic_xz['vmax'] = 100.
+                    def_dic_xz['norm'] = None
+                    def_dic_xz['cmap'] = 'inferno'
                 elif v_n == 'density':
                     def_dic_xy['v_n'] = 'density'
                     def_dic_xy['vmin'] = 1e-9
@@ -3390,6 +3417,17 @@ def plot_d3_corr(d3histclass, rewrite=False):
                 default_dic['ymin'] = 0.01
                 default_dic['ymax'] = 0.5
                 default_dic['yscale'] = None
+            elif vn1vn2 == "r_Ye":
+                v_n_x = 'r'
+                v_n_y = 'Ye'
+                # default_dic['v_n_x'] = 'rho'
+                # default_dic['v_n_y'] = 'Ye'
+                default_dic['xmin'] = 0
+                default_dic['xmax'] = 100
+                default_dic['xscale'] = None
+                default_dic['ymin'] = 0.01
+                default_dic['ymax'] = 0.5
+                default_dic['yscale'] = None
             elif vn1vn2 == "temp_Ye":
                 v_n_x = 'temp'
                 v_n_y = 'Ye'
@@ -3607,6 +3645,11 @@ def plot_d3_hist(d3histclass, rewrite=False):
                 default_dic['xlabel'] = 'angle from binary plane'
                 default_dic['xmin'] = 0
                 default_dic['xmax'] = 90.
+            elif v_n == "entropy":
+                default_dic['v_n_x'] = 'entropy'
+                default_dic['xlabel'] = 'entropy'
+                default_dic['xmin'] = 0
+                default_dic['xmax'] = 150.
             elif v_n == "Ye":
                 default_dic['v_n_x'] = 'Ye'
                 default_dic['xlabel'] = 'Ye'
@@ -3634,6 +3677,12 @@ def plot_d3_hist(d3histclass, rewrite=False):
                 default_dic["xlabel"] = "temp"
                 default_dic['xmin'] = 1e-10
                 default_dic['xmax'] = 1e-6
+                default_dic['xscale'] = "log"
+            elif v_n == "press":
+                default_dic['v_n_x'] = "press"
+                default_dic["xlabel"] = "press"
+                default_dic['xmin'] = 1e-13
+                default_dic['xmax'] = 1e-5
                 default_dic['xscale'] = "log"
             else:
                 raise NameError("hist v_n:{} is not recognized".format(v_n))

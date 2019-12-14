@@ -2,7 +2,9 @@ from __future__ import division
 import os.path
 import h5py
 from sys import path
-
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
 # # from dask.array.ma import masked_array
 #
 # # path.append('modules/')
@@ -162,7 +164,7 @@ simulations = {"BLh":
                        #        ]   # 32 ms     no3D !
                   }
               }
-
+#
 long_sims_dd2 = ["DD2_M13641364_M0_SR", "DD2_M13641364_M0_SR_R04", "DD2_M13641364_M0_LK_SR_R04",
              "DD2_M14971245_M0_SR", "DD2_M13641364_M0_SR_R04", "DD2_M11461635_M0_LK_SR"]
 #
@@ -176,24 +178,152 @@ short_sims = ["BLh_M10651772_M0_LK_SR", "LS220_M13641364_M0_LK_SR_restart", "LS2
               "SFHo_M14521283_M0_SR", "SLy4_M13641364_M0_LK_SR", "SLy4_M13641364_M0_SR", "SLy4_M14521283_M0_SR"
               ]
 #
+
+
+
+def plot_total_fluxes_sims_disk_hist_last():
+    #
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + 'all2/'
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (15.0, 3.0)  # <->, |]
+    o_plot.gen_set["figname"] = "disk_hists_last_it.png"
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = True
+    o_plot.gen_set["dpi"] = 128
+    o_plot.gen_set["subplots_adjust_h"] = 0.3
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+    averages = {}
+    #
+    sims = ["LS220_M13641364_M0_SR", "SLy4_M13641364_M0_SR", "BLh_M13641364_M0_LK_SR", "DD2_M13641364_M0_SR", "DD2_M13641364_M0_LK_SR_R04"]
+    lbls = [sim.replace('_', '\_') for sim in sims]
+    colors=["orange", "blue", "red", "green", "green"]
+    alphas=[1., 1., 1., 1., 1.]
+    lss   =["-","-", "-", "-", ":"]
+    lws =  [0.8, 0.8, 0.8, 0.8, 0.8]
+    #
+    v_ns = ["Ye", "theta", "entr", "r", "temp", "press", "rho"]
+    i_x_plot = 1
+    for v_n in v_ns:
+        for sim, lbl, alpha, color, ls, lw in zip(sims, lbls, alphas, colors, lss, lws):
+            #
+            d3_corr = LOAD_RES_CORR(sim)
+            iterations = [d3_corr.list_iterations[-1]]
+            times = [d3_corr.times[-1]]
+            #
+            for it, time in zip(iterations, times):
+                fpath = Paths.ppr_sims + sim + "/profiles/" + str(it) + "/" + "hist_{}.dat".format(v_n)
+                #
+                if not os.path.isfile(fpath):
+                    raise IOError("file not found: {}".format(fpath))
+                #
+                data = np.loadtxt(fpath, unpack=False)
+                #
+                default_dic = {
+                    'task': 'hist1d', 'ptype': 'cartesian',
+                    'position': (1, i_x_plot),
+                    'data': data, 'normalize': True,
+                    'v_n_x': 'var', 'v_n_y': 'mass',
+                    'color': color, 'ls': ls, 'lw': lw, 'ds': 'steps', 'alpha': alpha,
+                    'ymin': 1e-4, 'ymax': 1e-1,
+                    'xlabel': None, 'ylabel': "mass",
+                    'label': lbl, 'yscale': 'log',
+                    'fancyticks': True, 'minorticks': True,
+                    'fontsize': 14,
+                    'labelsize': 14,
+                    'legend': {}, # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+                    'sharex': False,
+                    'sharey': False,
+                }
+                #
+                if v_n == "r":
+                    default_dic['v_n_x'] = 'r'
+                    default_dic['xlabel'] = 'cylindrical radius'
+                    default_dic['xmin'] = 10.
+                    default_dic['xmax'] = 95.
+                elif v_n == "theta":
+                    default_dic['v_n_x'] = 'theta'
+                    default_dic['xlabel'] = r'$\theta$'
+                    default_dic['xmin'] = 0
+                    default_dic['xmax'] = 85.
+                elif v_n == "entr":
+                    default_dic['v_n_x'] = 'entropy'
+                    default_dic['xlabel'] = "entropy"
+                    default_dic['xmin'] = 0.
+                    default_dic['xmax'] = 45.
+                elif v_n == "Ye":
+                    default_dic['v_n_x'] = 'Ye'
+                    default_dic['xlabel'] = 'Ye'
+                    default_dic['xmin'] = 0.05
+                    default_dic['xmax'] = 0.45
+                elif v_n == "temp":
+                    default_dic['v_n_x'] = "temp"
+                    default_dic["xlabel"] = "temp"
+                    default_dic['xmin'] = 1.e-1
+                    default_dic['xmax'] = 8.e1
+                    default_dic['xscale'] = "log"
+                elif v_n == "rho":
+                    default_dic['v_n_x'] = "rho"
+                    default_dic["xlabel"] = "rho"
+                    default_dic['xmin'] = 5.e-10
+                    default_dic['xmax'] = 2.e-5
+                    default_dic['xscale'] = "log"
+                elif v_n == "dens_unb_bern":
+                    default_dic['v_n_x'] = "temp"
+                    default_dic["xlabel"] = "temp"
+                    default_dic['xmin'] = 5.e-11
+                    default_dic['xmax'] = 5.e-5
+                    default_dic['xscale'] = "log"
+                elif v_n == "press":
+                    default_dic['v_n_x'] = "press"
+                    default_dic["xlabel"] = "press"
+                    default_dic['xmin'] = 1e-13
+                    default_dic['xmax'] = 1e-5
+                    default_dic['xscale'] = "log"
+                else: raise NameError("hist v_n:{} is not recognized".format(v_n))
+                #
+                if v_n != v_ns[0]:
+                    default_dic["sharey"] = True
+                if v_n == v_ns[1] and sim == sims[-1]:
+                    default_dic['legend'] = {'loc': 'upper right', 'ncol': 1, "fontsize": 8,
+                                             "framealpha":0.,"borderaxespad":0.,"shadow":False}  #
+
+                o_plot.set_plot_dics.append(default_dic)
+
+        i_x_plot += 1
+
+
+    o_plot.main()
+
+
+
+
+    exit(1)
+#
 def plot_2ejecta_1disk_timehists():
     # columns
-    sims = ["DD2_M11461635_M0_LK_SR"]
+    sims = ["DD2_M13641364_M0_SR", "BLh_M13641364_M0_LK_SR", "BLh_M11461635_M0_LK_SR", "LS220_M13641364_M0_SR",
+             "SLy4_M13641364_M0_SR"]#, "DD2_M15091235_M0_LK_SR"] # , "DD2_M15091235_M0_LK_SR"
+
     # rows
     #
     v_ns = ["vel_inf", "Y_e", "theta", "temperature"]
     masks2 = ["bern_geoend" for i in v_ns]
     masks1 = ["geo" for i in v_ns]
-    v_ns_diks = ["Ye", "velz", "theta", "temp"]
+    v_ns_diks = ["Ye", "velz", "theta", "r", "temp", "press"]
     det = 0
     norm_to_m = 0
     _fpath = "slices/" + "rho_modes.h5"
     #
+    cmap_ejecta = "cubehelix_r"
+    cmap_disk = 'RdYlBu_r'
+    #
     o_plot = PLOT_MANY_TASKS()
     o_plot.gen_set["figdir"] = Paths.plots + "all2/"
     o_plot.gen_set["type"] = "cartesian"
-    o_plot.gen_set["figsize"] = (5.0, 10.0)  # <->, |]
-    o_plot.gen_set["figname"] = "timecorr_ej_disk_DD2_M11461635_M0_LK_SR.png"
+    o_plot.gen_set["figsize"] = (3.*len(sims), 14.0)  # <->, |]
+    o_plot.gen_set["figname"] = "timecorr_ej_disk2.png"
     o_plot.gen_set["sharex"] = False
     o_plot.gen_set["sharey"] = True
     o_plot.gen_set["dpi"] = 128
@@ -397,7 +527,7 @@ def plot_2ejecta_1disk_timehists():
                 'position': (i_row, i_col),
                 'v_n_x': "time", 'v_n_y': v_n, 'v_n': 'mass', 'normalize': True,
                 'cbar': {},
-                'cmap': 'inferno_r',
+                'cmap': cmap_ejecta,#'inferno_r',
                 'xlabel': Labels.labels("time"), 'ylabel': Labels.labels(v_n, alternative=True),
                 'xmin': timearr.min(), 'xmax': timearr.max(), 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
                 'xscale': "linear", 'yscale': "linear", 'norm': 'log',
@@ -446,7 +576,7 @@ def plot_2ejecta_1disk_timehists():
                 'position': (i_row, i_col),
                 'v_n_x': "time", 'v_n_y': v_n, 'v_n': 'mass', 'normalize': True,
                 'cbar': {},
-                'cmap': 'inferno_r',
+                'cmap': cmap_ejecta,
                 'xlabel': Labels.labels("time"), 'ylabel': Labels.labels(v_n, alternative=True),
                 'xmin': timearr.min(), 'xmax': timearr.max(), 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
                 'xscale': "linear", 'yscale': "linear", 'norm': 'log',
@@ -527,7 +657,7 @@ def plot_2ejecta_1disk_timehists():
                            'vmax': 1e-2,
                            'fill_vmin': False,  # fills the x < vmin with vmin
                            'xscale': None, 'yscale': None,
-                           'mask': None, 'cmap': 'inferno_r', 'norm': "log",
+                           'mask': None, 'cmap': cmap_disk, 'norm': "log", # 'inferno_r',
                            'fancyticks': True,
                            'minorticks': True,
                            'title': {},
@@ -561,6 +691,10 @@ def plot_2ejecta_1disk_timehists():
                     def_dic['ymin'] = 0
                     def_dic['ymax'] = 85
                     def_dic["yarr"] = 90 - (def_dic["yarr"] / np.pi * 180.)
+                elif v_n == "press":
+                    def_dic['yscale'] = "log"
+                    def_dic['ymin'] = 5.e-8
+                    def_dic['ymax'] = 2.e-6
                 #
                 if v_n == v_ns_diks[-1]:
                     def_dic["sharex"] = False
@@ -574,4 +708,5 @@ def plot_2ejecta_1disk_timehists():
     o_plot.main()
     exit(1)
 if __name__  == '__main__':
-    plot_2ejecta_1disk_timehists()
+    # plot_2ejecta_1disk_timehists()
+    plot_total_fluxes_sims_disk_hist_last()

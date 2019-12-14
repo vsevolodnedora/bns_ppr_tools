@@ -675,7 +675,7 @@ class HISTOGRAM_EDGES:
     @staticmethod
     def get_edge(v_n):
         if v_n == "Y_e": return np.linspace(0.035, 0.55, 50)
-        elif v_n == "theta": return np.linspace(0.031, 3.111, 50)
+        elif v_n == "theta": return np.linspace(0.031, 3.111, 50) # return np.linspace(0.0, np.pi, 50)
         elif v_n == "phi": return np.linspace(0.06, 6.29, 93)
         elif v_n == "vel_inf" or v_n == "vel_inf_bern": return np.linspace(0., 1., 50)
         elif v_n == "entropy": return np.linspace(0, 200, 100)
@@ -2879,10 +2879,6 @@ def outflowed_summary(o_outflow, detectors, masks, rewrite=False):
                     ["task:", "summary: total flux", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
             #
-
-
-
-
 
 if __name__ == '__main__':
     #

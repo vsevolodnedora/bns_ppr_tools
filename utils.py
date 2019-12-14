@@ -476,7 +476,7 @@ class Limits:
         if v_n in ["Y_e", "ye", "Ye"]:
             return 0., 0.5
         elif v_n in  ["vel_inf", "vinf", "velinf"]:
-            return 0, 0.7
+            return 0, 1.1
         elif v_n in ["theta"]:
             return 0, 90.
         elif v_n in ["phi"]:
@@ -750,15 +750,15 @@ class FORMULAS:
 
     @staticmethod
     def vinf(eninf):
-        return np.sqrt(2 * eninf)
+        return np.sqrt(2. * eninf)
 
     @staticmethod
     def vinf_bern(eninf, enthalpy):
-        return np.sqrt(2*(enthalpy*(eninf + 1) - 1))
+        return np.sqrt(2.*(enthalpy*(eninf + 1.) - 1.))
 
     @staticmethod
     def vel(w_lorentz):
-        return np.sqrt(1 - 1 / (w_lorentz**2))
+        return np.sqrt(1. - 1. / (w_lorentz**2))
 
     @staticmethod
     def get_tau(rho, vel, radius, lrho_b):
