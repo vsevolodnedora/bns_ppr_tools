@@ -3645,7 +3645,7 @@ def plot_d3_hist(d3histclass, rewrite=False):
                 default_dic['xlabel'] = 'angle from binary plane'
                 default_dic['xmin'] = 0
                 default_dic['xmax'] = 90.
-            elif v_n == "entropy":
+            elif v_n == "entr":
                 default_dic['v_n_x'] = 'entropy'
                 default_dic['xlabel'] = 'entropy'
                 default_dic['xmin'] = 0
