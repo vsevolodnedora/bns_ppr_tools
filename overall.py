@@ -53,7 +53,7 @@ from preanalysis import LOAD_ITTIME
 from plotting_methods import PLOT_MANY_TASKS
 from profile import LOAD_PROFILE_XYXZ, LOAD_RES_CORR, LOAD_DENSITY_MODES
 from mkn_interface import COMPUTE_LIGHTCURVE, COMBINE_LIGHTCURVES
-from combine import TEX_TABLES, COMPARISON_TABLE, TWO_SIMS, THREE_SIMS, ADD_METHODS_ALL_PAR
+from combine import TEX_TABLES, COMPARISON_TABLE, TWO_SIMS, THREE_SIMS, ADD_METHODS_ALL_PAR, ALL_SIMULATIONS_TABLE
 import units as ut # for tmerg
 from utils import *
 
@@ -64,14 +64,201 @@ for letter in "kusi":
 
 '''==================================================| SETTINGS |===================================================='''
 
+resolutions = {"HR":123., "SR":185.,"LR":246.}
+
+simulations2 = {
+    "BLh":
+        {
+           "q=1.8":{
+               "BLh_M10201856_M0_LK":
+                   ["BLh_M10201856_M0_LK_HR", "BLh_M10201856_M0_LK_LR", "BLh_M10201856_M0_LK_SR"],
+               "BLh_M10201856_M0":
+                   ["BLh_M10201856_M0_HR", "BLh_M10201856_M0_LR", "BLh_M10201856_M0_SR"]
+           },
+           "q=1.7":{
+               "BLh_M10651772_M0_LK":
+                   ["BLh_M10651772_M0_LK_SR", "BLh_M10651772_M0_LK_LR"]
+           },
+           "q=1.5":{
+               "BLh_M11041699_M0_LK":
+                   ["BLh_M11041699_M0_LK_LR"],
+               "BLh_M11041699_M0":
+                   ["BLh_M11041699_M0_LR"]
+           },
+           "q=1.4":{
+               "BLh_M11461635_M0_LK":
+                   ["BLh_M11461635_M0_LK_SR", "BLh_M16351146_M0_LK_LR"]
+           },
+           "q=1.3":{
+               "BLh_M11841581_M0_LK":
+                   ["BLh_M11841581_M0_LK_LR", "BLh_M11841581_M0_LK_SR"],
+               "BLh_M11841581_M0":
+                   ["BLh_M11841581_M0_LR"]
+           },
+           "q=1.2":{
+               "BLh_M12591482_M0":
+                   ["BLh_M12591482_M0_LR"],
+               "BLh_M12591482_M0_LK":
+                   ["BLh_M12591482_M0_LK_LR"]
+           },
+           "q=1":{
+               "BLh_M13641364_M0_LK":
+                   ["BLh_M13641364_M0_LK_SR", "BLh_M13641364_M0_LK_LR"],
+               "BLh_M13641364_M0":
+                   ["BLh_M13641364_M0_LR"]
+           }
+        },
+    "DD2":
+        {
+           "q=1":{
+               "DD2_M13641364_M0":
+                   ["DD2_M13641364_M0_LR", "DD2_M13641364_M0_SR", "DD2_M13641364_M0_HR"],
+               "DD2_M13641364_M0_R04":
+                   ["DD2_M13641364_M0_LR_R04", "DD2_M13641364_M0_SR_R04", "DD2_M13641364_M0_HR_R04"],
+               "DD2_M13641364_M0_LK_R04":
+                   ["DD2_M13641364_M0_LK_LR_R04", "DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_HR_R04"]
+           },
+           "q=1.1":{
+               "DD2_M14321300_M0":
+                   ["DD2_M14321300_M0_LR"],
+               "DD2_M14351298_M0":
+                    ["DD2_M14351298_M0_LR"]
+           },
+           "q=1.2":{
+               "DD2_M14861254_M0":
+                   ["DD2_M14861254_M0_LR", "DD2_M14861254_M0_HR"],
+               "DD2_M14971246_M0":
+                   ["DD2_M14971246_M0_LR", "DD2_M14971245_M0_SR", "DD2_M14971245_M0_HR"],
+               "DD2_M15091235_M0_LK":
+                   ["DD2_M15091235_M0_LK_SR", "DD2_M15091235_M0_LK_HR"]
+           },
+           "q=1.4":{
+               "DD2_M11461635_M0_LK":
+                   ["DD2_M11461635_M0_LK_SR", "DD2_M16351146_M0_LK_LR"]
+           }
+        },
+    "LS220":
+        {
+           "q=1":{
+               "LS220_M13641364_M0":
+                   ["LS220_M13641364_M0_SR", "LS220_M13641364_M0_HR", "LS220_M13641364_M0_LR"],
+               "LS220_M13641364_M0_LK":
+                   ["LS220_M13641364_M0_LK_SR_restart"]
+           },
+           "q=1.1":{
+               "LS220_M14001330_M0":
+                   ["LS220_M14001330_M0_HR", "LS220_M14001330_M0_SR"],
+               "LS220_M14351298_M0":
+                   ["LS220_M14351298_M0_HR", "LS220_M14351298_M0_SR"]
+           },
+           "q=1.2":{
+               "LS220_M14691268_M0":
+                   ["LS220_M14691268_M0_SR", "LS220_M14691268_M0_HR", "LS220_M14691268_M0_LR"],
+               "LS220_M14691268_M0_LK":
+                   ["LS220_M14691268_M0_LK_HR", "LS220_M14691268_M0_LK_SR"],
+           },
+           "q=1.4":{
+               "LS220_M16351146_M0_LK":
+                   ["LS220_M16351146_M0_LK_LR", "LS220_M11461635_M0_LK_SR"]
+           },
+           "q=1.7":{
+               "LS220_M10651772_M0_LK":
+                   ["LS220_M10651772_M0_LK_SR", "LS220_M10651772_M0_LK_LR"]
+           }
+        },
+    "SFHo":
+        {
+           "q=1":{
+               "SFHo_M13641364_M0":
+                   ["SFHo_M13641364_M0_SR", "SFHo_M13641364_M0_HR"],
+               "SFHo_M13641364_M0_LK":
+                   ["SFHo_M13641364_M0_LK_SR"],
+               "SFHo_M13641364_M0_LK_p2019":
+                   ["SFHo_M13641364_M0_LK_HR", "SFHo_M13641364_M0_LK_SR_2019pizza"]
+           },
+           "q=1.1":{
+               "SFHo_M14521283_M0":
+                   ["SFHo_M14521283_M0_HR", "SFHo_M14521283_M0_SR"],
+               "SFHo_M14521283_M0_LK_p2019":
+                   ["SFHo_M14521283_M0_LK_HR", "SFHo_M14521283_M0_LK_SR_2019pizza"],
+               "SFHo_M14521283_M0_LK_SR":
+                   ["SFHo_M14521283_M0_LK_SR"]
+           },
+           "q=1.4":{
+               "SFHo_M11461635_M0_LK":
+                   ["SFHo_M11461635_M0_LK_SR"],
+               "SFHo_M16351146_M0_LK_p2019":
+                   ["SFHo_M16351146_M0_LK_LR"]
+           },
+           "q=1.7":{
+               "SFHo_M10651772_M0_LK":
+                   ["SFHo_M10651772_M0_LK_LR"]
+           }
+        },
+    "SLy4":
+        {
+           "q=1":{
+               "SLy4_M13641364_M0_LK":
+                  ["SLy4_M13641364_M0_LK_LR", "SLy4_M13641364_M0_LK_SR"],
+               "SLy4_M13641364_M0":
+                  ["SLy4_M13641364_M0_SR"]
+        },
+           "q=1.1":{
+               "SLy4_M14521283_M0":
+                   ["SLy4_M14521283_M0_LR", "SLy4_M14521283_M0_SR"]
+           },
+           "q=1.4":{
+               "SLy4_M11461635_M0_LK":
+                   ["SLy4_M11461635_M0_LK_SR"]
+           }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
 simulations = {"BLh":
                  {
-                      "q=1.8": ["BLh_M10201856_M0_LK_SR"],  # 27 ms # Prompt collapse
-                      "q=1.7": ["BLh_M10651772_M0_LK_SR"],  # 25 ms # stable #          [SHORT]
-                      "q=1.4": ["BLh_M11461635_M0_LK_SR",   # 71 ms                     [LONG]
-                                "BLh_M16351146_M0_LK_LR"],  # 49 ms #
-                      "q=1.3": ["BLh_M11841581_M0_LK_SR"],  # 21 ms
-                      "q=1":   ["BLh_M13641364_M0_LK_SR"]   # 102 ms                    [LONG]
+                      "q=1.8": ["BLh_M10201856_M0_LK_HR",   # 21 ms # promped
+                                "BLh_M10201856_M0_LK_LR",   # 22 ms # promped
+                                "BLh_M10201856_M0_LK_SR",   # 28 ms # promped
+                                "BLh_M10201856_M0_HR",      # 40 ms # promped
+                                "BLh_M10201856_M0_LR",      # 40 ms # promped
+                                "BLh_M10201856_M0_SR"       # 23 ms # promped
+                                ],
+                      "q=1.7": ["BLh_M10651772_M0_LK_SR",   # 25 ms # stable #          [SHORT]
+                                #"BLh_M10651772_M0_LK_HR",  # Failed at merger
+                                "BLh_M10651772_M0_LK_LR"    # 70 ms # stable
+                                ],
+                      "q=1.5": [
+                                "BLh_M11041699_M0_LK_LR",   # 55 ms # stable
+                                "BLh_M11041699_M0_LR"       # 28 ms # stable
+                                ],
+                      "q=1.4": ["BLh_M11461635_M0_LK_SR",   # 71 ms # stable             [LONG]
+                                "BLh_M16351146_M0_LK_LR"    # 49 ms #
+                                ],
+                      "q=1.3": [
+                                "BLh_M11841581_M0_LK_LR",   # 74 ms
+                                "BLh_M11841581_M0_LK_SR",   # 21 ms                     [SHORT]
+                                # "BLh_M11841581_M0_LK_HR"  # failed!
+                                "BLh_M11841581_M0_LR"       # 28 ms
+                                ],
+                      "q=1.2": [
+                                "BLh_M12591482_M0_LR",      # 27 ms
+                                "BLh_M12591482_M0_LK_LR"    # 80 ms
+                      ],
+                      "q=1":   ["BLh_M13641364_M0_LK_SR",   # 105 ms                     [LONG]
+                                # "BLh_M13641364_M0_LK_HR", # too short
+                                "BLh_M13641364_M0_LK_LR",   # 55ms
+                                "BLh_M13641364_M0_LR"       # 48 ms
+                                ]
                  },
               "DD2":
                   {
@@ -91,23 +278,20 @@ simulations = {"BLh":
                                 "DD2_M14351298_M0_LR"],     # 38 ms     3D
                                 # DD2_M14321300_M0_SR [absent
                                 # DD2_M14321300_M0_HR [absent]
-
                       "q=1.2": ["DD2_M14861254_M0_LR",      # 40 ms     3D
                                 # DD2_M14861254_M0_SR [absent]
                                 "DD2_M14861254_M0_HR",      # 70 ms     3D
-
                                 "DD2_M14971246_M0_LR",      # 46 ms     3D
                                 "DD2_M14971245_M0_SR",      # 98 ms     3D              [LONG]
                                 "DD2_M14971245_M0_HR",      # 63 ms     3D (till 45)
-
                                 # DD2_M15091235_M0_LK_LR [absent]
                                 "DD2_M15091235_M0_LK_SR",   # 115 ms    3D              [LONG]
                                 "DD2_M15091235_M0_LK_HR",   # 28 ms     no3D
                                 ],
-
                       "q=1.4": [#DD2_M11461635_M0_LK_LR [absent]
                                 "DD2_M11461635_M0_LK_SR",   # 65 ms     3D              [LONG]
-                                "DD2_M16351146_M0_LK_LR"]   # 47 ms     3D
+                                "DD2_M16351146_M0_LK_LR"    # 47 ms     3D
+                                ]
                   },
               "LS220":
                   {
@@ -116,20 +300,25 @@ simulations = {"BLh":
                               "LS220_M13641364_M0_LK_SR",   # 43 ms     no3D
                               "LS220_M13641364_M0_LK_SR_restart",   # 39 ms     3D      [SHORT]
                               "LS220_M13641364_M0_LR",      # 48 ms     3D
-                              "LS220_M13641364_M0_SR"],     # 51 ms     3D              [SHORT]
+                              "LS220_M13641364_M0_SR"       # 51 ms     3D              [SHORT]
+                              ],
                       "q=1.1": ["LS220_M14001330_M0_HR",    # 38 ms     no3D
                                 "LS220_M14001330_M0_SR",    # 37 ms     no3D            [SHORT]
                                 "LS220_M14351298_M0_HR",    # 38 ms     no3D
-                                "LS220_M14351298_M0_SR"],   # 39 ms     np3D            [SHORT]
+                                "LS220_M14351298_M0_SR"     # 39 ms     np3D            [SHORT]
+                                ],
                       "q=1.2": ["LS220_M14691268_M0_HR",    # 43 ms     np3D
                                 "LS220_M14691268_M0_LK_HR", # 24 ms     no3D
                                 "LS220_M14691268_M0_LK_SR", # 107 ms    3D              [LONG]
                                 "LS220_M14691268_M0_LR",    # 43 ms     no3D
-                                "LS220_M14691268_M0_SR"],   # 50 ms     no3D            [SHORT]
+                                "LS220_M14691268_M0_SR"     # 50 ms     no3D            [SHORT]
+                                ],
                       "q=1.4": ["LS220_M16351146_M0_LK_LR", # 29 ms     3D
-                                "LS220_M11461635_M0_LK_SR"],# 56 ms     3D (BH)         [SHORT]
+                                "LS220_M11461635_M0_LK_SR"  # 56 ms     3D (BH)            [SHORT]
+                                ],
                       "q=1.7": ["LS220_M10651772_M0_LK_SR", # 18 ms     3D *3 of them)  [SHORT]
-                                "LS220_M10651772_M0_LK_LR"] # 15 ms     3D (4 of them)
+                                "LS220_M10651772_M0_LK_LR"  # 15 ms     3D (4 of them)
+                                ]
                   },
               "SFHo":
                   {
@@ -137,15 +326,19 @@ simulations = {"BLh":
                               "SFHo_M13641364_M0_LK_HR",    # 24 ms     np3D
                               "SFHo_M13641364_M0_LK_SR",    # 23 ms     no3D
                               "SFHo_M13641364_M0_LK_SR_2019pizza",  # 37 ms no3D        [SHORT]
-                              "SFHo_M13641364_M0_SR"],      # 22 ms     3D              [SHORT]
+                              "SFHo_M13641364_M0_SR"        # 22 ms     3D              [SHORT]
+                              ],
                       "q=1.1":["SFHo_M14521283_M0_HR",      # 29 ms     3D
                                "SFHo_M14521283_M0_LK_HR",   # 27 ms     no3D
                                "SFHo_M14521283_M0_LK_SR",   # 25 ms     no3D
                                "SFHo_M14521283_M0_LK_SR_2019pizza", # 26 ms no3D        [SHORT]
-                               "SFHo_M14521283_M0_SR"],     # 33 ms     3D              [SHORT]
+                               "SFHo_M14521283_M0_SR"       # 33 ms     3D              [SHORT]
+                               ],
                       "q=1.4":["SFHo_M11461635_M0_LK_SR",   # 70 ms     3D              [LONG]
-                               "SFHo_M16351146_M0_LK_LR"],  # 31 ms     3D
-                      "q=1.7":["SFHo_M10651772_M0_LK_LR"]   # 26 ms     3D
+                               "SFHo_M16351146_M0_LK_LR"    # 31 ms     3D
+                               ],
+                      "q=1.7":["SFHo_M10651772_M0_LK_LR"    # 26 ms     3D
+                               ]
                   },
               "SLy4":
                   {
@@ -154,17 +347,41 @@ simulations = {"BLh":
                               "SLy4_M13641364_M0_LK_LR",    # 21 ms     3D
                               "SLy4_M13641364_M0_LK_SR",    # 24 ms     no3D            [SHORT]
                               # "SLy4_M13641364_M0_LR",     #
-                              "SLy4_M13641364_M0_SR"],      # 35 ms     3D              [SHORT]
+                              "SLy4_M13641364_M0_SR"        # 35 ms     3D              [SHORT]
+                                ],
                       "q=1.1":[#"SLy4_M14521283_M0_HR",     # unphysical and premerger
                                "SLy4_M14521283_M0_LR",      # 28 ms     no3D
-                               "SLy4_M14521283_M0_SR"],     # 34 ms     3D              [SHORT]
-                      "q=1.4":["SLy4_M11461635_M0_LK_SR"],  # 62 ms     3D              [LONG]
-                      #"q=1.7":[#"SLy4_M10651772_M0_LK_LR",   # 22 ms     3D
+                               "SLy4_M14521283_M0_SR"       # 34 ms     3D              [SHORT]
+                                ],
+                      "q=1.4":["SLy4_M11461635_M0_LK_SR"    # 62 ms     3D              [LONG]
+                                ],
+                      # "q=1.7":[#"SLy4_M10651772_M0_LK_LR", # 22 ms     3D
                                #"SLy4_M10651772_M0_LK_SR"   # 32 ms     no3D ! [not even geo etracts]
-                       #        ]   # 32 ms     no3D !
+                      #        ]   # 32 ms     no3D !
                   }
               }
 #
+long_simulations = {
+            "BLh":{
+                "q=1.4": ["BLh_M11461635_M0_LK_SR"],
+                "q=1": ["BLh_M13641364_M0_LK_SR"]
+            },
+            "DD2":{
+                "q=1":["DD2_M13641364_M0_SR", "DD2_M13641364_M0_SR_R04", "DD2_M13641364_M0_LK_SR_R04"],
+                "q=1.2":["DD2_M14971245_M0_SR", "DD2_M15091235_M0_LK_SR"],
+                "q=1.4":["DD2_M11461635_M0_LK_SR"]
+            },
+            "LS220":{
+                "q=1.2":["LS220_M14691268_M0_LK_SR"]
+            },
+            "SFHo":{
+                "q=1.4":["SFHo_M11461635_M0_LK_SR"]
+            },
+            "SLy4":{
+                "q=1.4":["SLy4_M11461635_M0_LK_SR"]
+            }
+}
+
 long_sims_dd2 = ["DD2_M13641364_M0_SR", "DD2_M13641364_M0_SR_R04", "DD2_M13641364_M0_LK_SR_R04",
              "DD2_M14971245_M0_SR", "DD2_M13641364_M0_SR_R04", "DD2_M11461635_M0_LK_SR"]
 #
@@ -179,10 +396,643 @@ short_sims = ["BLh_M10651772_M0_LK_SR", "LS220_M13641364_M0_LK_SR_restart", "LS2
               ]
 #
 
+'''===================================================| EJECTA |====================================================='''
+def __get_value(o_init, o_par, det=None, mask=None, v_n=None):
+
+    if v_n in o_init.list_v_ns and mask == None:
+        value = o_init.get_par(v_n)
+    elif not v_n in o_init.list_v_ns and mask == None:
+        value = o_par.get_par(v_n)
+    elif not v_n in o_init.list_v_ns and mask != None:
+        value = o_par.get_outflow_par(det, mask, v_n)
+    else:
+        raise NameError("unrecognized: v_n_x:{} mask_x:{} det:{} combination"
+                        .format(v_n, mask, det))
+    if value == None or np.isinf(value) or np.isnan(value):
+        raise ValueError("sim: {} det:{} mask:{} v_n:{} --> value:{} wrong!"
+                         .format(o_par.sim,det,mask,v_n, value))
+    return value
+def plot_last_disk_mass_with_lambda2(v_n_x, v_n_y, v_n_col, mask_x=None, mask_y=None, mask_col=None, det=None, plot_legend=True):
+
+    simulations = long_simulations
+
+    data = {"BLh":{}, "DD2":{}, "LS220":{}, "SFHo":{}, "SLy4":{}}
+
+    all_all_x_arr = []
+    all_all_y_arr = []
+    for eos in simulations.keys():
+        all_x_arr = []
+        all_y_arr = []
+        all_col_arr = []
+        all_res_arr = []
+        all_lk_arr = []
+        all_bh_arr = []
+        for q in simulations[eos].keys():
+            data[eos][q] = {}
+            #
+            x_arr = []
+            y_arr = []
+            col_arr = []
+            res_arr = []
+            lk_arr = []
+            bh_arr = []
+            for sim in simulations[eos][q]:
+                o_init = LOAD_INIT_DATA(sim)
+                o_par = ADD_METHODS_ALL_PAR(sim)
+                #
+                x_arr.append(__get_value(o_init, o_par, det, mask_x, v_n_x))
+                y_arr.append(__get_value(o_init, o_par, det, mask_y, v_n_y))
+                col_arr.append(__get_value(o_init, o_par, det, mask_col, v_n_col))
+                #
+                res = o_init.get_par("res")
+                if res == "HR": res_arr.append("v")
+                if res == "SR": res_arr.append("d")
+                if res == "LR": res_arr.append("^")
+                #
+                lk = o_init.get_par("vis")
+                if lk == "LK": lk_arr.append("gray")
+                else: lk_arr.append("none")
+                tcoll = o_par.get_par("tcoll_gw")
+                if not np.isinf(tcoll): bh_arr.append("x")
+                else: bh_arr.append(None)
+
+                #
+            #
+            data[eos][q][v_n_x] = x_arr
+            data[eos][q][v_n_y] = y_arr
+            data[eos][q][v_n_col] = col_arr
+            data[eos][q]["res"] = res_arr
+            data[eos][q]["vis"] = lk_arr
+            data[eos][q]["tcoll"] = bh_arr
+            #
+            all_x_arr = all_x_arr + x_arr
+            all_y_arr = all_y_arr + y_arr
+            all_col_arr = all_col_arr + col_arr
+            all_res_arr = all_res_arr + res_arr
+            all_lk_arr = all_lk_arr + lk_arr
+            all_bh_arr = all_bh_arr + bh_arr
+            all_all_x_arr = all_all_x_arr + all_x_arr
+            all_all_y_arr = all_all_y_arr + all_y_arr
+        #
+        data[eos][v_n_x + 's'] = all_x_arr
+        data[eos][v_n_y + 's'] = all_y_arr
+        data[eos][v_n_col+'s'] = all_col_arr
+        data[eos]["res" + 's'] = all_res_arr
+        data[eos]["vis" + 's'] = all_lk_arr
+        data[eos]["tcoll" + 's'] = all_bh_arr
+
+    print(" =============================== ")
+    all_all_x_arr, all_all_y_arr = UTILS.x_y_z_sort(all_all_x_arr, all_all_y_arr)
+    UTILS.fit_polynomial(np.log10(np.array(all_all_x_arr)),np.array(all_all_y_arr), 1, 100)
+    print("ave: {}".format(np.sum(all_all_y_arr)/len(all_all_y_arr)) )
+    print(" =============================== ")
+
+    #
+    #
+    figname = ''
+    if mask_x == None:
+        figname = figname + v_n_x + '_'
+    else:
+        figname = figname + v_n_x + '_' + mask_x + '_'
+    if mask_y == None:
+        figname = figname + v_n_y + '_'
+    else:
+        figname = figname + v_n_y + '_' + mask_y + '_'
+    if mask_col == None:
+        figname = figname + v_n_col + '_'
+    else:
+        figname = figname + v_n_col + '_' + mask_col + '_'
+    if det == None:
+        figname = figname + ''
+    else: figname = figname + str(det)
+    figname = figname + '.png'
+    #
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+    o_plot.gen_set["figname"] = figname
+    o_plot.gen_set["sharex"] = True
+    o_plot.gen_set["sharey"] = False
+    o_plot.gen_set["subplots_adjust_h"] = 0.0
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+    #
+
+    #
+    i_col = 1
+    for eos in ["SLy4", "SFHo", "BLh", "LS220", "DD2"]:
+        print(eos)
+
+        # LEGEND
+
+        if eos == "DD2" and plot_legend:
+            for res in ["HR", "LR", "SR"]:
+                marker_dic_lr = {
+                    'task': 'line', 'ptype': 'cartesian',
+                    'position': (1, i_col),
+                    'xarr': [-1], "yarr": [-1],
+                    'xlabel': None, "ylabel": None,
+                    'label': res,
+                    'marker': 'd', 'color':'gray', 'ms': 8, 'alpha': 1.,
+                    'sharey': False,
+                    'sharex': False,  # removes angular citkscitks
+                    'fontsize': 14,
+                    'labelsize': 14
+                }
+                if res == "HR": marker_dic_lr['marker'] = "v"
+                if res == "SR": marker_dic_lr['marker'] = "d"
+                if res == "LR": marker_dic_lr['marker'] = "^"
+                # if res == "BH": marker_dic_lr['marker'] = "x"
+                if res == "SR":
+                    if v_n_y == "Ye_ave":loc = 'lower right'
+                    else: loc = 'upper right'
+                    marker_dic_lr['legend'] = {'loc': loc, 'ncol': 1, 'fontsize': 12, 'shadow': False,
+                                               'framealpha': 0.5, 'borderaxespad': 0.0}
+                o_plot.set_plot_dics.append(marker_dic_lr)
+        #
+        xarr = np.array(data[eos][v_n_x+'s'])
+        yarr = np.array(data[eos][v_n_y+'s'])
+        colarr = data[eos][v_n_col+'s']
+        marker = data[eos]["res"+'s']
+        edgecolor = data[eos]["vis"+'s']
+        bh_marker = data[eos]["tcoll" + 's']
+        #
+        # UTILS.fit_polynomial(xarr, yarr, 1, 100)
+        #
+        if v_n_y == "Mej_tot":
+            yarr = yarr * 1e2
+        #
+        #
+        #
+        dic_bh = {
+            'task': 'scatter', 'ptype': 'cartesian',  # 'aspect': 1.,
+            'xarr': xarr, "yarr": yarr, "zarr": colarr,
+            'position': (1, i_col),  # 'title': '[{:.1f} ms]'.format(time_),
+            'cbar': {},
+            'v_n_x': v_n_x, 'v_n_y': v_n_y, 'v_n': v_n_col,
+            'xlabel': None, "ylabel": None, 'label': eos,
+            'xmin': 300, 'xmax': 900, 'ymin': 0.03, 'ymax': 0.3, 'vmin': 1.0, 'vmax': 1.5,
+            'fill_vmin': False,  # fills the x < vmin with vmin
+            'xscale': None, 'yscale': None,
+            'cmap': 'viridis', 'norm': None, 'ms': 80, 'marker': bh_marker, 'alpha': 1.0, "edgecolors": edgecolor,
+            'fancyticks': True,
+            'minorticks': True,
+            'title': {},
+            'legend': {},
+            'sharey': False,
+            'sharex': False,  # removes angular citkscitks
+            'fontsize': 14,
+            'labelsize': 14
+        }
+        #
+        if mask_y != None and mask_y.__contains__("bern"):
+               o_plot.set_plot_dics.append(dic_bh)
+        #
+
+        #
+
+        #
+        print("marker: {}".format(marker))
+        dic = {
+            'task': 'scatter', 'ptype': 'cartesian',  # 'aspect': 1.,
+            'xarr': xarr, "yarr": yarr, "zarr": colarr,
+            'position': (1, i_col),  # 'title': '[{:.1f} ms]'.format(time_),
+            'cbar': {},
+            'v_n_x': v_n_x, 'v_n_y': v_n_y, 'v_n': v_n_col,
+            'xlabel': None, "ylabel": Labels.labels(v_n_y),
+            'xmin': 300, 'xmax': 900, 'ymin': 0.03, 'ymax': 0.3, 'vmin': 1.0, 'vmax': 1.8,
+            'fill_vmin': False,  # fills the x < vmin with vmin
+            'xscale': None, 'yscale': None,
+            'cmap': 'viridis', 'norm': None, 'ms': 80, 'marker': marker, 'alpha': 0.8, "edgecolors": edgecolor,
+            'tick_params': {"axis":'both', "which":'both', "labelleft":True,
+                            "labelright":False, #"tick1On":True, "tick2On":True,
+                            "labelsize":12,
+                            "direction":'in',
+                            "bottom":True, "top":True, "left":True, "right":True},
+            'yaxiscolor':{'bottom':'black', 'top':'black', 'right':'black', 'left':'black'},
+            'minorticks': True,
+            'title': {"text":eos, "fontsize":12},
+            'label': "xxx",
+            'legend': {},
+            'sharey': False,
+            'sharex': False,  # removes angular citkscitks
+            'fontsize': 14,
+            'labelsize': 14
+        }
+        #
+        if v_n_y == "Mdisk3Dmax":
+            dic['ymin'], dic['ymax'] = 0.03, 0.30
+        if v_n_y == "Mej_tot" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0, 1.0
+        if v_n_y == "Mej_tot" and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0, 3.2
+        if v_n_y == "Ye_ave"and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0.01, 0.30
+        if v_n_y == "Ye_ave"and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0.1, 0.4
+        if v_n_y == "vel_inf_ave"and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0.1, 0.3
+        if v_n_y == "vel_inf_ave"and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0.05, 0.25
+        #
+        if eos == "SLy4":
+            dic['xmin'], dic['xmax'] = 380, 420
+            dic['xticks'] = [390, 410]
+        if eos == "SFHo":
+            dic['xmin'], dic['xmax'] = 390, 430
+            dic['xticks'] = [400, 420]
+        if eos == "BLh":
+            dic['xmin'], dic['xmax'] = 510, 550
+            dic['xticks'] = [520, 540]
+        if eos == "LS220":
+            dic['xmin'], dic['xmax'] = 690, 730
+            dic['xticks'] = [700, 720]
+        if eos == "DD2":
+            dic['xmin'], dic['xmax'] = 820, 860
+            dic['xticks'] = [830, 850]
+        if eos == "SLy4":
+            dic['tick_params']['right'] = False
+            dic['yaxiscolor']["right"] = "lightgray"
+        elif eos == "DD2":
+            dic['tick_params']['left'] = False
+            dic['yaxiscolor']["left"] = "lightgray"
+        else:
+            dic['tick_params']['left'] = False
+            dic['tick_params']['right'] = False
+            dic['yaxiscolor']["left"] = "lightgray"
+            dic['yaxiscolor']["right"] = "lightgray"
+
+        #
+        # if eos != "SLy4" and eos != "DD2":
+        #     dic['yaxiscolor'] = {'left':'lightgray','right':'lightgray', 'label': 'black'}
+        #     dic['ytickcolor'] = {'left':'lightgray','right':'lightgray'}
+        #     dic['yminortickcolor'] = {'left': 'lightgray', 'right': 'lightgray'}
+        # elif eos == "DD2":
+        #     dic['yaxiscolor'] = {'left': 'lightgray', 'right': 'black', 'label': 'black'}
+        #     # dic['ytickcolor'] = {'left': 'lightgray'}
+        #     # dic['yminortickcolor'] = {'left': 'lightgray'}
+        # elif eos == "SLy4":
+        #     dic['yaxiscolor'] = {'left': 'black', 'right': 'lightgray', 'label': 'black'}
+        #     # dic['ytickcolor'] = {'right': 'lightgray'}
+        #     # dic['yminortickcolor'] = {'right': 'lightgray'}
+
+        #
+        if eos != "SLy4":
+            dic['sharey'] = True
+        if eos == "BLh":
+            dic['xlabel'] = Labels.labels(v_n_x)
+        if eos == 'DD2':
+            dic['cbar'] = {'location': 'right .03 .0', 'label': Labels.labels(v_n_col),  # 'fmt': '%.1f',
+                     'labelsize': 14, 'fontsize': 14}
+        #
+        i_col = i_col + 1
+        o_plot.set_plot_dics.append(dic)
+        #
+
+    #
+    o_plot.main()
+    exit(0)
+
+
+def __get_val_err(sims, o_inits, o_pars, v_n, det=0,mask="geo", error=0.2):
+    if len(sims) == 0:
+        raise ValueError("no simualtions passed")
+    _resols, _values = [], []
+    assert len(sims) == len(o_inits)
+    assert len(sims) == len(o_pars)
+    for sim, o_init, o_par in zip(sims, o_inits, o_pars):
+        _val = __get_value(o_init, o_par, det, mask, v_n)
+        # print(sim, _val)
+        _res = "fuck"
+        for res in resolutions.keys():
+            if sim.__contains__(res):
+                _res = res
+                break
+        if _res == "fuck":
+            raise NameError("fuck")
+        _resols.append(resolutions[_res])
+        _values.append(_val)
+    if len(sims) == 1:
+        return _values[0], _values[0] - error * _values[0], _values[0] + error * _values[0]
+    elif len(sims) == 2:
+        delta = np.abs(_values[0] - _values[1])
+        if _resols[0] < _resols[1]:
+            return _values[0], _values[0] - delta, _values[0] + delta
+        else:
+            return _values[1], _values[1] - delta, _values[1] + delta
+    elif len(sims) == 3:
+        _resols_, _values_ = UTILS.x_y_z_sort(_resols, _values) # 123, 185, 236
+        delta1 = np.abs(_values_[0] - _values_[1])
+        delta2 = np.abs(_values_[1] - _values_[2])
+        # print(_values, _values_); exit(0)
+        return _values_[1], _values_[1] - delta1, _values_[1] + delta2
+    else:
+        raise ValueError("Too many simulations")
+
+def plot_summary_quntity():
+    """
+    Plot unique simulations point by point with error bars
+    :return:
+    """
+    v_n_x = "Lambda"
+    v_n_y = "Mej_tot"
+    v_n_col = "q"
+    det = 0
+    do_plot_error_bar = True
+    mask_x, mask_y, mask_col = None, "geo", None
+    data = {}
+    error = 0.2 # in * 100 percent
+
+    for eos in simulations2.keys():
+        data[eos] = {}
+        for q in simulations2[eos]:
+            data[eos][q] = {}
+            for u_sim in simulations2[eos][q]:
+                data[eos][q][u_sim] = {}
+                sims = simulations2[eos][q][u_sim]
+                o_inits = [LOAD_INIT_DATA(sim) for sim in sims]
+                o_pars = [ADD_METHODS_ALL_PAR(sim) for sim in sims]
+                x_coord, x_err1, x_err2 = __get_val_err(sims, o_inits, o_pars, v_n_x, det, mask_x, error)
+                y_coord, y_err1, y_err2 = __get_val_err(sims, o_inits, o_pars, v_n_y, det, mask_y, error)
+                col_coord, col_err1, col_err2 = __get_val_err(sims, o_inits, o_pars, v_n_col, det, mask_col, error)
+                data[eos][q][u_sim]["x"] = x_coord
+                data[eos][q][u_sim]["xe1"] = x_err1
+                data[eos][q][u_sim]["xe2"] = x_err2
+                data[eos][q][u_sim]["y"] = y_coord
+                data[eos][q][u_sim]["ye1"] = y_err1
+                data[eos][q][u_sim]["ye2"] = y_err2
+                data[eos][q][u_sim]["c"] = col_coord
+                data[eos][q][u_sim]["ce1"] = col_err1
+                data[eos][q][u_sim]["ce2"] = col_err2
+                Printcolor.blue("Processing {} ({} sims) x:[{:.1f}, v:{:.1f} ^{:.1f}] y:{} col:{:.1f}".format(u_sim, len(sims), x_coord, x_err1, x_err2, y_coord, col_coord))
+    Printcolor.green("Data is collaected")
+
+    # stuck data for scatter plot
+    for eos in simulations2.keys():
+        for v_n in ["x", "y", "c"]:
+            arr = []
+            for q in simulations2[eos].keys():
+                for u_sim in simulations2[eos][q]:
+                    arr.append(data[eos][q][u_sim][v_n])
+            data[eos][v_n+"s"] = arr
+    Printcolor.green("Data is stacked")
+    # plot the scatter points
+    figname = ''
+    if mask_x == None:
+        figname = figname + v_n_x + '_'
+    else:
+        figname = figname + v_n_x + '_' + mask_x + '_'
+    if mask_y == None:
+        figname = figname + v_n_y + '_'
+    else:
+        figname = figname + v_n_y + '_' + mask_y + '_'
+    if mask_col == None:
+        figname = figname + v_n_col + '_'
+    else:
+        figname = figname + v_n_col + '_' + mask_col + '_'
+    if det == None:
+        figname = figname + ''
+    else:
+        figname = figname + str(det)
+    figname = figname + '3.png'
+    #
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+    o_plot.gen_set["figname"] = figname
+    o_plot.gen_set["sharex"] = True
+    o_plot.gen_set["sharey"] = False
+    o_plot.gen_set["subplots_adjust_h"] = 0.0
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+
+    i_col = 1
+
+
+    for eos in ["SLy4", "SFHo", "BLh", "LS220", "DD2"]:
+        print(eos)
+        if do_plot_error_bar:
+            for q in simulations2[eos].keys():
+                for u_sim in simulations2[eos][q].keys():
+                    x = data[eos][q][u_sim]["x"]
+                    x1 = data[eos][q][u_sim]["xe1"]
+                    x2 = data[eos][q][u_sim]["xe2"]
+                    y = data[eos][q][u_sim]["y"]
+                    y1 = data[eos][q][u_sim]["ye1"]
+                    y2 = data[eos][q][u_sim]["ye2"]
+                    if v_n_y == "Mej_tot":
+                        y1 = y1 * 1e2
+                        y2 = y2 * 1e2
+                        y = y * 1e2
+                    marker_dic_lr = {
+                        'task': 'line', 'ptype': 'cartesian',
+                        'position': (1, i_col),
+                        'xarr': [x, x], "yarr": [y1, y2],
+                        'xlabel': None, "ylabel": None,
+                        'label': None,
+                        'ls': '-', 'color': 'gray', 'lw': 1., 'alpha': 1., 'ds': 'default',
+                        'sharey': False,
+                        'sharex': False,  # removes angular citkscitks
+                        'fontsize': 14,
+                        'labelsize': 14
+                    }
+                    o_plot.set_plot_dics.append(marker_dic_lr)
+                    # marker_dic_lr = {
+                    #     'task': 'line', 'ptype': 'cartesian',
+                    #     'position': (1, i_col),
+                    #     'xarr': [x1, x2], "yarr": [y, y],
+                    #     'xlabel': None, "ylabel": None,
+                    #     'label': None,
+                    #     'ls': '-', 'color': 'gray', 'lw': 1., 'alpha': 1., 'ds': 'default',
+                    #     'sharey': False,
+                    #     'sharex': False,  # removes angular citkscitks
+                    #     'fontsize': 14,
+                    #     'labelsize': 14
+                    # }
+                    # o_plot.set_plot_dics.append(marker_dic_lr)
+
+
+        # LEGEND
+
+        # if eos == "DD2" and plot_legend:
+        #     for res in ["HR", "LR", "SR"]:
+        #         marker_dic_lr = {
+        #             'task': 'line', 'ptype': 'cartesian',
+        #             'position': (1, i_col),
+        #             'xarr': [-1], "yarr": [-1],
+        #             'xlabel': None, "ylabel": None,
+        #             'label': res,
+        #             'marker': 'd', 'color': 'gray', 'ms': 8, 'alpha': 1.,
+        #             'sharey': False,
+        #             'sharex': False,  # removes angular citkscitks
+        #             'fontsize': 14,
+        #             'labelsize': 14
+        #         }
+        #         if res == "HR": marker_dic_lr['marker'] = "v"
+        #         if res == "SR": marker_dic_lr['marker'] = "d"
+        #         if res == "LR": marker_dic_lr['marker'] = "^"
+        #         # if res == "BH": marker_dic_lr['marker'] = "x"
+        #         if res == "SR":
+        #             if v_n_y == "Ye_ave":
+        #                 loc = 'lower right'
+        #             else:
+        #                 loc = 'upper right'
+        #             marker_dic_lr['legend'] = {'loc': loc, 'ncol': 1, 'fontsize': 12, 'shadow': False,
+        #                                        'framealpha': 0.5, 'borderaxespad': 0.0}
+        #         o_plot.set_plot_dics.append(marker_dic_lr)
+        #
+        xarr = np.array(data[eos]["xs"])
+        yarr = np.array(data[eos]["ys"])
+        colarr = data[eos]["cs"]
+        # marker = data[eos]["res" + 's']
+        # edgecolor = data[eos]["vis" + 's']
+        # bh_marker = data[eos]["tcoll" + 's']
+        #
+        # UTILS.fit_polynomial(xarr, yarr, 1, 100)
+        #
+        # print(xarr, yarr); exit(1)
+        if v_n_y == "Mej_tot":
+            yarr = yarr * 1e2
+        #
+        #
+        #
+        # dic_bh = {
+        #     'task': 'scatter', 'ptype': 'cartesian',  # 'aspect': 1.,
+        #     'xarr': xarr, "yarr": yarr, "zarr": colarr,
+        #     'position': (1, i_col),  # 'title': '[{:.1f} ms]'.format(time_),
+        #     'cbar': {},
+        #     'v_n_x': v_n_x, 'v_n_y': v_n_y, 'v_n': v_n_col,
+        #     'xlabel': None, "ylabel": None, 'label': eos,
+        #     'xmin': 300, 'xmax': 900, 'ymin': 0.03, 'ymax': 0.3, 'vmin': 1.0, 'vmax': 1.5,
+        #     'fill_vmin': False,  # fills the x < vmin with vmin
+        #     'xscale': None, 'yscale': None,
+        #     'cmap': 'viridis', 'norm': None, 'ms': 80, 'marker': bh_marker, 'alpha': 1.0, "edgecolors": edgecolor,
+        #     'fancyticks': True,
+        #     'minorticks': True,
+        #     'title': {},
+        #     'legend': {},
+        #     'sharey': False,
+        #     'sharex': False,  # removes angular citkscitks
+        #     'fontsize': 14,
+        #     'labelsize': 14
+        # }
+        #
+        # if mask_y != None and mask_y.__contains__("bern"):
+        #     o_plot.set_plot_dics.append(dic_bh)
+        #
+
+        #
+
+        #
+        # print("marker: {}".format(marker))
+        dic = {
+            'task': 'scatter', 'ptype': 'cartesian',  # 'aspect': 1.,
+            'xarr': xarr, "yarr": yarr, "zarr": colarr,
+            'position': (1, i_col),  # 'title': '[{:.1f} ms]'.format(time_),
+            'cbar': {},
+            'v_n_x': v_n_x, 'v_n_y': v_n_y, 'v_n': v_n_col,
+            'xlabel': None, "ylabel": Labels.labels(v_n_y),
+            'xmin': 300, 'xmax': 900, 'ymin': 0.03, 'ymax': 0.3, 'vmin': 1.0, 'vmax': 1.8,
+            'fill_vmin': False,  # fills the x < vmin with vmin
+            'xscale': None, 'yscale': None,
+            'cmap': 'viridis', 'norm': None, 'ms': 80, 'marker': "d", 'alpha': 0.8, "edgecolors": None,
+            'tick_params': {"axis": 'both', "which": 'both', "labelleft": True,
+                            "labelright": False,  # "tick1On":True, "tick2On":True,
+                            "labelsize": 12,
+                            "direction": 'in',
+                            "bottom": True, "top": True, "left": True, "right": True},
+            'yaxiscolor': {'bottom': 'black', 'top': 'black', 'right': 'black', 'left': 'black'},
+            'minorticks': True,
+            'title': {"text": eos, "fontsize": 12},
+            'label': "xxx",
+            'legend': {},
+            'sharey': False,
+            'sharex': False,  # removes angular citkscitks
+            'fontsize': 14,
+            'labelsize': 14
+        }
+        #
+        if v_n_y == "Mdisk3Dmax":
+            dic['ymin'], dic['ymax'] = 0.03, 0.30
+        if v_n_y == "Mej_tot" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0, 1.0
+        if v_n_y == "Mej_tot" and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0, 3.2
+        if v_n_y == "Ye_ave" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0.01, 0.30
+        if v_n_y == "Ye_ave" and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0.1, 0.4
+        if v_n_y == "vel_inf_ave" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0.1, 0.3
+        if v_n_y == "vel_inf_ave" and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0.05, 0.25
+        #
+        if eos == "SLy4":
+            dic['xmin'], dic['xmax'] = 380, 420
+            dic['xticks'] = [390, 410]
+        if eos == "SFHo":
+            dic['xmin'], dic['xmax'] = 390, 430
+            dic['xticks'] = [400, 420]
+        if eos == "BLh":
+            dic['xmin'], dic['xmax'] = 510, 550
+            dic['xticks'] = [520, 540]
+        if eos == "LS220":
+            dic['xmin'], dic['xmax'] = 690, 730
+            dic['xticks'] = [700, 720]
+        if eos == "DD2":
+            dic['xmin'], dic['xmax'] = 820, 860
+            dic['xticks'] = [830, 850]
+        if eos == "SLy4":
+            dic['tick_params']['right'] = False
+            dic['yaxiscolor']["right"] = "lightgray"
+        elif eos == "DD2":
+            dic['tick_params']['left'] = False
+            dic['yaxiscolor']["left"] = "lightgray"
+        else:
+            dic['tick_params']['left'] = False
+            dic['tick_params']['right'] = False
+            dic['yaxiscolor']["left"] = "lightgray"
+            dic['yaxiscolor']["right"] = "lightgray"
+
+        #
+        # if eos != "SLy4" and eos != "DD2":
+        #     dic['yaxiscolor'] = {'left':'lightgray','right':'lightgray', 'label': 'black'}
+        #     dic['ytickcolor'] = {'left':'lightgray','right':'lightgray'}
+        #     dic['yminortickcolor'] = {'left': 'lightgray', 'right': 'lightgray'}
+        # elif eos == "DD2":
+        #     dic['yaxiscolor'] = {'left': 'lightgray', 'right': 'black', 'label': 'black'}
+        #     # dic['ytickcolor'] = {'left': 'lightgray'}
+        #     # dic['yminortickcolor'] = {'left': 'lightgray'}
+        # elif eos == "SLy4":
+        #     dic['yaxiscolor'] = {'left': 'black', 'right': 'lightgray', 'label': 'black'}
+        #     # dic['ytickcolor'] = {'right': 'lightgray'}
+        #     # dic['yminortickcolor'] = {'right': 'lightgray'}
+
+        #
+        if eos != "SLy4":
+            dic['sharey'] = True
+        if eos == "BLh":
+            dic['xlabel'] = Labels.labels(v_n_x)
+        if eos == 'DD2':
+            dic['cbar'] = {'location': 'right .03 .0', 'label': Labels.labels(v_n_col),  # 'fmt': '%.1f',
+                           'labelsize': 14, 'fontsize': 14}
+        #
+        i_col = i_col + 1
+        o_plot.set_plot_dics.append(dic)
+        #
+
+    #
+    o_plot.main()
+    exit(0)
+
 
 '''====================================================| DISK |======================================================'''
 
 
+''' LK comparison '''
+#
 def plot_den_unb_vel_z():
 
     # tmp = d3class.get_data(688128, 3, "xy", "ang_mom_flux")
@@ -207,15 +1057,25 @@ def plot_den_unb_vel_z():
     #
     simlist = ["DD2_M13641364_M0_LK_SR_R04", "BLh_M13641364_M0_LK_SR", "LS220_M14691268_M0_LK_SR", "SLy4_M13641364_M0_SR"]
     itlist = [2611022, 1974272, 1949696, 737280]
-    #
+
+    # equal post-merger time
     simlist = ["DD2_M13641364_M0_SR_R04", "DD2_M13641364_M0_LK_SR_R04"]
-    itlist = [2116290, 2611022]
+    itlist = [2116290, 2058718]
+
+    # equal post-merger time
+    simlist = ["LS220_M13641364_M0_SR", "LS220_M13641364_M0_LK_SR_restart"]
+    itlist = [737280, 696320]
+
+    # equal post-merger time (pre-black hole)
+    # simlist = ["LS220_M13641364_M0_SR", "LS220_M13641364_M0_LK_SR_restart"]
+    # itlist = [540672, 499712]
+
     #
     o_plot = PLOT_MANY_TASKS()
     o_plot.gen_set["figdir"] = Paths.plots + 'all2/'
     o_plot.gen_set["type"] = "cartesian"
     o_plot.gen_set["figsize"] = (4*len(simlist), 6.0)  # <->, |] # to match hists with (8.5, 2.7)
-    o_plot.gen_set["figname"] = "disk_structure_last_dd2_lk.png"
+    o_plot.gen_set["figname"] = "disk_structure_last_ls220_lk.png"
     o_plot.gen_set["sharex"] = False
     o_plot.gen_set["sharey"] = True
     o_plot.gen_set["dpi"] = 128
@@ -518,6 +1378,147 @@ def plot_den_unb_vel_z():
     o_plot.main()
 
     exit(0)
+#
+def plot_total_fluxes_sims_disk_hist():
+    #
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + 'all2/'
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (15.0, 3.0)  # <->, |]
+    o_plot.gen_set["figname"] = "disk_hists_dd2_lk.png"
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = True
+    o_plot.gen_set["dpi"] = 128
+    o_plot.gen_set["subplots_adjust_h"] = 0.3
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+    averages = {}
+    #
+    # LS220_M13641364_M0_SR tbh = 29.5 ms
+    # LS220_M13641364_M0_LK_SR_restart tbh 25.6 ms
+    #
+    simlist = ["DD2_M13641364_M0_SR_R04", "DD2_M13641364_M0_LK_SR_R04", "LS220_M13641364_M0_SR", "LS220_M13641364_M0_LK_SR_restart",
+               "LS220_M13641364_M0_SR", "LS220_M13641364_M0_LK_SR_restart"]
+    itlist = [2116290, 2058718, 737280, 696320,
+              540672, 499712] # 540672 540672
+    lbls = [sim.replace('_', '\_') for sim in simlist]
+    colors=["blue", "blue", "red", "red",
+            "green", "green"]
+    alphas=[1., 1., 1., 1.,
+            1., 1.]
+    lss   =["-", ":", "-", ":",
+            "-", ":"]
+    lws =  [0.8, 0.5, 0.8, 0.5,
+            0.8, 0.5]
+    #
+    v_ns = ["Ye", "theta", "entr", "r", "temp", "press", "rho"]
+    i_x_plot = 1
+    for v_n in v_ns:
+        for sim, it, lbl, alpha, color, ls, lw in zip(simlist, itlist, lbls, alphas, colors, lss, lws):
+            #
+            d3_corr = LOAD_RES_CORR(sim)
+            d1class = ADD_METHODS_ALL_PAR(sim)
+
+            # for it, in itlist:
+            fpath = Paths.ppr_sims + sim + "/profiles/" + str(it) + "/" + "hist_{}.dat".format(v_n)
+            assert int(it) in d3_corr.list_iterations
+            #
+            t = d3_corr.get_time(it)
+            tmerg = d1class.get_par("tmerg")
+            time = t - tmerg
+            #
+            if not os.path.isfile(fpath):
+                raise IOError("file not found: {}".format(fpath))
+            #
+            data = np.loadtxt(fpath, unpack=False)
+            #
+            default_dic = {
+                'task': 'hist1d', 'ptype': 'cartesian',
+                'position': (1, i_x_plot),
+                'data': data, 'normalize': True,
+                'v_n_x': 'var', 'v_n_y': 'mass',
+                'color': color, 'ls': ls, 'lw': lw, 'ds': 'steps', 'alpha': alpha,
+                'ymin': 1e-4, 'ymax': 1e-1,
+                'xlabel': None, 'ylabel': "mass",
+                'label': lbl + " {:.1f}ms".format(time * 1e3), 'yscale': 'log',
+                'fancyticks': True, 'minorticks': True,
+                'fontsize': 14,
+                'labelsize': 14,
+                'legend': {},  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+                'sharex': False,
+                'sharey': False,
+            }
+            #
+            if v_n == "r":
+                default_dic['v_n_x'] = 'r'
+                default_dic['xlabel'] = 'cylindrical radius'
+                default_dic['xmin'] = 10.
+                default_dic['xmax'] = 95.
+            elif v_n == "theta":
+                default_dic['v_n_x'] = 'theta'
+                default_dic['xlabel'] = r'$\theta$'
+                default_dic['xmin'] = 0
+                default_dic['xmax'] = 85.
+            elif v_n == "entr":
+                default_dic['v_n_x'] = 'entropy'
+                default_dic['xlabel'] = "entropy"
+                default_dic['xmin'] = 0.
+                default_dic['xmax'] = 30.
+            elif v_n == "Ye":
+                default_dic['v_n_x'] = 'Ye'
+                default_dic['xlabel'] = 'Ye'
+                default_dic['xmin'] = 0.05
+                default_dic['xmax'] = 0.45
+            elif v_n == "temp":
+                default_dic['v_n_x'] = "temp"
+                default_dic["xlabel"] = "temp"
+                default_dic['xmin'] = 1.e-1
+                default_dic['xmax'] = 8.e1
+                default_dic['xscale'] = "log"
+            elif v_n == "rho":
+                default_dic['v_n_x'] = "rho"
+                default_dic["xlabel"] = "rho"
+                default_dic['xmin'] = 5.e-10
+                default_dic['xmax'] = 2.e-5
+                default_dic['xscale'] = "log"
+            elif v_n == "dens_unb_bern":
+                default_dic['v_n_x'] = "temp"
+                default_dic["xlabel"] = "temp"
+                default_dic['xmin'] = 5.e-11
+                default_dic['xmax'] = 5.e-5
+                default_dic['xscale'] = "log"
+            elif v_n == "press":
+                default_dic['v_n_x'] = "press"
+                default_dic["xlabel"] = "press"
+                default_dic['xmin'] = 1e-13
+                default_dic['xmax'] = 1e-5
+                default_dic['xscale'] = "log"
+            else:
+                raise NameError("hist v_n:{} is not recognized".format(v_n))
+            #
+            if v_n != v_ns[0]:
+                default_dic["sharey"] = True
+            if v_n == v_ns[-1] and sim == simlist[-1]:
+                default_dic['legend'] = {'loc': 'upper right',
+                                         'bbox_to_anchor': (1.,1.2),
+                                         'ncol': 3, "fontsize": 9,
+                                         "framealpha": 0., "borderaxespad": 0., "shadow": False}  #
+
+            o_plot.set_plot_dics.append(default_dic)
+
+        i_x_plot += 1
+
+
+    o_plot.main()
+
+
+
+
+    exit(1)
+#
+''' ------------- '''
+
+
 #
 def plot_disk_mass_evol_SR():
     # 11
@@ -1242,8 +2243,70 @@ def plot_2ejecta_1disk_timehists():
     exit(1)
 #
 if __name__  == '__main__':
-    plot_den_unb_vel_z()
-    plot_disk_mass_evol_SR()
-    plot_disk_mass_evol_LR()
+
+    plot_summary_quntity()
+
+    sims = ["BLh_M10201856_M0_LK_HR",   # 21 ms # promped
+            "BLh_M10201856_M0_LK_LR",   # 22 ms # promped
+            "BLh_M10201856_M0_LK_SR",   # 28 ms # promped
+            "BLh_M10201856_M0_HR",      # 40 ms # promped
+            "BLh_M10201856_M0_LR",      # 40 ms # promped
+            "BLh_M10201856_M0_SR"       # 23 ms # promped
+           ]
+    o_sims = ALL_SIMULATIONS_TABLE(sims)
+    exit(1)
+
+
+    # plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="Mej_tot", v_n_col="q",
+    #                                  mask_x=None,mask_y="geo",mask_col=None,det=0, plot_legend=True)
+    # plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="Ye_ave", v_n_col="q",
+    #                                  mask_x=None,mask_y="geo",mask_col=None,det=0, plot_legend=True)
+    # plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="vel_inf_ave", v_n_col="q",
+    #                                  mask_x=None,mask_y="geo",mask_col=None,det=0, plot_legend=True)
+    # plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="Ye_ave", v_n_col="q",
+    #                                  mask_x=None,mask_y="geo",mask_col=None,det=0, plot_legend=True)
+
+    # plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="Mej_tot", v_n_col="q",
+    #                                  mask_x=None,mask_y="bern_geoend",mask_col=None,det=0, plot_legend=True)
+    # plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="Ye_ave", v_n_col="q",
+    #                                  mask_x=None,mask_y="bern_geoend",mask_col=None,det=0, plot_legend=True)
+    plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="vel_inf_ave", v_n_col="q",
+                                     mask_x=None,mask_y="bern_geoend",mask_col=None,det=0, plot_legend=True)
+
+    # plot_total_fluxes_sims_disk_hist()
+    # plot_den_unb_vel_z()
+    # plot_disk_mass_evol_SR()
+    # plot_disk_mass_evol_LR()
     # plot_2ejecta_1disk_timehists()
-    plot_total_fluxes_sims_disk_hist_last()
+    # plot_total_fluxes_sims_disk_hist_last()
+
+    #
+    #
+    #
+    tbl = COMPARISON_TABLE()
+
+    ### --- resulution effect on simulations with viscosity
+    tbl.print_mult_table([["DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_LR_R04", "DD2_M13641364_M0_LK_HR_R04"], # HR too short
+                         ["DD2_M15091235_M0_LK_SR", "DD2_M15091235_M0_LK_HR"],          # no
+                         ["LS220_M14691268_M0_LK_SR", "LS220_M14691268_M0_LK_HR"],      # no
+                         ["SFHo_M13641364_M0_LK_SR", "SFHo_M13641364_M0_LK_HR"],        # no
+                         ["SFHo_M14521283_M0_LK_SR", "SFHo_M14521283_M0_LK_HR"]],       # no
+                         [r"\hline",
+                          r"\hline",
+                          r"\hline",
+                          r"\hline",
+                          r"\hline"],
+                         comment=r"{Resolution effect to on the outflow properties and disk mass on the simulations with "
+                         r"subgird turbulence. Here the $t_{\text{disk}}$ "
+                         r"is the maximum postmerger time, for which the 3D is available for both simulations "
+                         r"For that time, the disk mass is interpolated using linear inteprolation. The "
+                         r"$\Delta t_{\text{wind}}$ is the maximum common time window between the time at "
+                         r"which dynamical ejecta reaches 98\% of its total mass and the end of the simulation "
+                         r"Cases where $t_{\text{disk}}$ or $\Delta t_{\text{wind}}$ is N/A indicate the absence "
+                         r"of the ovelap between 3D data fro simulations or absence of this data entirely and "
+                         r"absence of overlap between the time window in which the spiral-wave wind is computed "
+                         r"which does not allow to do a proper, one-to-one comparison. $\Delta$ is a estimated "
+                         r"change as $|value_1 - value_2|/value_1$ in percentage }",
+                         label=r"{tbl:res_effect_vis}"
+                         )
+    exit(0)

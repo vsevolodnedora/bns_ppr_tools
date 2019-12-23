@@ -167,9 +167,11 @@ class LOAD_FILES(LOAD_ITTIME):
     ]
 
     list_gw_files = [
+        "postmerger_psd_l2_m2.dat",
         "waveform_l2_m2.dat",
         "tmerger.dat",
-        "tcoll.dat"
+        "tcoll.dat",
+        "EJ.dat"
     ]
 
     list_3d_data_files = [
@@ -518,6 +520,17 @@ class COMPUTE_ARR(LOAD_FILES):
         unb_mass = dens_unb * (Constants.volume_constant ** 3)
         return np.vstack((t_unb_mass, unb_mass)).T
 
+    def get_fpeak(self):
+
+        data = self.get_gw_data("postmerger_psd_l2_m2.dat").T
+
+        f, hr, hi = data[:,0], data[:,1], data[:,2]
+        idx = f > 0.0
+        f, h = f[idx], np.sqrt(f[idx]) * np.sqrt(hr[idx] ** 2 + hi[idx] ** 2)
+        ipeak = np.argmax(np.abs(h))
+
+        fpeak = f[ipeak]
+        return fpeak
 
 class ALL_PAR(COMPUTE_ARR):
 
@@ -584,7 +597,7 @@ class ALL_PAR(COMPUTE_ARR):
             t, Mtot = total_mass[:, 0], total_mass[:, 1]
             # print(t)
             return t[-1]
-        elif v_n == "tmerg" or v_n == "tmerger":
+        elif v_n == "tmerg" or v_n == "tmerger" or v_n == "tmerg_r":
             try:
                 data = self.get_gw_data("tmerger.dat")
             except IOError:
@@ -649,6 +662,32 @@ class ALL_PAR(COMPUTE_ARR):
                 return dislmasses[UTILS.find_nearest_index(dislmasses[:, 0], np.array(dislmasses[:, 0]).max()), 1]
             else:
                 return np.nan
+        elif v_n == "fpeak":
+            try:
+                data = self.get_gw_data("postmerger_psd_l2_m2.dat").T
+            except IOError:
+                Printcolor.yellow("File not found: {} in sim: {}"
+                                  .format("postmerger_psd_l2_m2.dat", self.sim))
+                return np.nan
+            f, hr, hi = data[:, 0], data[:, 1], data[:, 2]
+            idx = f > 0.0
+            f, h = f[idx], np.sqrt(f[idx]) * np.sqrt(hr[idx] ** 2 + hi[idx] ** 2)
+            ipeak = np.argmax(np.abs(h))
+            fpeak = f[ipeak]
+            return fpeak
+        elif v_n == "EGW" or "JGW":
+            try:
+                data = self.get_gw_data("EJ.dat").T
+            except IOError:
+                Printcolor.yellow("File not found: {} in sim: {}"
+                                  .format("EJ.dat", self.sim))
+                return np.nan
+            tmerg = self.get_par("tmerg") # retarded
+            t, EGW, JGW = data[:, 0], data[:, 2], data[:, 4]
+            idx = np.argmin(np.abs(t - tmerg - 20.0))
+            egw, jgw = EGW[idx], JGW[idx]
+            if v_n == "EGW": return float(egw)
+            else: return float(jgw)
         else:
             raise NameError("no parameter found for v_n:{}".format(v_n))
 
@@ -847,6 +886,7 @@ class TWO_SIMS():
             return val1, val2
         else:
             return np.nan, np.nan
+
 
 class THREE_SIMS():
 
@@ -1487,6 +1527,7 @@ class TEX_TABLES:
             # print("\\hline")
 
         self.print_end_table()
+
 
 class COMPARISON_TABLE:
 
@@ -2301,7 +2342,325 @@ class COMPARISON_TABLE:
 
         self.print_end_table(comment, label)
 
+
+class ALL_SIMULATIONS_TABLE:
+
+    def __init__(self, simlist):
+        #
+        self.intable = Paths.output + "models_tmp2.csv"
+        self.outtable = Paths.output + "models2.csv"
+        #
+        bern_passed = ["LS220_M14691268_M0_LK_SR"]
+        self.list_eos = ["BLh", "SFHo", "SLy4", "DD2", "LS220"]
+        self.list_res = ["HR", "SR", "LR", "VLR"]
+        self.list_vis = ["LK"]
+        self.list_neut= ["M0"]
+        assert len(simlist) > 0
+        self.sims = simlist
+
+        #
+        self.header, self.table = self.load_table(self.intable)
+        Printcolor.blue("\tInitial table is loaded")
+        Printcolor.blue("------------------------------------")
+        print(self.header)
+        Printcolor.blue("------------------------------------")
+        print([run["name"] for run in self.table])
+        Printcolor.blue("------------------------------------")
+        #
+        self.check_sim_name()
+        #
+        self.fill_self_parameters()
+        #
+        self.fill_self_bern_phase_status(bern_passed)
+        #
+        self.fill_initial_data()
+        #
+        self.fill_par_data()
+        #
+        self.fill_outflow_par(det=0, mask="geo")
+        #
+        self.fill_outflow_par(det=0, mask="bern_geoend")
+        #
+        self.save_table(self.header, self.table, self.outtable)
+        #
+
+
+    @staticmethod
+    def load_table(file_name):
+        table = []
+        assert os.path.isfile(file_name)
+        with open(file_name, "r") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                table.append(row)
+                # print(row)
+            header = reader.fieldnames
+
+        # self.out_header = header
+        # self.out_table = table
+        return header, table
+
+    @staticmethod
+    def save_table(header, table, file_name):
+
+        if os.path.exists(file_name):
+            os.remove(file_name)
+
+        with open(file_name, "w") as csvfile:
+            writer = csv.DictWriter(csvfile, header)
+            writer.writeheader()
+            for run in table:
+                writer.writerow(run)
+        Printcolor.green("> Table saved: {}".format(file_name))
+
+    def check_sim_name(self):
+
+        assert len(self.table) > 0
+        for run in self.table:
+            sim = run["name"]
+
+            _eos = None
+            for eos in self.list_eos:
+                if sim.__contains__(eos):
+                    _eos = eos
+                    break
+            if _eos == None: eos_color = "red"
+            else: eos_color = "green"
+            _res = None
+            for res in self.list_res:
+                if sim.__contains__(res):
+                    _res = res
+                    break
+            if _res == None: res_color = "red"
+            else: res_color = "green"
+            _vis = None
+            for vis in self.list_vis:
+                if sim.__contains__(vis):
+                    _vis = vis
+                    break
+            if _vis == None: vis_color = "yellow"
+            else: vis_color = "green"
+            _neut = None
+            for neut in self.list_neut:
+                if sim.__contains__(neut):
+                    _neut = neut
+                    break
+            if _neut == None: neut_color = "yellow"
+            else: neut_color = "green"
+
+            Printcolor.print_colored_string(["\tCheck", sim, "eos:", _eos, "res:", _res, "vis:", _vis, "neut:", _neut],
+                                        ["blue", "green", "blue", eos_color, "blue", res_color, "blue", vis_color, "blue", neut_color])
+
+    def fill_self_parameters(self):
+        for run in self.table:
+            sim = run["name"]
+            eos = run["name"].split('_')[0]
+            m1m2 = run["name"].split('_')[1]
+            if m1m2[0] != 'M':
+                Printcolor.yellow(
+                    "\tWarning. m1m2 is not [1] component of name. Using [2] (run:{})".format(run["name"]))
+                # print("Warning. m1m2 is not [1] component of name. Using [2] (run:{})".format(run["name"]))
+                m1m2 = run["name"].split('_')[2]
+            else:
+                m1m2 = ''.join(m1m2[1:])
+            m1 = float(''.join(m1m2[:4])) / 1000
+            m2 = float(''.join(m1m2[4:])) / 1000
+            # print(run["name"])
+            _eos = None
+            for eos in self.list_eos:
+                if sim.__contains__(eos):
+                    _eos = eos
+                    break
+            if _eos == None: eos_color = "red"
+            else: eos_color = "green"
+            _res = None
+            for res in self.list_res:
+                if sim.__contains__(res):
+                    _res = res
+                    break
+            if _res == None: res_color = "red"
+            else: res_color = "green"
+            _vis = None
+            for vis in self.list_vis:
+                if sim.__contains__(vis):
+                    _vis = vis
+                    break
+            if _vis == None: vis_color = "yellow"
+            else: vis_color = "green"
+            _neut = None
+            for neut in self.list_neut:
+                if sim.__contains__(neut):
+                    _neut = neut
+                    break
+            if _neut == None: neut_color = "yellow"
+            else: neut_color = "green"
+            #
+            run["resolution"] = _res
+            run["viscosity"] = _vis
+            run["neutrinos"] = _neut
+            run["M1"] = m1
+            run["M2"] = m2
+            run["EOS"] = eos
+        Printcolor.green("> EOS, M1, M2 are extracted form the simulation name")
+
+    def fill_self_bern_phase_status(self, bern_pass):
+        assert len(bern_pass) > 0
+        for run in self.table:
+            if run["name"] in bern_pass:
+                run["bern_phase"] = "passed"
+            else:
+                run["bern_phase"] = "not passed"
+        Printcolor.green("> 'bern phase' is added from the list of ({}) simulations".format(len(bern_pass)))
+
+    def fill_initial_data(self):
+        '''
+
+        '''
+        v_ns = ["f0", "Mb1", "Mb2", "Mb", "MADM", "JADM", "q",
+                "lam21", "Mg1", "C1", "k21", "R1", "lam22", "Mg2", "C2", "k22", "R2", "k2T", "Lambda"]
+        data = {}
+        #
+        for run in self.table:
+            sim = run["name"]
+            try:
+                #
+                o_init_data = LOAD_INIT_DATA(sim)
+                #
+                data[sim] = {}
+                for v_n in v_ns:
+                    data[sim][v_n] = o_init_data.get_par(v_n)
+                #
+            except IOError:
+                Printcolor.red("{} Failed to locate initial data".format(sim))
+        Printcolor.green("> Initial data collected")
+        #
+        missing_data = []
+        for run in self.table:
+            sim = run["name"]
+            if sim in data.keys():
+                for v_n in v_ns:
+                    if not v_n in self.header:
+                        raise NameError("v_n:{} is not in the file header".format(v_n))
+                    run[v_n] = data[sim][v_n]
+            else:
+                missing_data.append(sim)
+        Printcolor.green("> Initial data appended.")
+        if len(missing_data) > 0:
+            Printcolor.red("\t Data is not found for ({}) runs".format(len(missing_data)))
+
+    def fill_par_data(self):
+        """
+
+        """
+        v_ns = ["fpeak", "EGW", "JGW",
+                "tcoll_gw","Mdisk3D", "tmerg_r", "Munb_tot", "Munb_bern_tot",
+                "tcoll", "Mdisk", "tdisk3D","Mdisk3D", "tdisk3Dmax", "Mdisk3Dmax"]
+        #
+        data = {}
+        #
+        complete = True
+        missing_data = []
+        #
+        for run in self.table:
+            sim = run["name"]
+            o_par = ADD_METHODS_ALL_PAR(sim)
+            #
+            data[sim] = {}
+            for v_n in v_ns:
+                # rescaling time to postmerger
+                if v_n in ["tcoll", "tend", "tcoll_gw", "tdisk3Dmax", "tdisk3D"]:
+                    tmerg = o_par.get_par("tmerg")
+                    data[sim][v_n] = o_par.get_par(v_n) - tmerg
+                else:
+                    data[sim][v_n] = o_par.get_par(v_n)
+                if np.isnan(data[sim][v_n]):
+                    complete = False
+                    missing_data.append(sim)
+        #
+        Printcolor.green("> GW data collected")
+        missing = []
+        if not complete:
+            for run in self.table:
+                sim = run["name"]
+                missing_v_ns = []
+                for v_n in v_ns:
+                    if np.isnan(data[sim][v_n]):
+                        missing_v_ns.append(v_n)
+                if len(v_ns) > 0:
+                    missing.append(sim)
+                    Printcolor.print_colored_string(["\t{}".format(sim), "missing:", missing_v_ns],
+                                                    ["blue", "red", "red"])
+        #
+        for run in self.table:
+            sim = run["name"]
+            for v_n in v_ns:
+                if not v_n in self.header:
+                    raise NameError("v_n:{} is not in the file header".format(v_n))
+                run[v_n] = data[sim][v_n]
+        Printcolor.green("> GW data appended.")
+        if len(missing) > 0:
+            Printcolor.red("\t GW Data is missing for ({}) runs".format(len(missing)))
+
+    def fill_outflow_par(self, det=0, mask="geo"):
+
+        if mask == "geo":
+            v_ns = ["Mej_tot", "Ye_ave", "s_ave", "vel_inf_ave", "E_kin_ave", "theta_rms", "tend", "t98mass"]
+        else:
+            v_ns = ["Mej_tot", "Ye_ave", "s_ave", "vel_inf_ave", "E_kin_ave", "theta_rms"]
+
+
+        # v_ns = ["Mej_tot", "Ye_ave", "s_ave", "vel_inf_ave", "E_kin_ave", "theta_rms", "tend", "t98mass"]
+        # Mej_tot-geo,Ye_ave-geo,s_ave-geo,vel_inf_ave-geo,E_kin_ave-geo,theta_rms-geo,
+        # Mej_tot-bern_geoend,Ye_ave-bern_geoend,s_ave-bern_geoend,vel_inf_ave-bern_geoend,E_kin_ave-bern_geoend,theta_rms-bern_geoend,
+        data = {}
+        #
+        complete = True
+        missing_data = []
+        #
+        for run in self.table:
+            sim = run["name"]
+            o_par = ADD_METHODS_ALL_PAR(sim)
+            #
+            data[sim] = {}
+            for v_n in v_ns:
+                # rescaling time to postmerger
+                if v_n in ["tend", "t98mass"]:
+                    tmerg = o_par.get_par("tmerg")
+                    data[sim][v_n + "-" + mask] = o_par.get_outflow_par(det, mask, v_n) - tmerg
+                else:
+                    data[sim][v_n + "-" + mask] = o_par.get_outflow_par(det, mask, v_n)
+                if np.isnan(data[sim][v_n + "-" + mask]):
+                    complete = False
+                    missing_data.append(sim)
+        #
+        Printcolor.green("> OUTFLOW data collected")
+        missing = []
+        if not complete:
+            for run in self.table:
+                sim = run["name"]
+                missing_v_ns = []
+                for v_n in v_ns:
+                    if np.isnan(data[sim][v_n + "-" + mask]):
+                        missing_v_ns.append(v_n + "-" + mask)
+                if len(v_ns) > 0:
+                    missing.append(sim)
+                    Printcolor.print_colored_string(["\t{}".format(sim), "missing:", missing_v_ns],
+                                                    ["blue", "red", "red"])
+        # ---
+        for run in self.table:
+            sim = run["name"]
+            for v_n in v_ns:
+                if not v_n + "-" + mask in self.header:
+                    raise NameError("v_n:{} is not in the file header".format(v_n + "-" + mask))
+                run[v_n + "-" + mask] = data[sim][v_n + "-" + mask]
+        Printcolor.print_colored_string(["> OUTFLOW data appended", "det:", str(det), "mask", mask],
+                                        ["green", "blue", "green", "blue", "green"])
+        if len(missing) > 0:
+            Printcolor.red("\t OUTFLOW Data is missing for ({}) runs".format(len(missing)))
+
+
 """ ================================================================================================================ """
+
 
 
 # class ErrorTexTables:
@@ -3220,6 +3579,331 @@ class ErrorEstimation:
 """=================================================================================================================="""
 
 ''' ejecta summory '''
+
+def __get_value(o_init, o_par, det=None, mask=None, v_n=None):
+
+    if v_n in o_init.list_v_ns and mask == None:
+        value = o_init.get_par(v_n)
+    elif not v_n in o_init.list_v_ns and mask == None:
+        value = o_par.get_par(v_n)
+    elif not v_n in o_init.list_v_ns and mask != None:
+        value = o_par.get_outflow_par(det, mask, v_n)
+    else:
+        raise NameError("unrecognized: v_n_x:{} mask_x:{} det:{} combination"
+                        .format(v_n, mask, det))
+    if value == None or np.isinf(value) or np.isnan(value):
+        raise ValueError("sim: {} det:{} mask:{} v_n:{} --> value:{} wrong!"
+                         .format(o_par.sim,det,mask,v_n, value))
+    return value
+
+def plot_summary_ejecta_with_error_bars():
+    v_n_x = "Lambda"
+    v_n_y = "Mej_tot"
+    v_n_col = "q"
+    mask_x=None
+    mask_y="geo"
+    mask_col=None
+    det=0
+
+    simulations = {
+
+        "DD2":
+            {
+                "q=1": [
+                        ["DD2_M13641364_M0_LR",  # 50 ms     3D
+                        "DD2_M13641364_M0_SR",  # 104 ms    3D              [LONG]
+                        "DD2_M13641364_M0_HR"],  # 19 ms     no3D
+
+                        ["DD2_M13641364_M0_LR_R04",  # 101 ms    no3D
+                        "DD2_M13641364_M0_SR_R04",  # 119 ms    3D (last 3)     [LONG]
+                        "DD2_M13641364_M0_HR_R04"],  # 18 ms     no3D
+
+                        ["DD2_M13641364_M0_LK_LR_R04",  # 130 ms    no3D
+                        "DD2_M13641364_M0_LK_SR_R04",  # 120 ms    3D              [LONG]
+                        "DD2_M13641364_M0_LK_HR_R04"],  # 77 ms     3D
+                        ],
+            },
+
+    }
+
+    # data storage
+    data = {"BLh": {}, "DD2": {}, "LS220": {}, "SFHo": {}, "SLy4": {}}
+
+    for eos in simulations.keys():
+        all_x_centers, all_x_min, all_x_max = [], [], []
+        all_y_centers, all_y_min, all_y_max = [], [], []
+        all_col_centers = []
+        for q in simulations[eos].keys():
+            data[eos][q] = {}
+            print("--- | EOS:{} | ----------- | q:{} | ---".format(eos, q))
+            x_centers, x_min, x_max = [], [], []
+            y_centers, y_min, y_max = [], [], []
+            coll_centers, coll_min, coll_max = [], [], []
+            for sim_grop in simulations[eos][q]:
+                x_arr = []
+                y_arr = []
+                coll_arr = []
+                print("\tGrouip: {}".format(sim_grop[0]))
+                x_sr = None
+                y_sr = None
+                col_sr = None
+                for sim in sim_grop: #[LR, SR, HR]
+                    #
+                    o_init = LOAD_INIT_DATA(sim)
+                    o_par = ADD_METHODS_ALL_PAR(sim)
+                    #
+                    if sim.__contains__("LR"):
+                        x_arr.append(__get_value(o_init, o_par, det, mask_x, v_n_x))
+                        y_arr.append(__get_value(o_init, o_par, det, mask_y, v_n_y))
+                    elif sim.__contains__("SR"):
+                        x_sr = __get_value(o_init, o_par, det, mask_x, v_n_x)
+                        y_sr = __get_value(o_init, o_par, det, mask_y, v_n_y)
+                        col_sr = __get_value(o_init, o_par, det, mask_col, v_n_col)
+                        x_arr.append(x_sr)
+                        y_arr.append(y_sr)
+                    elif sim.__contains__("HR"):
+                        x_arr.append(__get_value(o_init, o_par, det, mask_x, v_n_x))
+                        y_arr.append(__get_value(o_init, o_par, det, mask_y, v_n_y))
+                    #
+                #
+                x_arr = np.array(x_arr)
+                y_arr = np.array(y_arr)
+                col_arr = np.array(col_sr)
+                #
+                x_centers.append(x_sr)
+                y_centers.append(y_sr)
+                coll_centers.append(col_arr)
+                x_min.append(x_arr.min())
+                x_max.append(x_arr.max())
+                y_min.append(y_arr.min())
+                y_max.append(y_arr.max())
+                #
+                print("\t\tX | det:{} | mask:{} | v_n:{} | {}".format(det, mask_x, v_n_x, [x_arr.min(), x_arr.max()]))
+                print("\t\tY | det:{} | mask:{} | v_n:{} | {}".format(det, mask_y, v_n_y, [y_arr.min(), y_arr.max()]))
+
+            data[eos][q][v_n_x] = x_centers
+            data[eos][q][v_n_y] = y_centers
+            data[eos][q][v_n_col] = coll_centers
+            data[eos][q]["xmin"] = x_min
+            data[eos][q]["ymin"] = y_min
+            data[eos][q]["xmax"] = x_max
+            data[eos][q]["ymax"] = y_max
+
+            #
+            all_x_centers = all_x_centers + x_centers
+            all_y_centers = all_y_centers + y_centers
+            all_col_centers = all_col_centers + coll_centers
+            all_x_min = all_x_min + x_min
+            all_y_min = all_y_min + y_min
+            all_x_max = all_x_max + x_max
+            all_y_max = all_y_max + y_max
+
+
+        data[eos][v_n_x + 's'] = all_x_centers
+        data[eos][v_n_y + 's'] = all_y_centers
+        data[eos]["xmin" + 's'] = all_x_min
+        data[eos]["xmax" + 's'] = all_x_max
+        data[eos]["ymin" + 's'] = all_y_min
+        data[eos]["ymax" + 's'] = all_y_max
+        data[eos][v_n_col + 's'] = all_col_centers
+
+    #
+    #
+    figname = ''
+    if mask_x == None:
+        figname = figname + v_n_x + '_'
+    else:
+        figname = figname + v_n_x + '_' + mask_x + '_'
+    if mask_y == None:
+        figname = figname + v_n_y + '_'
+    else:
+        figname = figname + v_n_y + '_' + mask_y + '_'
+    if mask_col == None:
+        figname = figname + v_n_col + '_'
+    else:
+        figname = figname + v_n_col + '_' + mask_col + '_'
+    if det == None:
+        figname = figname + ''
+    else:
+        figname = figname + str(det)
+    figname = figname + '2.png'
+    #
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+    o_plot.gen_set["figname"] = figname
+    o_plot.gen_set["sharex"] = True
+    o_plot.gen_set["sharey"] = False
+    o_plot.gen_set["subplots_adjust_h"] = 0.0
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+    #
+
+    #
+    i_col = 1
+    eoss =  ["SLy4", "SFHo", "BLh", "LS220", "DD2"]
+    for eos in eoss:
+        if len(data[eos].keys()) > 0:
+            print(eos, data[eos].keys())
+
+            # LEGEND
+
+            # if eos == "DD2" and plot_legend:
+            #     for res in ["HR", "LR", "SR"]:
+            #         marker_dic_lr = {
+            #             'task': 'line', 'ptype': 'cartesian',
+            #             'position': (1, i_col),
+            #             'xarr': [-1], "yarr": [-1],
+            #             'xlabel': None, "ylabel": None,
+            #             'label': res,
+            #             'marker': 'd', 'color': 'gray', 'ms': 8, 'alpha': 1.,
+            #             'sharey': False,
+            #             'sharex': False,  # removes angular citkscitks
+            #             'fontsize': 14,
+            #             'labelsize': 14
+            #         }
+            #         if res == "HR": marker_dic_lr['marker'] = "v"
+            #         if res == "SR": marker_dic_lr['marker'] = "d"
+            #         if res == "LR": marker_dic_lr['marker'] = "^"
+            #         # if res == "BH": marker_dic_lr['marker'] = "x"
+            #         if res == "SR":
+            #             marker_dic_lr['legend'] = {'loc': 'upper right', 'ncol': 1, 'fontsize': 12, 'shadow': False,
+            #                                        'framealpha': 0.5, 'borderaxespad': 0.0}
+            #         o_plot.set_plot_dics.append(marker_dic_lr)
+            # #
+            xarr = np.array(data[eos][v_n_x + 's'])
+            yarr = np.array(data[eos][v_n_y + 's'])
+            colarr = data[eos][v_n_col + 's']
+            #
+            xmins = np.array(data[eos]["xmin" + 's'])
+            xmaxs = np.array(data[eos]["xmax" + 's'])
+            ymins = np.array(data[eos]["ymin" + 's'])
+            ymaxs = np.array(data[eos]["ymax" + 's'])
+            #
+            if v_n_y == "Mej_tot":
+                yarr = yarr * 1e2
+                ymins = ymins * 1e2
+                ymaxs = ymaxs * 1e2
+            #
+            for x, y, xmin, xmax, ymin, ymax in zip(xarr, yarr, xmins, xmaxs, ymins, ymaxs):
+                print(x, y, xmin, xmax, ymin, ymax)
+                x_err_dic = {
+                    'task': 'line', 'ptype': 'cartesian',
+                    'position': (1, i_col),
+                    'xarr': [xmin, xmax], "yarr": [y, y],
+                    'ls': '-', 'lw': 0.8, 'alpha':1., 'color':'gray', 'ds': 'default',
+                    'xscale': None, 'yscale': None,
+                }
+                o_plot.set_plot_dics.append(x_err_dic)
+                y_err_dic = {
+                    'task': 'line', 'ptype': 'cartesian',
+                    'position': (1, i_col),
+                    'xarr': [x, x], "yarr": [ymin, ymax],
+                    'ls': '-', 'lw': 0.8, 'alpha':1., 'color':'gray', 'ds': 'default',
+                    'xscale': None, 'yscale': None,
+                }
+                o_plot.set_plot_dics.append(y_err_dic)
+
+            dic = {
+                'task': 'scatter', 'ptype': 'cartesian',  # 'aspect': 1.,
+                'xarr': xarr, "yarr": yarr, "zarr": colarr,
+                'position': (1, i_col),  # 'title': '[{:.1f} ms]'.format(time_),
+                'cbar': {},
+                'v_n_x': v_n_x, 'v_n_y': v_n_y, 'v_n': v_n_col,
+                'xlabel': None, "ylabel": Labels.labels(v_n_y),
+                'xmin': 300, 'xmax': 900, 'ymin': 0.03, 'ymax': 0.3, 'vmin': 1.0, 'vmax': 1.8,
+                'fill_vmin': False,  # fills the x < vmin with vmin
+                'xscale': None, 'yscale': None,
+                'cmap': 'viridis', 'norm': None, 'ms': 80, 'marker': 'd', 'alpha': 0.8, "edgecolors": None,
+                'tick_params': {"axis": 'both', "which": 'both', "labelleft": True,
+                                "labelright": False,  # "tick1On":True, "tick2On":True,
+                                "labelsize": 12,
+                                "direction": 'in',
+                                "bottom": True, "top": True, "left": True, "right": True},
+                'yaxiscolor': {'bottom': 'black', 'top': 'black', 'right': 'black', 'left': 'black'},
+                'minorticks': True,
+                'title': {"text": eos, "fontsize": 12},
+                'label': "xxx",
+                'legend': {},
+                'sharey': False,
+                'sharex': False,  # removes angular citkscitks
+                'fontsize': 14,
+                'labelsize': 14
+            }
+            #
+            if v_n_y == "Mdisk3Dmax":
+                dic['ymin'], dic['ymax'] = 0.03, 0.30
+            if v_n_y == "Mej_tot" and mask_y == "geo":
+                dic['ymin'], dic['ymax'] = 0, 0.8
+            if v_n_y == "Mej_tot" and mask_y == "bern_geoend":
+                dic['ymin'], dic['ymax'] = 0, 3.2
+            if v_n_y == "Ye_ave" and mask_y == "geo":
+                dic['ymin'], dic['ymax'] = 0.1, 0.3
+            if v_n_y == "Ye_ave" and mask_y == "bern_geoend":
+                dic['ymin'], dic['ymax'] = 0.1, 0.4
+            if v_n_y == "vel_inf_ave" and mask_y == "geo":
+                dic['ymin'], dic['ymax'] = 0.1, 0.3
+            if v_n_y == "vel_inf_ave" and mask_y == "bern_geoend":
+                dic['ymin'], dic['ymax'] = 0.05, 0.25
+            #
+            if eos == "SLy4":
+                dic['xmin'], dic['xmax'] = 380, 420
+                dic['xticks'] = [400]
+            if eos == "SFHo":
+                dic['xmin'], dic['xmax'] = 400, 440
+                dic['xticks'] = [420]
+            if eos == "BLh":
+                dic['xmin'], dic['xmax'] = 520, 550
+                dic['xticks'] = [530]
+            if eos == "LS220":
+                dic['xmin'], dic['xmax'] = 690, 730
+                dic['xticks'] = [710]
+            if eos == "DD2":
+                dic['xmin'], dic['xmax'] = 830, 860
+                dic['xticks'] = [840, 850]
+            if eos == "SLy4":
+                dic['tick_params']['right'] = False
+                dic['yaxiscolor']["right"] = "lightgray"
+            elif eos == "DD2":
+                dic['tick_params']['left'] = False
+                dic['yaxiscolor']["left"] = "lightgray"
+            else:
+                dic['tick_params']['left'] = False
+                dic['tick_params']['right'] = False
+                dic['yaxiscolor']["left"] = "lightgray"
+                dic['yaxiscolor']["right"] = "lightgray"
+
+            #
+            # if eos != "SLy4" and eos != "DD2":
+            #     dic['yaxiscolor'] = {'left':'lightgray','right':'lightgray', 'label': 'black'}
+            #     dic['ytickcolor'] = {'left':'lightgray','right':'lightgray'}
+            #     dic['yminortickcolor'] = {'left': 'lightgray', 'right': 'lightgray'}
+            # elif eos == "DD2":
+            #     dic['yaxiscolor'] = {'left': 'lightgray', 'right': 'black', 'label': 'black'}
+            #     # dic['ytickcolor'] = {'left': 'lightgray'}
+            #     # dic['yminortickcolor'] = {'left': 'lightgray'}
+            # elif eos == "SLy4":
+            #     dic['yaxiscolor'] = {'left': 'black', 'right': 'lightgray', 'label': 'black'}
+            #     # dic['ytickcolor'] = {'right': 'lightgray'}
+            #     # dic['yminortickcolor'] = {'right': 'lightgray'}
+
+            #
+            if eos != eoss[0]:
+                dic['sharey'] = True
+            if eos == "BLh":
+                dic['xlabel'] = Labels.labels(v_n_x)
+            if eos == 'DD2':
+                dic['cbar'] = {'location': 'right .03 .0', 'label': Labels.labels(v_n_col),  # 'fmt': '%.1f',
+                               'labelsize': 14, 'fontsize': 14}
+            #
+            i_col = i_col + 1
+            o_plot.set_plot_dics.append(dic)
+        #
+
+    #
+    o_plot.main()
+    exit(1)
 
 def plot_last_disk_mass_with_lambda(v_n_x, v_n_y, v_n, det=None, mask=None):
     #

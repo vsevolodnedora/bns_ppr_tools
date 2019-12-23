@@ -718,7 +718,10 @@ class LOAD_PROFILE(LOAD_ITTIME):
         if not os.path.isfile(fpath):
             raise IOError("Expected file:{} NOT found"
                           .format(fpath))
-        dfile = h5py.File(fpath, "r")
+        try:
+            dfile = h5py.File(fpath, "r")
+        except IOError:
+            raise IOError("Cannot open file: {}".format(fpath))
         self.dfile_matrix[self.i_it(it)] = dfile
 
     def is_dfile_loaded(self, it):
@@ -2536,7 +2539,11 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
         if not os.path.isfile(fpath):
             raise IOError("file: {} not found".format(fpath))
 
-        dfile = h5py.File(fpath, "r")
+        try:
+            dfile = h5py.File(fpath, "r")
+        except IOError:
+            raise IOError("unable to open {}".format(fpath))
+
         for rl in np.arange(start=0, stop=self.nlevels, step=1):
             for v_n in self.list_v_ns:
                 try:

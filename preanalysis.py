@@ -1495,14 +1495,32 @@ class INIT_DATA:
         assert initial_data != ""
         #
         run = initial_data.split("/")[-3]
+        initial_data_dirname = initial_data.split("/")[-2]
         if not run.__contains__("R"):
             if str(initial_data.split("/")[-2]).__contains__("R05"):
                 Printcolor.yellow("\tWrong path of initial data. Using R05 for initial_data:'\n\t{}".format(initial_data))
                 run = "R05"
+                initial_data_dirname = initial_data.split("/")[-2]
             else:
-                raise ValueError("found 'run':{} does not contain 'R'. in initial_data:{}".format(run, initial_data))
+                for n in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
+                    _run = "R0{:d}".format(n)
+                    if os.path.isdir(Paths.lorene+_run+'/'):
+                        _masses = self.sim.split('_')[1]
+                        assert _masses.__contains__("M")
+                        _masses.replace('M', '')
+                        _lorene = Paths.lorene+_run+'/'
+                        onlyfiles = [f for f in os.listdir(_lorene) if os.path.isfile(os.path.join(_lorene, f))]
+                        assert len(onlyfiles) > 0
+                        for onefile in onlyfiles:
+                            if onefile.__contains__(_masses):
+                                initial_data_dirname = onefile.split('.')[0]
+                                run = _run
+                                break
+                if run == initial_data.split("/")[-3]:
+                    raise NameError("Filed to extract 'run': from: {}".format(initial_data))
+                #raise ValueError("found 'run':{} does not contain 'R'. in initial_data:{}".format(run, initial_data))
         #
-        initial_data_dirname = initial_data.split("/")[-2]
+
         #
         pizza_fname = str(pizza_eos_fname.split("/")[-1])
         pizza_fname = pizza_fname[:-1]
@@ -1516,6 +1534,7 @@ class INIT_DATA:
         # print(hydro_fname)
         # print(pizza_fname)
         # exit(1)
+        print("\t", run, initial_data_dirname, pizza_fname, hydro_fname, weak_fname)
 
         return run, initial_data_dirname, pizza_fname, hydro_fname, weak_fname
 
