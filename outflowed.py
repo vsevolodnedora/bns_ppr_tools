@@ -508,9 +508,11 @@ class COMPUTE_OUTFLOW_SURFACE(EXTRACT_OUTFLOW_SURFACE):
     #     int_flux = 0.0
 
 # with parallelalisation
-class LOAD_RESHAPE_SAVE_PARALLEL:
+class LOAD_RESHAPE_SAVE_PARALLEL(LOAD_ITTIME):
 
-    def __init__(self, sim, det, n_proc, eosfname):
+    def __init__(self, sim, det, n_proc, eosfname, maxtime=-1.):
+
+        LOAD_ITTIME.__init__(self, sim)
 
         self.det = det
         self.sim = sim
@@ -526,6 +528,14 @@ class LOAD_RESHAPE_SAVE_PARALLEL:
         if not os.path.isdir(self.outdirtmp):
             os.mkdir(self.outdirtmp)
         #
+        if maxtime == -1.:
+            maxit = -1.
+        else:
+            _, d1it, ditimes = self.get_ittime("overall", "d1")
+            maxit = self.get_it_for_time(maxtime, "d1")
+            Printcolor.print_colored_string(["Max. it set:", "{}".format(maxit), "out of", "{}".format(d1it[-1])],
+                                            ["yellow", "green", "yellow", "green"])
+        #
         fname = "outflow_surface_det_%d_fluxdens.asc" % det
         if not os.path.isdir(Paths.gw170817 + sim + "/"):
             raise IOError("directory does not exist: {}".format(Paths.gw170817 + sim + "/"))
@@ -539,7 +549,7 @@ class LOAD_RESHAPE_SAVE_PARALLEL:
         #
         print("Pool procs = %d" % n_procs)
         pool = mp.Pool(processes=int(n_procs))
-        task = partial(serial_load_reshape_save, grid_object=self.grid, outdir=self.outdirtmp)
+        task = partial(serial_load_reshape_save, grid_object=self.grid, outdir=self.outdirtmp, maxit=maxit)
         result_list = pool.map(task, self.flist)
         #
         tmp_flist = [Paths.ppr_sims + sim + '/tmp/' + outfile.split('/')[-3] + ".h5" for outfile in self.flist]
@@ -2051,7 +2061,7 @@ class EJECTA_PARS(EJECTA_NORMED_NUCLEO):
 
 """ ====================================| OUTFLOW.ASC -> OUTFLOW.h5 |=============================================== """
 # for parallelasiation code
-def serial_load_reshape_save(outflow_ascii_file, outdir, grid_object):
+def serial_load_reshape_save(outflow_ascii_file, outdir, grid_object, maxit=-1):
     v_n_to_file_dic = {
         'it': 0,
         'time': 1,
@@ -2075,6 +2085,8 @@ def serial_load_reshape_save(outflow_ascii_file, outdir, grid_object):
         data = np.array(fdata[i_v_n])
         data_matrix[v_n] = np.array(data)
     iterations = np.sort(np.unique(data_matrix["it"]))
+    if maxit > -1.:
+        iterations = iterations[iterations <= maxit]
     reshaped_data_matrix = [{} for i in range(len(iterations))]
     # extract the data and reshape to [ntheta, nphi] grid for every iteration
     for i_it, it in enumerate(iterations):
@@ -2891,6 +2903,7 @@ if __name__ == '__main__':
     #
     parser.add_argument("--v_n", dest="v_ns", nargs='+', required=False, default=[], help="variable names to compute")
     #
+    parser.add_argument("--maxtime", dest="maxtime", required=False, default=-1, help="Time limiter for 'reshape' task only")
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
     parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")
@@ -2912,6 +2925,7 @@ if __name__ == '__main__':
     glob_v_ns = args.v_ns
     glob_masks = args.masks
     glob_nproc = int(args.num_proc)
+    glob_maxtime = args.maxtime
     # check given data
     if not glob_eos == None:
         if not os.path.isfile(glob_eos):
@@ -2997,7 +3011,8 @@ if __name__ == '__main__':
                 Printcolor.print_colored_string(
                     ["Task:", "reshape", "detector:", "{}".format(det), "Executing..."],
                     ["blue", "green", "blue", "green", "green"])
-                LOAD_RESHAPE_SAVE_PARALLEL(glob_sim, det, glob_nproc, glob_eos)
+                LOAD_RESHAPE_SAVE_PARALLEL(glob_sim, det, glob_nproc, glob_eos,
+                                           maxtime=float(glob_maxtime)*1e-3)
             else:
                 Printcolor.print_colored_string(
                     ["Task:", "reshape", "detector:", "{}".format(det), "skipping..."],
