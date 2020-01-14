@@ -528,8 +528,8 @@ class LOAD_RESHAPE_SAVE_PARALLEL(LOAD_ITTIME):
         if not os.path.isdir(self.outdirtmp):
             os.mkdir(self.outdirtmp)
         #
-        if maxtime == -1.:
-            maxit = -1.
+        if maxtime < 0.:
+            maxit = -1
         else:
             _, d1it, ditimes = self.get_ittime("overall", "d1")
             maxit = self.get_it_for_time(maxtime, "d1")
@@ -2903,7 +2903,7 @@ if __name__ == '__main__':
     #
     parser.add_argument("--v_n", dest="v_ns", nargs='+', required=False, default=[], help="variable names to compute")
     #
-    parser.add_argument("--maxtime", dest="maxtime", required=False, default=-1, help="Time limiter for 'reshape' task only")
+    parser.add_argument("--maxtime", dest="maxtime", required=False, default=-1., help="Time limiter for 'reshape' task only")
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
     parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")

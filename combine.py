@@ -186,7 +186,8 @@ class LOAD_FILES(LOAD_ITTIME):
 
         self.list_detectors = [0, 1]
 
-        self.list_masks = ["geo", "bern", "bern_geoend", "Y_e04_geoend", "theta60_geoend"]
+        self.list_masks = ["geo", "bern", "bern_geoend", "Y_e04_geoend", "theta60_geoend",
+                           "geo_entropy_above_10", "geo_entropy_below_10"]
         if add_mask != None and not add_mask in self.list_masks:
             self.list_masks.append(add_mask)
 
@@ -531,6 +532,7 @@ class COMPUTE_ARR(LOAD_FILES):
 
         fpeak = f[ipeak]
         return fpeak
+
 
 class ALL_PAR(COMPUTE_ARR):
 
@@ -1106,11 +1108,12 @@ class TEX_TABLES:
         self.sim_list = []
 
         # setting up parameters
+
         self.init_data_v_ns = ["EOS", "q", "note", "res", "vis"]
         self.init_data_prec = ["", ".1f", "", "", ""]
         #
-        self.col_d3_gw_data_v_ns = ['tend', "tdisk3D", "Mdisk3D", 'tcoll_gw', "Mdisk"]
-        self.col_d3_gw_data_prec = [".1f", ".1f",       ".2f",       ".2f",     ".2f"]
+        self.col_d3_gw_data_v_ns = ["Mbi/Mb", 'tend', "tdisk3D", "Mdisk3D", 'tcoll_gw', "Mdisk"]
+        self.col_d3_gw_data_prec = [".2f", ".1f", ".1f",       ".2f",       ".2f",     ".2f"]
         #
         self.outflow_data_v_ns = ['Mej_tot', 'Ye_ave', 'vel_inf_ave', 'theta_rms',
                                   'Mej_tot', 'Ye_ave', 'vel_inf_ave', 'theta_rms']
@@ -1149,6 +1152,7 @@ class TEX_TABLES:
         elif v_n == "res": return r"res"
         elif v_n == "vis": return "LK"
         elif v_n == "note": return r"note"
+        elif v_n == "Mbi/Mb": return r"$Mb_i/Mb$"
         else:
             raise NameError("No label found for other v_n: {}".format(v_n))
     @staticmethod
@@ -1173,6 +1177,23 @@ class TEX_TABLES:
             raise NameError("No label found for outflow v_n: {} and mask: {} ".format(v_n, mask))
 
     # --- DATA --- #
+
+    def get_mixed_data_val(self, o_init_data, o_coll_data, v_n, prec):
+
+        if v_n == "Mbi/Mb":
+            mbi = float(o_init_data.get_par("Mb1") + o_init_data.get_par("Mb2"))
+            mass = o_coll_data.get_total_mass()
+            mb0 = mass[0,1]
+
+            val = (mbi / mb0) * 100
+
+            if prec == "":
+                return str(val)
+            else:
+                return ("%{}".format(prec) % float(val))
+
+        else:raise NameError("Unknown v_n for mixed data: v_n:{}".format(v_n))
+
 
     def get_inital_data_val(self, o_data, v_n, prec):
         #
@@ -1205,7 +1226,19 @@ class TEX_TABLES:
         else:
             return ("%{}".format(prec) % float(val))
 
-    def get_col_gw_d3_val(self, o_data, v_n, prec):
+    def get_col_gw_d3_val(self, o_init_data, o_data, v_n, prec):
+
+        if v_n == "Mbi/Mb":
+            mbi = float(o_init_data.get_par("Mb1") + o_init_data.get_par("Mb2"))
+            mass = o_data.get_total_mass()
+            mb0 = mass[0,1]
+
+            val = (mbi / mb0)
+
+            if prec == "":
+                return str(val)
+            else:
+                return ("%{}".format(prec) % float(val))
 
         val = o_data.get_par(v_n)
 
@@ -1340,9 +1373,10 @@ class TEX_TABLES:
             # add coll gw d3 data:
             if len(self.col_d3_gw_data_v_ns) > 0 or len(self.outflow_data_v_ns) > 0:
                 o_data = ALL_PAR(sim)
+                o_init_data = LOAD_INIT_DATA(sim)
                 for other_v_n, other_prec in zip(self.col_d3_gw_data_v_ns, self.col_d3_gw_data_prec):
                     print("\tPrinting Initial Data {}".format(other_v_n))
-                    val = self.get_col_gw_d3_val(o_data, v_n=other_v_n, prec=other_prec)
+                    val = self.get_col_gw_d3_val(o_init_data, o_data, v_n=other_v_n, prec=other_prec)
                     row = row + val
                     if j != len(all_v_ns) - 1: row = row + ' & '
                     j = j + 1
@@ -1419,9 +1453,10 @@ class TEX_TABLES:
             # add coll gw d3 data:
             if len(col_d3_gw_data_v_ns) > 0 or len(outflow_data_v_ns) > 0:
                 o_data = ALL_PAR(sim)
+                o_init_data = LOAD_INIT_DATA(sim)
                 for other_v_n, other_prec in zip(col_d3_gw_data_v_ns, col_d3_gw_data_prec):
                     print("\tPrinting Initial Data {}".format(other_v_n))
-                    val = self.get_col_gw_d3_val(o_data, v_n=other_v_n, prec=other_prec)
+                    val = self.get_col_gw_d3_val(o_init_data, o_data, v_n=other_v_n, prec=other_prec)
                     row = row + val
                     if j != len(all_v_ns) - 1: row = row + ' & '
                     j = j + 1
@@ -2345,7 +2380,7 @@ class COMPARISON_TABLE:
 
 class ALL_SIMULATIONS_TABLE:
 
-    def __init__(self, simlist):
+    def __init__(self):
         #
         self.intable = Paths.output + "models_tmp2.csv"
         self.outtable = Paths.output + "models2.csv"
@@ -2355,8 +2390,8 @@ class ALL_SIMULATIONS_TABLE:
         self.list_res = ["HR", "SR", "LR", "VLR"]
         self.list_vis = ["LK"]
         self.list_neut= ["M0"]
-        assert len(simlist) > 0
-        self.sims = simlist
+        # assert len(simlist) > 0
+        # self.sims = simlist
 
         #
         self.header, self.table = self.load_table(self.intable)
@@ -2657,7 +2692,6 @@ class ALL_SIMULATIONS_TABLE:
                                         ["green", "blue", "green", "blue", "green"])
         if len(missing) > 0:
             Printcolor.red("\t OUTFLOW Data is missing for ({}) runs".format(len(missing)))
-
 
 """ ================================================================================================================ """
 

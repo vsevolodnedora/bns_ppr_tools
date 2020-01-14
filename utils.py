@@ -356,18 +356,14 @@ class Labels:
         pass
 
     @staticmethod
-    def labels(v_n, alternative=False):
+    def labels(v_n, mask=None):
         # solar
 
         if v_n == 'theta':
-            if alternative:
-                return r"$\theta$"
-            else:
                 return r"Angle from orbital plane"
 
         if v_n == 'temp' or v_n == "temperature":
             return r"$T$ [GEO]"
-
 
         elif v_n == 'phi':
             return r"Azimuthal angle"
@@ -382,7 +378,33 @@ class Labels:
             return r'$M_{\rm{disk;max}}$ $[M_{\odot}]$'
 
         elif v_n == 'ejmass' or v_n == "Mej_tot":
-            return r'$M_{\rm{ej}}$ $[10^{-2}M_{\odot}]$'
+            if mask == None:
+                return r'$M_{\rm{ej}}$ $[10^{-2}M_{\odot}]$'
+            elif mask == "geo_entropy_above_10":
+                return r'$M_{\rm{ej;s>10}}$ $[10^{-2}M_{\odot}]$'
+            elif mask == "geo_entropy_below_10":
+                return r'$M_{\rm{ej;s<10}}$ $[10^{-2}M_{\odot}]$'
+            else:
+                raise NameError("label for v_n:{} mask:{} is not found".format(v_n, mask))
+        elif v_n == "Mej_tot_scaled":
+            if mask == None:
+                return r'$M_{\rm{ej}}/M_{\rm{b;tot}}$ $[10^{-2}M_{\odot}]$'
+            elif mask == "geo_entropy_above_10":
+                return r'$M_{\rm{ej;s>10}}/M_{\rm{b;tot}}$ $[10^{-2}M_{\odot}]$'
+            elif mask == "geo_entropy_below_10":
+                return r'$M_{\rm{ej;s<10}}/M_{\rm{b;tot}}$ $[10^{-2}M_{\odot}]$'
+            else:
+                raise NameError("label for v_n:{} mask:{} is not found".format(v_n, mask))
+
+        elif v_n == "Mej_tot_scaled2":
+            if mask == None:
+                return r'$M_{\rm{ej}}/(\eta M_{\rm{b;tot}})$ $[10^{-2}M_{\odot}]$'
+            elif mask == "geo_entropy_above_10":
+                return r'$M_{\rm{ej;s>10}}/(\eta M_{\rm{b;tot}})$ $[10^{-2}M_{\odot}]$'
+            elif mask == "geo_entropy_below_10":
+                return r'$M_{\rm{ej;s<10}}/(\eta M_{\rm{b;tot}})$ $[10^{-2}M_{\odot}]$'
+            else:
+                raise NameError("label for v_n:{} mask:{} is not found".format(v_n, mask))
 
         elif v_n == 'ejmass3':
             return r'$M_{\rm{ej}}$ $[10^{-3}M_{\odot}]$'
@@ -425,6 +447,9 @@ class Labels:
 
         elif v_n == 't_eff' or v_n == 'T_eff':
             return r'$\log($T$_{eff}/K)$'
+
+        elif v_n == "Mb":
+            return r'$M_{\rm{b;tot}}$'
 
         else:
             return str(v_n).replace('_', '\_')

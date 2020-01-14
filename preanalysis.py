@@ -13,7 +13,7 @@ import csv
 import os
 import re
 from argparse import ArgumentParser
-from utils import Paths, Printcolor, Lists
+from utils import Paths, Printcolor, Lists, Constants
 
 
 """ ==============================================| SETTINGS |======================================================="""
@@ -29,7 +29,7 @@ __preanalysis__ = {
 
 class SIM_STATUS:
 
-    def __init__(self, sim, clean=True, save=True):
+    def __init__(self, sim, clean=False, save=True):
         self.sim = sim
         self.clean = clean
 
@@ -145,18 +145,50 @@ class SIM_STATUS:
             self.output_dics[output]['tar'] = _tar
             self.output_dics[output]['dattar'] = _dattar
 
+        #
+        endtimefname = "endtime.txt"
+        if os.path.isfile(self.simdir + endtimefname):
+            tend = np.loadtxt(self.simdir + endtimefname, unpack=True)
+            tend = float(tend) * Constants.time_constant * 1e-3
+            Printcolor.print_colored_string(["Warning!", "Time limit for the simulation is set to:", "t=","{:.1f}".format(tend * 1e3), "[ms]"],
+                                            ["red", "yellow", "blue", "green", "blue"])
+        else:
+            tend = np.inf
         # --- D1 --- #
 
         alld1iterations = []
         alld1timesteps = []
+        if not self.clean: Printcolor.blue("Parsing D1 Data...")
         for output in self.outputs:
             isd1data, d1iterations, d1timesteps = \
                 self.scan_d1_data(output, self.d1_ittime_file)
-            alld1iterations.append(d1iterations)
-            alld1timesteps.append(d1timesteps)
-            self.output_dics[output]['d1data'] = isd1data
-            self.output_dics[output]['itd1'] = d1iterations
-            self.output_dics[output]['td1'] = d1timesteps
+            #
+            self.output_dics[output]['d1data'] = False
+            self.output_dics[output]['itd1'] = np.empty(0,)
+            self.output_dics[output]['td1'] = np.empty(0,)
+            if len(d1iterations) > 0:
+                if np.isinf(tend) or (tend > d1timesteps.max() and tend > d1timesteps.min()):
+                    alld1iterations.append(d1iterations)
+                    alld1timesteps.append(d1timesteps)
+                    self.output_dics[output]['d1data'] = isd1data
+                    self.output_dics[output]['itd1'] = d1iterations
+                    self.output_dics[output]['td1'] = d1timesteps
+                elif tend < d1timesteps.max() and tend > d1timesteps.min():
+                    if not clean:
+                        print("t_end: {} < d2timsteps.max() but > d2timesteps.min()".format(tend))
+                    d1iterations = d1iterations[d1timesteps < tend]
+                    d1timesteps = d1timesteps[d1timesteps < tend]
+                    alld1iterations.append(d1iterations)
+                    alld1timesteps.append(d1timesteps)
+                    self.output_dics[output]['d1data'] = isd1data
+                    self.output_dics[output]['itd1'] = d1iterations
+                    self.output_dics[output]['td1'] = d1timesteps
+                elif tend < d1timesteps.max() and tend < d1timesteps.min():
+                    if not clean:
+                        print("t_end: {} < d2timsteps.max() and < d2timesteps.min()".format(tend))
+                    pass
+                else:
+                    raise ValueError("tend is unrecognized")
         assert len(alld1timesteps) == len(alld1iterations)
         # assert not np.isnan(np.sum(alld1timesteps)) and not np.isnan(np.sum(alld1iterations))
 
@@ -172,20 +204,49 @@ class SIM_STATUS:
         else:
             self.overall["d1data"] = False
             self.overall["itd1"] = np.empty(0,)
-            self.overall["t1d"] = np.empty(0,)
+            self.overall["td1"] = np.empty(0,)
 
         # --- D1 outflow --- #
-
+        if not self.clean: Printcolor.blue("Parsing D1 outflow Data...")
         alld1outflowiterations = []
         alld1outflowtimesteps = []
         for output in self.outputs:
             isd1outflowdata, d1outflowiterations, d1outflowtimesteps = \
                 self.scan_d1_data(output, self.d1_ittime_outflow_file)
-            alld1outflowiterations.append(d1outflowiterations)
-            alld1outflowtimesteps.append(d1outflowtimesteps)
-            self.output_dics[output]['outflowdata'] = isd1outflowdata
-            self.output_dics[output]['itoutflow'] = d1outflowiterations
-            self.output_dics[output]['toutflow'] = d1outflowtimesteps
+            #
+            self.output_dics[output]['outflowdata'] = False
+            self.output_dics[output]['itoutflow'] = np.empty(0,)
+            self.output_dics[output]['toutflow'] = np.empty(0,)
+            if len(d1outflowiterations) > 0:
+                if np.isinf(tend) or (tend > d1outflowtimesteps.max() and tend > d1outflowtimesteps.min()):
+                    alld1outflowiterations.append(d1outflowiterations)
+                    alld1outflowtimesteps.append(d1outflowtimesteps)
+                    self.output_dics[output]['outflowdata'] = isd1outflowdata
+                    self.output_dics[output]['itoutflow'] = d1outflowiterations
+                    self.output_dics[output]['toutflow'] = d1outflowtimesteps
+                elif tend < d1outflowtimesteps.max() and tend > d1outflowtimesteps.min():
+                    if not clean:
+                        print("t_end: {} < d1outflowtimesteps.max() but > d1outflowtimesteps.min()".format(tend))
+                    d1outflowiterations = d1outflowiterations[d1outflowtimesteps < tend]
+                    d1outflowtimesteps = d1outflowtimesteps[d1outflowtimesteps < tend]
+                    alld1outflowiterations.append(d1outflowiterations)
+                    alld1outflowtimesteps.append(d1outflowtimesteps)
+                    self.output_dics[output]['outflowdata'] = isd1outflowdata
+                    self.output_dics[output]['itoutflow'] = d1outflowiterations
+                    self.output_dics[output]['toutflow'] = d1outflowtimesteps
+                elif tend < d1outflowtimesteps.max() and tend < d1outflowtimesteps.min():
+                    if not clean:
+                        print("t_end: {} < d1outflowtimesteps.max() and < d1outflowtimesteps.min()".format(tend))
+                    pass
+                else:
+                    raise ValueError("tend is unrecognized")
+
+            #
+            # alld1outflowiterations.append(d1outflowiterations)
+            # alld1outflowtimesteps.append(d1outflowtimesteps)
+            # self.output_dics[output]['outflowdata'] = isd1outflowdata
+            # self.output_dics[output]['itoutflow'] = d1outflowiterations
+            # self.output_dics[output]['toutflow'] = d1outflowtimesteps
         assert len(alld1outflowtimesteps) == len(alld1outflowiterations)
         # assert not np.isnan(np.sum(alld1timesteps)) and not np.isnan(np.sum(alld1iterations))
 
@@ -205,18 +266,46 @@ class SIM_STATUS:
 
 
         # --- D2 --- #
-
+        if not self.clean: Printcolor.blue("Parsing D2 outflow Data...")
         alld2iterations = []
         alld2timesteps = []
         for output in self.outputs:
             isd2data, d2iterations, d2timesteps = \
                 self.scan_d2_data(output)
-            alld2iterations.append(d2iterations)
-            alld2timesteps.append(d2timesteps)
-            self.output_dics[output]['d2data'] = isd2data
-            self.output_dics[output]['itd2'] = d2iterations
-            self.output_dics[output]['td2'] = d2timesteps
-        assert len(alld2timesteps) == len(alld2iterations)
+            #
+            self.output_dics[output]['d2data'] = False
+            self.output_dics[output]['itd2'] = np.empty(0,)
+            self.output_dics[output]['td2'] = np.empty(0,)
+            if len(d2iterations) > 0:
+                if np.isinf(tend) or (tend > d2timesteps.max() and tend > d2timesteps.min()):
+                    alld2iterations.append(d2iterations)
+                    alld2timesteps.append(d2timesteps)
+                    self.output_dics[output]['d2data'] = isd2data
+                    self.output_dics[output]['itd2'] = d2iterations
+                    self.output_dics[output]['td2'] = d2timesteps
+                elif tend < d2timesteps.max() and tend > d2timesteps.min():
+                    if not clean:
+                        print("t_end: {} < d2timsteps.max() but > d2timesteps.min()".format(tend))
+                    d2iterations = d2iterations[d2timesteps < tend]
+                    d2timesteps = d2timesteps[d2timesteps < tend]
+                    alld2iterations.append(d2iterations)
+                    alld2timesteps.append(d2timesteps)
+                    self.output_dics[output]['d2data'] = isd2data
+                    self.output_dics[output]['itd2'] = d2iterations
+                    self.output_dics[output]['td2'] = d2timesteps
+                elif tend < d2timesteps.max() and tend < d2timesteps.min():
+                    if not clean:
+                        print("t_end: {} < d2timsteps.max() and < d2timesteps.min()".format(tend))
+                    pass
+                else:
+                    raise ValueError("tend is unrecognized")
+            #
+        #     alld2iterations.append(d2iterations)
+        #     alld2timesteps.append(d2timesteps)
+        #     self.output_dics[output]['d2data'] = isd2data
+        #     self.output_dics[output]['itd2'] = d2iterations
+        #     self.output_dics[output]['td2'] = d2timesteps
+        # assert len(alld2timesteps) == len(alld2iterations)
         # assert not np.isnan(np.sum(alld2timesteps)) and not np.isnan(np.sum(alld2iterations))
 
         if len(alld2timesteps) > 0:
@@ -230,20 +319,50 @@ class SIM_STATUS:
         else:
             self.overall["d2data"] = False
             self.overall["itd2"] = np.empty(0,)
-            self.overall["t2d"] = np.empty(0,)
+            self.overall["td2"] = np.empty(0,)
 
         # --- D3 --- #
-
+        if not self.clean: Printcolor.blue("Parsing D3 outflow Data...")
         alld3iterations = []
         alld3timesteps = []
         for output in self.outputs:
             isd3data, d3iterations, d3timesteps = \
                 self.scan_d3_data(output)
-            alld3iterations.append(d3iterations)
-            alld3timesteps.append(d3timesteps)
-            self.output_dics[output]['d3data'] = isd3data
-            self.output_dics[output]['itd3']   = d3iterations
-            self.output_dics[output]['td3']    = d3timesteps
+            #
+            self.output_dics[output]['d3data'] = False
+            self.output_dics[output]['itd3'] = np.empty(0,)
+            self.output_dics[output]['td3'] = np.empty(0,)
+            if len(d3iterations) > 0:
+                if np.isinf(tend) or (tend > d3timesteps.max() and tend > d3timesteps.min()):
+                    alld3iterations.append(d3iterations)
+                    alld3timesteps.append(d3timesteps)
+                    self.output_dics[output]['d3data'] = isd3data
+                    self.output_dics[output]['itd3'] = d3iterations
+                    self.output_dics[output]['td3'] = d3timesteps
+                elif tend < d3timesteps.max() and tend > d3timesteps.min():
+                    if not clean:
+                        print("t_end: {} < d3timsteps.max() but > d3timesteps.min()".format(tend))
+                    d3iterations = d3iterations[d3timesteps < tend]
+                    d3timesteps = d3timesteps[d3timesteps < tend]
+                    alld3iterations.append(d3iterations)
+                    alld3timesteps.append(d3timesteps)
+                    self.output_dics[output]['d3data'] = isd3data
+                    self.output_dics[output]['itd3'] = d3iterations
+                    self.output_dics[output]['td3'] = d3timesteps
+                elif tend < d3timesteps.max() and tend < d3timesteps.min():
+                    if not clean:
+                        print("t_end: {} < d3timsteps.max() and < d3timesteps.min()".format(tend))
+                    pass
+                else:
+                    raise ValueError("tend is unrecognized")
+            #
+
+
+            # alld3iterations.append(d3iterations)
+            # alld3timesteps.append(d3timesteps)
+            # self.output_dics[output]['d3data'] = isd3data
+            # self.output_dics[output]['itd3']   = d3iterations
+            # self.output_dics[output]['td3']    = d3timesteps
         assert len(alld3timesteps) == len(alld3iterations)
         # assert not np.isnan(np.sum(alld3timesteps)) and not np.isnan(np.sum(alld3iterations))
         if len(alld3timesteps) > 0:
@@ -257,7 +376,7 @@ class SIM_STATUS:
         else:
             self.overall["d3data"] = False
             self.overall["itd3"] = np.empty(0,)
-            self.overall["t3d"] = np.empty(0,)
+            self.overall["td3"] = np.empty(0,)
 
         # --- profs --- #
 
@@ -266,9 +385,14 @@ class SIM_STATUS:
         assert len(profiterations) == len(proftimesteps)
         assert not np.isnan(np.sum(profiterations)) and not np.isnan(np.sum(proftimesteps))
 
-        self.profiles['profdata'] = isprofdata
-        self.profiles['itprof']  = profiterations
-        self.profiles['tprof']   = proftimesteps
+        if len(profiterations) > 0 and not np.isinf(tend) and tend < proftimesteps.max():
+            self.profiles['profdata'] = isprofdata
+            self.profiles['itprof'] = profiterations[proftimesteps < tend]
+            self.profiles['tprof'] = proftimesteps[proftimesteps < tend]
+        else:
+            self.profiles['profdata'] = isprofdata
+            self.profiles['itprof']  = profiterations
+            self.profiles['tprof']   = proftimesteps
 
         # --- nu profs --- #
 
@@ -277,9 +401,14 @@ class SIM_STATUS:
         assert len(nuprofiterations) == len(nuproftimesteps)
         assert not np.isnan(np.sum(nuprofiterations)) and not np.isnan(np.sum(nuproftimesteps))
 
-        self.nuprofiles['nuprofdata'] = isnuprofdata
-        self.nuprofiles['itnuprof']  = nuprofiterations
-        self.nuprofiles['tnuprof']   = nuproftimesteps
+        if len(nuprofiterations) > 0 and not np.isinf(tend) and tend < nuproftimesteps.max():
+            self.nuprofiles['nuprofdata'] = isnuprofdata
+            self.nuprofiles['itnuprof']  = nuprofiterations[nuproftimesteps < tend]
+            self.nuprofiles['tnuprof']   = nuproftimesteps[nuproftimesteps < tend]
+        else:
+            self.nuprofiles['nuprofdata'] = isnuprofdata
+            self.nuprofiles['itnuprof'] = nuprofiterations
+            self.nuprofiles['tnuprof'] = nuproftimesteps
 
         print("\t{}".format(self.sim))
         print("\toutputs : {}".format(len(self.outputs)))
@@ -379,12 +508,16 @@ class SIM_STATUS:
         return d1data, iterations, timesteps
 
     def scan_d2_data(self, output):
+        if not self.clean: Printcolor.blue("Starting D2...")
         missing_files = []
         for flag_file in self.d2_flag_files:
             if os.path.isfile(self.simdir + '/' + output + '/data/' + flag_file):
                 pass
             else:
                 missing_files.append(flag_file)
+        # --- ---
+        if not self.clean: Printcolor.blue("Files collected D2...")
+        #
         if len(missing_files) == 0:
             pass
         elif not self.clean:
@@ -392,14 +525,24 @@ class SIM_STATUS:
                                                                              self.simdir + '/' + output + '/data/'))
         else:
             pass
+        # --- ---
+        if not self.clean: Printcolor.blue("Checked nissing files D2...")
+        if not self.clean: Printcolor.blue("Loading... {}".format(self.simdir + '/' + output + '/data/' + self.d2_it_file))
+        #
         if os.path.isfile(self.simdir + '/' + output + '/data/' + self.d2_it_file):
             d2data = 1
             dfile = h5py.File(self.simdir + '/' + output + '/data/' + self.d2_it_file, "r")
             iterations = []
+            # --- ---
+            if not self.clean: Printcolor.blue("\tFile: {}".format(dfile))
+            #
             for row in dfile:
                 for row__ in row.split():
                     if str(row__).__contains__('it='):
                         iterations.append(int(str(row__).split('it=')[-1]))
+            # --- ---
+            if not self.clean: Printcolor.blue("\tFile: {} analyzed".format(dfile))
+            #
             if len(iterations) != 0:
                 pass
             elif not self.clean:
@@ -407,11 +550,16 @@ class SIM_STATUS:
             iterations = np.unique(iterations)
             d1iterations = self.overall["itd1"]
             d1times = self.overall["td1"]
+            # --- ---
+            if not self.clean: Printcolor.blue("\titerations, d1times and d1iterations set")
+            #
             if len(d1iterations) > 0 and len(d1times) > 0:
                 listd1iterations = list(d1iterations)
                 timesteps = []
                 for it in iterations:
-
+                    # --- ---
+                    if not self.clean: Printcolor.blue("\t\tit:{}".format(it))
+                    #
                     if not int(it) in d1iterations:
                         if not self.clean:
                             print("Warning d2 data. it:{} is not in the itd1 list"
@@ -426,6 +574,7 @@ class SIM_STATUS:
                                   .format(it, d1iterations.max()))
                             _t_ = self.linear_fit(it, d1iterations[0], d1iterations[-1], d1times[0], d1times[-1])
                         else:
+                            if not self.clean: Printcolor.yellow("Interpolating missing times for it:{}".format(it))
                             from scipy import interpolate
                             _t_ = interpolate.interp1d(d1iterations, d1times, bounds_error=False)(it)
 
@@ -465,6 +614,10 @@ class SIM_STATUS:
             timesteps = np.empty(0, )
             if not self.clean:
                 print("Note. No 2D data found in output:\n{}".format(output))
+
+        # --- ---
+        if not self.clean: Printcolor.blue("Done D2...")
+        #
 
         return d2data, iterations, timesteps
 
@@ -834,7 +987,7 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
         isgood = self.assert_ittime()
         if not isgood:
             # from preanalysis import SIM_STATUS
-            SIM_STATUS(sim, save=True, clean=True)
+            # SIM_STATUS(sim, save=True, clean=True)
             Printcolor.green("\tittime.h5 is updated")
 
         self.print_what_output_tarbal_dattar_present(comma=False)
@@ -1105,42 +1258,52 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
 
         outputs = self.get_outputdirs()
         for output in outputs:
+            try:
+                isd1, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
 
-            isd1, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
+                output = self.path_in_data + output
+                assert os.path.isdir(output)
+                output_n = int(str(output.split('/')[-1]).split('output-')[-1])
+                n_files = len([name for name in os.listdir(output + '/data/')])
+                Printcolor.blue("\toutput: {0:03d}".format(output_n), comma=True)
+                Printcolor.blue("[", comma=True)
+                Printcolor.green("{:.1f}".format(td1[0]*1e3), comma=True)
+                # Printcolor.blue(",", comma=True)
+                Printcolor.green("{:.1f}".format(td1[-1]*1e3), comma=True)
+                Printcolor.blue("ms ]", comma=True)
+                # print('('),
 
-            output = self.path_in_data + output
-            assert os.path.isdir(output)
-            output_n = int(str(output.split('/')[-1]).split('output-')[-1])
-            n_files = len([name for name in os.listdir(output + '/data/')])
-            Printcolor.blue("\toutput: {0:03d}".format(output_n), comma=True)
-            Printcolor.blue("[", comma=True)
-            Printcolor.green("{:.1f}".format(td1[0]*1e3), comma=True)
-            # Printcolor.blue(",", comma=True)
-            Printcolor.green("{:.1f}".format(td1[-1]*1e3), comma=True)
-            Printcolor.blue("ms ]", comma=True)
-            # print('('),
+                if td1[0]*1e3 < 10. and td1[-1]*1e3 < 10.:
+                    print(' '),
+                elif td1[0]*1e3 < 10. or td1[-1]*1e3 < 10.:
+                    print(''),
+                else:
+                    pass
 
-            if td1[0]*1e3 < 10. and td1[-1]*1e3 < 10.:
-                print(' '),
-            elif td1[0]*1e3 < 10. or td1[-1]*1e3 < 10.:
-                print(''),
-            else:
-                pass
+                if n_files == 259 or n_files == 258:
+                    Printcolor.green("{0:05d} files".format(n_files), comma=True)
+                else:
+                    Printcolor.yellow("{0:05d} files".format(n_files), comma=True)
+                # print(')'),
+                status, missing = self.print_assert_content(output + '/data/', Lists.tarball)
+                if status == "full":
+                    Printcolor.green(" complete", comma=True)
+                elif status == "partial":
+                    Printcolor.yellow(" partial, ({}) missing".format(missing), comma=True)
+                else:
+                    Printcolor.red(" absent", comma=True)
+                print('')
+            except KeyError:
+                output_n = int(str(output.split('/')[-1]).split('output-')[-1])
+                Printcolor.blue("\toutput: {0:03d}".format(output_n), comma=True)
+                Printcolor.red("[", comma=True)
+                Printcolor.red(" absent ", comma=True)
+                Printcolor.red(" ]", comma=False)
+            except IndexError:
 
-            if n_files == 259 or n_files == 258:
-                Printcolor.green("{0:05d} files".format(n_files), comma=True)
-            else:
-                Printcolor.yellow("{0:05d} files".format(n_files), comma=True)
-            # print(')'),
-            status, missing = self.print_assert_content(output + '/data/', Lists.tarball)
-            if status == "full":
-                Printcolor.green(" complete", comma=True)
-            elif status == "partial":
-                Printcolor.yellow(" partial, ({}) missing".format(len(missing)), comma=True)
-            else:
-                Printcolor.red(" absent", comma=True)
-            print('')
-
+                Printcolor.red("[", comma=True)
+                Printcolor.red(" empty data ", comma=True)
+                Printcolor.red(" ]", comma=False)
         if comma:
             print(' '),
         else:
@@ -1171,9 +1334,10 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
         dic_outend = {}
         for output in self.get_outputs():
             isdata, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
-            tstart.append(td1[0] * 1e3)
-            tend.append(td1[-1] * 1e3)
-            dic_outend["%.3f" % (td1[-1] * 1e3)] = output.split("output-")[-1]
+            if len(itd1) > 0:
+                tstart.append(td1[0] * 1e3)
+                tend.append(td1[-1] * 1e3)
+                dic_outend["%.3f" % (td1[-1] * 1e3)] = output.split("output-")[-1]
 
         for digit, letter, in zip(range(4), ['o', 'u', 't', '-']):
             print("\t         {}         ".format(letter)),
@@ -1820,6 +1984,9 @@ class LOAD_INIT_DATA:
         if not v_n in self.list_v_ns:
             raise NameError("v_n:{} sim:{} not in self.list_v_ns[] {} \n\nUpdate the list."
                             .format(v_n, self.sim, self.list_v_ns))
+
+        # if v_n == "Mb":
+        #     return float(self.get_par("Mb1") + self.get_par("Mb2"))
 
         par = self.par_dic[v_n]
         try:

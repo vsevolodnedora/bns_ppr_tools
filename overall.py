@@ -71,8 +71,10 @@ simulations2 = {
         {
            "q=1.8":{
                "BLh_M10201856_M0_LK":
+                   # 20 ms | BH | 3D | PC     # 25 ms | BH | 3D(4) | PC  # 27 ms | BH | 3D(3) | PC
                    ["BLh_M10201856_M0_LK_HR", "BLh_M10201856_M0_LK_LR", "BLh_M10201856_M0_LK_SR"],
                "BLh_M10201856_M0":
+                   # 57 ms | -- |           # 46 ms | -- |        # 27 ms | --
                    ["BLh_M10201856_M0_HR", "BLh_M10201856_M0_LR", "BLh_M10201856_M0_SR"]
            },
            "q=1.7":{
@@ -192,7 +194,7 @@ simulations2 = {
            },
            "q=1.7":{
                "SFHo_M10651772_M0_LK":
-                   ["SFHo_M10651772_M0_LK_LR"]
+                   ["SFHo_M10651772_M0_LK_SR","SFHo_M10651772_M0_LK_LR"]
            }
         },
     "SLy4":
@@ -210,13 +212,24 @@ simulations2 = {
            "q=1.4":{
                "SLy4_M11461635_M0_LK":
                    ["SLy4_M11461635_M0_LK_SR"]
+           },
+           "q=1.8":{
+               "SLy4_M10201856_M0_LK":
+                   ["SLy4_M10201856_M0_LK_SR"]
            }
     }
 }
 
+# print("Simulations: ")
 
+# for eos in simulations2.keys():
+#     for q in simulations2[eos].keys():
+#         for unique in simulations2[eos][q].keys():
+#             for sim in simulations2[eos][q][unique]:
+#                 print(sim + " "),
+# print("\ndone")
 
-
+# ./analyze.sh BLh_M10201856_M0_SR /data1/numrel/WhiskyTHC/Backup/2018/GW170817/ /data01/numrel/vsevolod.nedora/postprocessed4/
 
 
 
@@ -403,6 +416,19 @@ def __get_value(o_init, o_par, det=None, mask=None, v_n=None):
         value = o_init.get_par(v_n)
     elif not v_n in o_init.list_v_ns and mask == None:
         value = o_par.get_par(v_n)
+    elif v_n == "Mej_tot_scaled":
+        ma = __get_value(o_init, o_par, None, None, "Mb1")
+        mb = __get_value(o_init, o_par, None, None, "Mb2")
+        mej = __get_value(o_init, o_par, det, mask, "Mej_tot")
+        return mej / (ma + mb)
+    elif v_n == "Mej_tot_scaled2":
+        # M1 * M2 / (M1 + M2) ^ 2
+        ma = __get_value(o_init, o_par, None, None, "Mb1")
+        mb = __get_value(o_init, o_par, None, None, "Mb2")
+        eta = ma * mb / (ma + mb) ** 2
+        mej = __get_value(o_init, o_par, det, mask, "Mej_tot")
+        return mej / (eta * (ma + mb))
+
     elif not v_n in o_init.list_v_ns and mask != None:
         value = o_par.get_outflow_par(det, mask, v_n)
     else:
@@ -744,6 +770,7 @@ def plot_summary_quntity():
     data = {}
     error = 0.2 # in * 100 percent
 
+    # collect data
     for eos in simulations2.keys():
         data[eos] = {}
         for q in simulations2[eos]:
@@ -756,6 +783,7 @@ def plot_summary_quntity():
                 x_coord, x_err1, x_err2 = __get_val_err(sims, o_inits, o_pars, v_n_x, det, mask_x, error)
                 y_coord, y_err1, y_err2 = __get_val_err(sims, o_inits, o_pars, v_n_y, det, mask_y, error)
                 col_coord, col_err1, col_err2 = __get_val_err(sims, o_inits, o_pars, v_n_col, det, mask_col, error)
+                data[eos][q][u_sim]["lserr"] = len(sims)
                 data[eos][q][u_sim]["x"] = x_coord
                 data[eos][q][u_sim]["xe1"] = x_err1
                 data[eos][q][u_sim]["xe2"] = x_err2
@@ -765,7 +793,8 @@ def plot_summary_quntity():
                 data[eos][q][u_sim]["c"] = col_coord
                 data[eos][q][u_sim]["ce1"] = col_err1
                 data[eos][q][u_sim]["ce2"] = col_err2
-                Printcolor.blue("Processing {} ({} sims) x:[{:.1f}, v:{:.1f} ^{:.1f}] y:{} col:{:.1f}".format(u_sim, len(sims), x_coord, x_err1, x_err2, y_coord, col_coord))
+                Printcolor.blue("Processing {} ({} sims) x:[{:.1f}, v:{:.1f} ^{:.1f}] y:[{:.5f}, v{:.5f} ^{:.5f}] col:{:.1f}"
+                                .format(u_sim, len(sims), x_coord, x_err1, x_err2, y_coord, y_err1, y_err2, col_coord))
     Printcolor.green("Data is collaected")
 
     # stuck data for scatter plot
@@ -808,11 +837,15 @@ def plot_summary_quntity():
     o_plot.gen_set["subplots_adjust_w"] = 0.0
     o_plot.set_plot_dics = []
 
+
+    # ERROR BAR
+
+
+    # ACTUAL PLOT
     i_col = 1
-
-
     for eos in ["SLy4", "SFHo", "BLh", "LS220", "DD2"]:
         print(eos)
+        # Error Bar
         if do_plot_error_bar:
             for q in simulations2[eos].keys():
                 for u_sim in simulations2[eos][q].keys():
@@ -822,40 +855,31 @@ def plot_summary_quntity():
                     y = data[eos][q][u_sim]["y"]
                     y1 = data[eos][q][u_sim]["ye1"]
                     y2 = data[eos][q][u_sim]["ye2"]
+                    nsims = data[eos][q][u_sim]["lserr"]
                     if v_n_y == "Mej_tot":
                         y1 = y1 * 1e2
                         y2 = y2 * 1e2
                         y = y * 1e2
+                    if nsims == 1: ls = ':'
+                    elif nsims == 2: ls = '--'
+                    elif nsims == 3: ls = '-'
+                    else: raise ValueError("too many sims >3")
                     marker_dic_lr = {
                         'task': 'line', 'ptype': 'cartesian',
                         'position': (1, i_col),
                         'xarr': [x, x], "yarr": [y1, y2],
                         'xlabel': None, "ylabel": None,
                         'label': None,
-                        'ls': '-', 'color': 'gray', 'lw': 1., 'alpha': 1., 'ds': 'default',
+                        'ls': ls, 'color': 'gray', 'lw': 1.5, 'alpha': 1., 'ds': 'default',
                         'sharey': False,
                         'sharex': False,  # removes angular citkscitks
                         'fontsize': 14,
                         'labelsize': 14
                     }
                     o_plot.set_plot_dics.append(marker_dic_lr)
-                    # marker_dic_lr = {
-                    #     'task': 'line', 'ptype': 'cartesian',
-                    #     'position': (1, i_col),
-                    #     'xarr': [x1, x2], "yarr": [y, y],
-                    #     'xlabel': None, "ylabel": None,
-                    #     'label': None,
-                    #     'ls': '-', 'color': 'gray', 'lw': 1., 'alpha': 1., 'ds': 'default',
-                    #     'sharey': False,
-                    #     'sharex': False,  # removes angular citkscitks
-                    #     'fontsize': 14,
-                    #     'labelsize': 14
-                    # }
-                    # o_plot.set_plot_dics.append(marker_dic_lr)
 
 
         # LEGEND
-
         # if eos == "DD2" and plot_legend:
         #     for res in ["HR", "LR", "SR"]:
         #         marker_dic_lr = {
@@ -937,7 +961,7 @@ def plot_summary_quntity():
             'xmin': 300, 'xmax': 900, 'ymin': 0.03, 'ymax': 0.3, 'vmin': 1.0, 'vmax': 1.8,
             'fill_vmin': False,  # fills the x < vmin with vmin
             'xscale': None, 'yscale': None,
-            'cmap': 'viridis', 'norm': None, 'ms': 80, 'marker': "d", 'alpha': 0.8, "edgecolors": None,
+            'cmap': 'viridis', 'norm': None, 'ms': 80, 'marker': "d", 'alpha': 1.0, "edgecolors": None,
             'tick_params': {"axis": 'both', "which": 'both', "labelleft": True,
                             "labelright": False,  # "tick1On":True, "tick2On":True,
                             "labelsize": 12,
@@ -957,7 +981,7 @@ def plot_summary_quntity():
         if v_n_y == "Mdisk3Dmax":
             dic['ymin'], dic['ymax'] = 0.03, 0.30
         if v_n_y == "Mej_tot" and mask_y == "geo":
-            dic['ymin'], dic['ymax'] = 0, 1.0
+            dic['ymin'], dic['ymax'] = 0, 1.5
         if v_n_y == "Mej_tot" and mask_y == "bern_geoend":
             dic['ymin'], dic['ymax'] = 0, 3.2
         if v_n_y == "Ye_ave" and mask_y == "geo":
@@ -1019,14 +1043,711 @@ def plot_summary_quntity():
             dic['cbar'] = {'location': 'right .03 .0', 'label': Labels.labels(v_n_col),  # 'fmt': '%.1f',
                            'labelsize': 14, 'fontsize': 14}
         #
-        i_col = i_col + 1
         o_plot.set_plot_dics.append(dic)
         #
+
+        i_col = i_col + 1
 
     #
     o_plot.main()
     exit(0)
 
+def plot_summary_quntity_all_in_one():
+    """
+    Plot unique simulations point by point with error bars
+    :return:
+    """
+    v_n_x = "Lambda"
+    v_n_y = "Mej_tot_scaled2"
+    v_n_col = "q"
+    det = 0
+    do_plot_error_bar_y = True
+    do_plot_error_bar_x = False
+    mask_x, mask_y, mask_col = None, "geo_entropy_below_10", None
+    data = {}
+    error = 0.2 # in * 100 percent
+
+    # collect data
+    for eos in simulations2.keys():
+        data[eos] = {}
+        for q in simulations2[eos]:
+            data[eos][q] = {}
+            for u_sim in simulations2[eos][q]:
+                data[eos][q][u_sim] = {}
+                sims = simulations2[eos][q][u_sim]
+                o_inits = [LOAD_INIT_DATA(sim) for sim in sims]
+                o_pars = [ADD_METHODS_ALL_PAR(sim) for sim in sims]
+                x_coord, x_err1, x_err2 = __get_val_err(sims, o_inits, o_pars, v_n_x, det, mask_x, error)
+                y_coord, y_err1, y_err2 = __get_val_err(sims, o_inits, o_pars, v_n_y, det, mask_y, error)
+                col_coord, col_err1, col_err2 = __get_val_err(sims, o_inits, o_pars, v_n_col, det, mask_col, error)
+                data[eos][q][u_sim]["lserr"] = len(sims)
+                data[eos][q][u_sim]["x"] = x_coord
+                data[eos][q][u_sim]["xe1"] = x_err1
+                data[eos][q][u_sim]["xe2"] = x_err2
+                data[eos][q][u_sim]["y"] = y_coord
+                data[eos][q][u_sim]["ye1"] = y_err1
+                data[eos][q][u_sim]["ye2"] = y_err2
+                data[eos][q][u_sim]["c"] = col_coord
+                data[eos][q][u_sim]["ce1"] = col_err1
+                data[eos][q][u_sim]["ce2"] = col_err2
+                Printcolor.blue("Processing {} ({} sims) x:[{:.1f}, v:{:.1f} ^{:.1f}] y:[{:.5f}, v{:.5f} ^{:.5f}] col:{:.1f}"
+                                .format(u_sim, len(sims), x_coord, x_err1, x_err2, y_coord, y_err1, y_err2, col_coord))
+    Printcolor.green("Data is collaected")
+
+    # stuck data for scatter plot
+    for eos in simulations2.keys():
+        for v_n in ["x", "y", "c"]:
+            arr = []
+            for q in simulations2[eos].keys():
+                for u_sim in simulations2[eos][q]:
+                    arr.append(data[eos][q][u_sim][v_n])
+            data[eos][v_n+"s"] = arr
+    Printcolor.green("Data is stacked")
+    # plot the scatter points
+    figname = ''
+    if mask_x == None:
+        figname = figname + v_n_x + '_'
+    else:
+        figname = figname + v_n_x + '_' + mask_x + '_'
+    if mask_y == None:
+        figname = figname + v_n_y + '_'
+    else:
+        figname = figname + v_n_y + '_' + mask_y + '_'
+    if mask_col == None:
+        figname = figname + v_n_col + '_'
+    else:
+        figname = figname + v_n_col + '_' + mask_col + '_'
+    if det == None:
+        figname = figname + ''
+    else:
+        figname = figname + str(det)
+    figname = figname + '3.png'
+    #
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+    o_plot.gen_set["figname"] = figname
+    o_plot.gen_set["sharex"] = True
+    o_plot.gen_set["sharey"] = False
+    o_plot.gen_set["subplots_adjust_h"] = 0.0
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+
+
+    # ERROR BAR
+
+
+    # ACTUAL PLOT
+    i_col = 1
+    for eos in ["SLy4", "SFHo", "BLh", "LS220", "DD2"]:
+        print(eos)
+        # Error Bar
+        if do_plot_error_bar_y:
+            for q in simulations2[eos].keys():
+                for u_sim in simulations2[eos][q].keys():
+                    x = data[eos][q][u_sim]["x"]
+                    y = data[eos][q][u_sim]["y"]
+                    y1 = data[eos][q][u_sim]["ye1"]
+                    y2 = data[eos][q][u_sim]["ye2"]
+                    nsims = data[eos][q][u_sim]["lserr"]
+                    if v_n_x == "Mej_tot" or v_n_x == "Mej_tot_scaled":
+                        x = x * 1e2
+                    if v_n_y == "Mej_tot" or v_n_y == "Mej_tot_scaled":
+                        y1 = y1 * 1e2
+                        y2 = y2 * 1e2
+                        y = y * 1e2
+                    if nsims == 1: ls = ':'
+                    elif nsims == 2: ls = '--'
+                    elif nsims == 3: ls = '-'
+                    else: raise ValueError("too many sims >3")
+                    marker_dic_lr = {
+                        'task': 'line', 'ptype': 'cartesian',
+                        'position': (1, i_col),
+                        'xarr': [x, x], "yarr": [y1, y2],
+                        'xlabel': None, "ylabel": None,
+                        'label': None,
+                        'ls': ls, 'color': 'gray', 'lw': 1.5, 'alpha': 1., 'ds': 'default',
+                        'sharey': False,
+                        'sharex': False,  # removes angular citkscitks
+                        'fontsize': 14,
+                        'labelsize': 14
+                    }
+                    o_plot.set_plot_dics.append(marker_dic_lr)
+        if do_plot_error_bar_x:
+            for q in simulations2[eos].keys():
+                for u_sim in simulations2[eos][q].keys():
+                    x = data[eos][q][u_sim]["x"]
+                    x1 = data[eos][q][u_sim]["xe1"]
+                    x2 = data[eos][q][u_sim]["xe2"]
+                    y = data[eos][q][u_sim]["y"]
+                    nsims = data[eos][q][u_sim]["lserr"]
+                    if v_n_y == "Mej_tot" or v_n_y == "Mej_tot_scaled":
+                        y = y * 1e2
+                    if v_n_x == "Mej_tot" or v_n_x == "Mej_tot_scaled":
+                        x1 = x1 * 1e2
+                        x2 = x2 * 1e2
+                        x = x * 1e2
+                    if nsims == 1: ls = ':'
+                    elif nsims == 2: ls = '--'
+                    elif nsims == 3: ls = '-'
+                    else: raise ValueError("too many sims >3")
+                    marker_dic_lr = {
+                        'task': 'line', 'ptype': 'cartesian',
+                        'position': (1, i_col),
+                        'xarr': [x1, x2], "yarr": [y, y],
+                        'xlabel': None, "ylabel": None,
+                        'label': None,
+                        'ls': ls, 'color': 'gray', 'lw': 1.5, 'alpha': 1., 'ds': 'default',
+                        'sharey': False,
+                        'sharex': False,  # removes angular citkscitks
+                        'fontsize': 14,
+                        'labelsize': 14
+                    }
+                    o_plot.set_plot_dics.append(marker_dic_lr)
+
+
+        # LEGEND
+        # if eos == "DD2" and plot_legend:
+        #     for res in ["HR", "LR", "SR"]:
+        #         marker_dic_lr = {
+        #             'task': 'line', 'ptype': 'cartesian',
+        #             'position': (1, i_col),
+        #             'xarr': [-1], "yarr": [-1],
+        #             'xlabel': None, "ylabel": None,
+        #             'label': res,
+        #             'marker': 'd', 'color': 'gray', 'ms': 8, 'alpha': 1.,
+        #             'sharey': False,
+        #             'sharex': False,  # removes angular citkscitks
+        #             'fontsize': 14,
+        #             'labelsize': 14
+        #         }
+        #         if res == "HR": marker_dic_lr['marker'] = "v"
+        #         if res == "SR": marker_dic_lr['marker'] = "d"
+        #         if res == "LR": marker_dic_lr['marker'] = "^"
+        #         # if res == "BH": marker_dic_lr['marker'] = "x"
+        #         if res == "SR":
+        #             if v_n_y == "Ye_ave":
+        #                 loc = 'lower right'
+        #             else:
+        #                 loc = 'upper right'
+        #             marker_dic_lr['legend'] = {'loc': loc, 'ncol': 1, 'fontsize': 12, 'shadow': False,
+        #                                        'framealpha': 0.5, 'borderaxespad': 0.0}
+        #         o_plot.set_plot_dics.append(marker_dic_lr)
+        #
+        xarr = np.array(data[eos]["xs"])
+        yarr = np.array(data[eos]["ys"])
+        colarr = data[eos]["cs"]
+        # marker = data[eos]["res" + 's']
+        # edgecolor = data[eos]["vis" + 's']
+        # bh_marker = data[eos]["tcoll" + 's']
+        #
+        # UTILS.fit_polynomial(xarr, yarr, 1, 100)
+        #
+        # print(xarr, yarr); exit(1)
+        if v_n_y == "Mej_tot" or v_n_y == "Mej_tot_scaled":
+            yarr = yarr * 1e2
+        if v_n_x == "Mej_tot" or v_n_x == "Mej_tot_scaled":
+            xarr = xarr * 1e2
+
+        #
+        #
+        #
+        # dic_bh = {
+        #     'task': 'scatter', 'ptype': 'cartesian',  # 'aspect': 1.,
+        #     'xarr': xarr, "yarr": yarr, "zarr": colarr,
+        #     'position': (1, i_col),  # 'title': '[{:.1f} ms]'.format(time_),
+        #     'cbar': {},
+        #     'v_n_x': v_n_x, 'v_n_y': v_n_y, 'v_n': v_n_col,
+        #     'xlabel': None, "ylabel": None, 'label': eos,
+        #     'xmin': 300, 'xmax': 900, 'ymin': 0.03, 'ymax': 0.3, 'vmin': 1.0, 'vmax': 1.5,
+        #     'fill_vmin': False,  # fills the x < vmin with vmin
+        #     'xscale': None, 'yscale': None,
+        #     'cmap': 'viridis', 'norm': None, 'ms': 80, 'marker': bh_marker, 'alpha': 1.0, "edgecolors": edgecolor,
+        #     'fancyticks': True,
+        #     'minorticks': True,
+        #     'title': {},
+        #     'legend': {},
+        #     'sharey': False,
+        #     'sharex': False,  # removes angular citkscitks
+        #     'fontsize': 14,
+        #     'labelsize': 14
+        # }
+        #
+        # if mask_y != None and mask_y.__contains__("bern"):
+        #     o_plot.set_plot_dics.append(dic_bh)
+        #
+
+        #
+
+        #
+        # print("marker: {}".format(marker))
+        dic = {
+            'task': 'scatter', 'ptype': 'cartesian',  # 'aspect': 1.,
+            'xarr': xarr, "yarr": yarr, "zarr": colarr,
+            'position': (1, i_col),  # 'title': '[{:.1f} ms]'.format(time_),
+            'cbar': {},
+            'v_n_x': v_n_x, 'v_n_y': v_n_y, 'v_n': v_n_col,
+            'xlabel': None, "ylabel": Labels.labels(v_n_y, mask_y),
+            'xmin': 300, 'xmax': 900, 'ymin': 0.03, 'ymax': 0.3, 'vmin': 1.0, 'vmax': 1.9,
+            'fill_vmin': False,  # fills the x < vmin with vmin
+            'xscale': None, 'yscale': None,
+            'cmap': 'tab10', 'norm': None, 'ms': 80, 'marker': "d", 'alpha': 1.0, "edgecolors": None,
+            'tick_params': {"axis": 'both', "which": 'both', "labelleft": True,
+                            "labelright": False,  # "tick1On":True, "tick2On":True,
+                            "labelsize": 12,
+                            "direction": 'in',
+                            "bottom": True, "top": True, "left": True, "right": True},
+            'yaxiscolor': {'bottom': 'black', 'top': 'black', 'right': 'black', 'left': 'black'},
+            'minorticks': True,
+            'title': {"text": eos, "fontsize": 12},
+            'label': "xxx",
+            'legend': {},
+            'sharey': False,
+            'sharex': False,  # removes angular citkscitks
+            'fontsize': 14,
+            'labelsize': 14
+        }
+        #
+        if v_n_y == "Mdisk3Dmax":
+            dic['ymin'], dic['ymax'] = 0.03, 0.30
+        if v_n_y == "Mb":
+            dic['ymin'], dic['ymax'] = 2.8, 3.4
+        if v_n_y == "Mej_tot" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0, 1.5
+        if v_n_y == "Mej_tot_scaled" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0, 0.5
+
+        if v_n_y == "Mej_tot_scaled2" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0, 1.
+        if v_n_y == "Mej_tot_scaled2" and mask_y == "geo_entropy_above_10":
+            dic['ymin'], dic['ymax'] = 0, 0.01
+        if v_n_y == "Mej_tot_scaled2" and mask_y == "geo_entropy_below_10":
+            dic['ymin'], dic['ymax'] = 0, 0.02
+
+        if v_n_y == "Mej_tot" and mask_y == "bern_geoend":
+            if dic['yscale'] == "log":
+                dic['ymin'], dic['ymax'] = 1e-3, 2e0
+            else:
+                dic['ymin'], dic['ymax'] = 0, 3.2
+        if v_n_y == "Mej_tot" and mask_y == "geo_entropy_above_10":
+            if dic['yscale'] == "log":
+                dic['ymin'], dic['ymax'] = 1e-3, 2e0
+            else:
+                dic['ymin'], dic['ymax'] = 0, .6
+        if v_n_y == "Mej_tot" and mask_y == "geo_entropy_below_10":
+            if dic['yscale'] == "log":
+                dic['ymin'], dic['ymax'] = 1e-2, 2e0
+            else:
+                dic['ymin'], dic['ymax'] = 0, 1.2
+        if v_n_y == "Mej_tot_scaled" and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0, 3.
+        if v_n_y == "Ye_ave" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0.01, 0.30
+        if v_n_y == "Ye_ave" and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0.1, 0.4
+        if v_n_y == "vel_inf_ave" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0.1, 0.3
+        if v_n_y == "vel_inf_ave" and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0.05, 0.25
+        #
+        if v_n_x == "Mdisk3Dmax":
+            dic['xmin'], dic['xmax'] = 0.03, 0.30
+        if v_n_x == "Mb":
+            dic['xmin'], dic['xmax'] = 2.8, 3.4
+        if v_n_x == "Mej_tot" and mask_x == "geo":
+            dic['xmin'], dic['xmax'] = 0, 1.5
+        if v_n_x == "Mej_tot_scaled" and mask_x == "geo":
+            dic['xmin'], dic['xmax'] = 0, 0.5
+        if v_n_x == "Mej_tot" and mask_x == "bern_geoend":
+            dic['xmin'], dic['xmax'] = 0, 3.2
+        if v_n_x == "Mej_tot" and mask_x == "geo_entropy_above_10":
+            if dic['xscale'] == "log":
+                dic['xmin'], dic['xmax'] = 1e-3, 2e0
+            else:
+                dic['xmin'], dic['xmax'] = 0, .6
+        if v_n_x == "Mej_tot" and mask_x == "geo_entropy_below_10":
+            if dic['xscale'] == "log":
+                dic['xmin'], dic['xmax'] = 1e-2, 2e0
+            else:
+                dic['xmin'], dic['xmax'] = 0, 1.2
+        if v_n_x == "Mej_tot_scaled" and mask_x == "bern_geoend":
+            dic['xmin'], dic['xmax'] = 0, 3.
+        if v_n_x == "Ye_ave" and mask_x == "geo":
+            dic['xmin'], dic['xmax'] = 0.01, 0.30
+        if v_n_x == "Ye_ave" and mask_x == "bern_geoend":
+            dic['xmin'], dic['xmax'] = 0.1, 0.4
+        if v_n_x == "vel_inf_ave" and mask_x == "geo":
+            dic['xmin'], dic['xmax'] = 0.1, 0.3
+        if v_n_x == "vel_inf_ave" and mask_x == "bern_geoend":
+            dic['xmin'], dic['xmax'] = 0.05, 0.25
+
+
+        #
+        # if eos == "SLy4":
+        #     dic['xmin'], dic['xmax'] = 380, 420
+        #     dic['xticks'] = [390, 410]
+        # if eos == "SFHo":
+        #     dic['xmin'], dic['xmax'] = 390, 430
+        #     dic['xticks'] = [400, 420]
+        # if eos == "BLh":
+        #     dic['xmin'], dic['xmax'] = 510, 550
+        #     dic['xticks'] = [520, 540]
+        # if eos == "LS220":
+        #     dic['xmin'], dic['xmax'] = 690, 730
+        #     dic['xticks'] = [700, 720]
+        # if eos == "DD2":
+        #     dic['xmin'], dic['xmax'] = 820, 860
+        #     dic['xticks'] = [830, 850]
+        # if eos == "SLy4":
+        #     dic['tick_params']['right'] = False
+        #     dic['yaxiscolor']["right"] = "lightgray"
+        # elif eos == "DD2":
+        #     dic['tick_params']['left'] = False
+        #     dic['yaxiscolor']["left"] = "lightgray"
+        # else:
+        #     dic['tick_params']['left'] = False
+        #     dic['tick_params']['right'] = False
+        #     dic['yaxiscolor']["left"] = "lightgray"
+        #     dic['yaxiscolor']["right"] = "lightgray"
+
+        #
+        # if eos != "SLy4" and eos != "DD2":
+        #     dic['yaxiscolor'] = {'left':'lightgray','right':'lightgray', 'label': 'black'}
+        #     dic['ytickcolor'] = {'left':'lightgray','right':'lightgray'}
+        #     dic['yminortickcolor'] = {'left': 'lightgray', 'right': 'lightgray'}
+        # elif eos == "DD2":
+        #     dic['yaxiscolor'] = {'left': 'lightgray', 'right': 'black', 'label': 'black'}
+        #     # dic['ytickcolor'] = {'left': 'lightgray'}
+        #     # dic['yminortickcolor'] = {'left': 'lightgray'}
+        # elif eos == "SLy4":
+        #     dic['yaxiscolor'] = {'left': 'black', 'right': 'lightgray', 'label': 'black'}
+        #     # dic['ytickcolor'] = {'right': 'lightgray'}
+        #     # dic['yminortickcolor'] = {'right': 'lightgray'}
+
+        #
+        # if eos != "SLy4":
+        #     dic['sharey'] = True
+        if eos == "BLh":
+            dic['xlabel'] = Labels.labels(v_n_x, mask_x)
+        if eos == 'DD2':
+            dic['cbar'] = {'location': 'right .03 .0', 'label': Labels.labels(v_n_col),  # 'fmt': '%.1f',
+                           'labelsize': 14, 'fontsize': 14}
+        #
+        o_plot.set_plot_dics.append(dic)
+        #
+
+        # i_col = i_col + 1
+
+    #
+    o_plot.main()
+    exit(0)
+
+def plot_summary_quntity_all_in_one2():
+    """
+    Plot unique simulations point by point with error bars
+    :return:
+    """
+    v_n_x = "q"
+    v_n_y = "Mej_tot"
+    v_n_col = "Lambda"
+    det = 0
+    do_plot_error_bar = True
+    mask_x, mask_y, mask_col = None, "geo", None
+    data = {}
+    error = 0.2 # in * 100 percent
+
+    # collect data
+    for eos in simulations2.keys():
+        data[eos] = {}
+        for q in simulations2[eos]:
+            data[eos][q] = {}
+            for u_sim in simulations2[eos][q]:
+                data[eos][q][u_sim] = {}
+                sims = simulations2[eos][q][u_sim]
+                o_inits = [LOAD_INIT_DATA(sim) for sim in sims]
+                o_pars = [ADD_METHODS_ALL_PAR(sim) for sim in sims]
+                x_coord, x_err1, x_err2 = __get_val_err(sims, o_inits, o_pars, v_n_x, det, mask_x, error)
+                y_coord, y_err1, y_err2 = __get_val_err(sims, o_inits, o_pars, v_n_y, det, mask_y, error)
+                col_coord, col_err1, col_err2 = __get_val_err(sims, o_inits, o_pars, v_n_col, det, mask_col, error)
+                data[eos][q][u_sim]["lserr"] = len(sims)
+                data[eos][q][u_sim]["x"] = x_coord
+                data[eos][q][u_sim]["xe1"] = x_err1
+                data[eos][q][u_sim]["xe2"] = x_err2
+                data[eos][q][u_sim]["y"] = y_coord
+                data[eos][q][u_sim]["ye1"] = y_err1
+                data[eos][q][u_sim]["ye2"] = y_err2
+                data[eos][q][u_sim]["c"] = col_coord
+                data[eos][q][u_sim]["ce1"] = col_err1
+                data[eos][q][u_sim]["ce2"] = col_err2
+                Printcolor.blue("Processing {} ({} sims) x:[{:.1f}, v:{:.1f} ^{:.1f}] y:[{:.5f}, v{:.5f} ^{:.5f}] col:{:.1f}"
+                                .format(u_sim, len(sims), x_coord, x_err1, x_err2, y_coord, y_err1, y_err2, col_coord))
+    Printcolor.green("Data is collaected")
+
+    # stuck data for scatter plot
+    for eos in simulations2.keys():
+        for v_n in ["x", "y", "c"]:
+            arr = []
+            for q in simulations2[eos].keys():
+                for u_sim in simulations2[eos][q]:
+                    arr.append(data[eos][q][u_sim][v_n])
+            data[eos][v_n+"s"] = arr
+    Printcolor.green("Data is stacked")
+    # plot the scatter points
+    figname = ''
+    if mask_x == None:
+        figname = figname + v_n_x + '_'
+    else:
+        figname = figname + v_n_x + '_' + mask_x + '_'
+    if mask_y == None:
+        figname = figname + v_n_y + '_'
+    else:
+        figname = figname + v_n_y + '_' + mask_y + '_'
+    if mask_col == None:
+        figname = figname + v_n_col + '_'
+    else:
+        figname = figname + v_n_col + '_' + mask_col + '_'
+    if det == None:
+        figname = figname + ''
+    else:
+        figname = figname + str(det)
+    figname = figname + '4.png'
+    #
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+    o_plot.gen_set["figname"] = figname
+    o_plot.gen_set["sharex"] = True
+    o_plot.gen_set["sharey"] = False
+    o_plot.gen_set["subplots_adjust_h"] = 0.0
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+
+
+    # ERROR BAR
+
+
+    # ACTUAL PLOT
+    i_col = 1
+    for eos in ["SLy4", "SFHo", "BLh", "LS220", "DD2"]:
+        print(eos)
+        # Error Bar
+        if do_plot_error_bar:
+            for q in simulations2[eos].keys():
+                for u_sim in simulations2[eos][q].keys():
+                    x = data[eos][q][u_sim]["x"]
+                    x1 = data[eos][q][u_sim]["xe1"]
+                    x2 = data[eos][q][u_sim]["xe2"]
+                    y = data[eos][q][u_sim]["y"]
+                    y1 = data[eos][q][u_sim]["ye1"]
+                    y2 = data[eos][q][u_sim]["ye2"]
+                    nsims = data[eos][q][u_sim]["lserr"]
+                    if v_n_y == "Mej_tot":
+                        y1 = y1 * 1e2
+                        y2 = y2 * 1e2
+                        y = y * 1e2
+                    if nsims == 1: ls = ':'
+                    elif nsims == 2: ls = '--'
+                    elif nsims == 3: ls = '-'
+                    else: raise ValueError("too many sims >3")
+                    marker_dic_lr = {
+                        'task': 'line', 'ptype': 'cartesian',
+                        'position': (1, i_col),
+                        'xarr': [x, x], "yarr": [y1, y2],
+                        'xlabel': None, "ylabel": None,
+                        'label': None,
+                        'ls': ls, 'color': 'gray', 'lw': 1.5, 'alpha': 1., 'ds': 'default',
+                        'sharey': False,
+                        'sharex': False,  # removes angular citkscitks
+                        'fontsize': 14,
+                        'labelsize': 14
+                    }
+                    o_plot.set_plot_dics.append(marker_dic_lr)
+
+
+        # LEGEND
+        # if eos == "DD2" and plot_legend:
+        #     for res in ["HR", "LR", "SR"]:
+        #         marker_dic_lr = {
+        #             'task': 'line', 'ptype': 'cartesian',
+        #             'position': (1, i_col),
+        #             'xarr': [-1], "yarr": [-1],
+        #             'xlabel': None, "ylabel": None,
+        #             'label': res,
+        #             'marker': 'd', 'color': 'gray', 'ms': 8, 'alpha': 1.,
+        #             'sharey': False,
+        #             'sharex': False,  # removes angular citkscitks
+        #             'fontsize': 14,
+        #             'labelsize': 14
+        #         }
+        #         if res == "HR": marker_dic_lr['marker'] = "v"
+        #         if res == "SR": marker_dic_lr['marker'] = "d"
+        #         if res == "LR": marker_dic_lr['marker'] = "^"
+        #         # if res == "BH": marker_dic_lr['marker'] = "x"
+        #         if res == "SR":
+        #             if v_n_y == "Ye_ave":
+        #                 loc = 'lower right'
+        #             else:
+        #                 loc = 'upper right'
+        #             marker_dic_lr['legend'] = {'loc': loc, 'ncol': 1, 'fontsize': 12, 'shadow': False,
+        #                                        'framealpha': 0.5, 'borderaxespad': 0.0}
+        #         o_plot.set_plot_dics.append(marker_dic_lr)
+        #
+        xarr = np.array(data[eos]["xs"])
+        yarr = np.array(data[eos]["ys"])
+        colarr = data[eos]["cs"]
+        # marker = data[eos]["res" + 's']
+        # edgecolor = data[eos]["vis" + 's']
+        # bh_marker = data[eos]["tcoll" + 's']
+        #
+        # UTILS.fit_polynomial(xarr, yarr, 1, 100)
+        #
+        # print(xarr, yarr); exit(1)
+        if v_n_y == "Mej_tot":
+            yarr = yarr * 1e2
+        if v_n_x == "Mej_tot":
+            xarr = xarr * 1e2
+        #
+        #
+        #
+        # dic_bh = {
+        #     'task': 'scatter', 'ptype': 'cartesian',  # 'aspect': 1.,
+        #     'xarr': xarr, "yarr": yarr, "zarr": colarr,
+        #     'position': (1, i_col),  # 'title': '[{:.1f} ms]'.format(time_),
+        #     'cbar': {},
+        #     'v_n_x': v_n_x, 'v_n_y': v_n_y, 'v_n': v_n_col,
+        #     'xlabel': None, "ylabel": None, 'label': eos,
+        #     'xmin': 300, 'xmax': 900, 'ymin': 0.03, 'ymax': 0.3, 'vmin': 1.0, 'vmax': 1.5,
+        #     'fill_vmin': False,  # fills the x < vmin with vmin
+        #     'xscale': None, 'yscale': None,
+        #     'cmap': 'viridis', 'norm': None, 'ms': 80, 'marker': bh_marker, 'alpha': 1.0, "edgecolors": edgecolor,
+        #     'fancyticks': True,
+        #     'minorticks': True,
+        #     'title': {},
+        #     'legend': {},
+        #     'sharey': False,
+        #     'sharex': False,  # removes angular citkscitks
+        #     'fontsize': 14,
+        #     'labelsize': 14
+        # }
+        #
+        # if mask_y != None and mask_y.__contains__("bern"):
+        #     o_plot.set_plot_dics.append(dic_bh)
+        #
+
+        #
+
+        #
+        # print("marker: {}".format(marker))
+        dic = {
+            'task': 'scatter', 'ptype': 'cartesian',  # 'aspect': 1.,
+            'xarr': xarr, "yarr": yarr, "zarr": colarr,
+            'position': (1, i_col),  # 'title': '[{:.1f} ms]'.format(time_),
+            'cbar': {},
+            'v_n_x': v_n_x, 'v_n_y': v_n_y, 'v_n': v_n_col,
+            'xlabel': None, "ylabel": Labels.labels(v_n_y),
+            'xmin': 300, 'xmax': 900, 'ymin': 0.03, 'ymax': 0.3, 'vmin': 1.0, 'vmax': 1.9,
+            'fill_vmin': False,  # fills the x < vmin with vmin
+            'xscale': None, 'yscale': None,
+            'cmap': 'Dark2', 'norm': None, 'ms': 80, 'marker': "d", 'alpha': 1.0, "edgecolors": None,
+            'tick_params': {"axis": 'both', "which": 'both', "labelleft": True,
+                            "labelright": False,  # "tick1On":True, "tick2On":True,
+                            "labelsize": 12,
+                            "direction": 'in',
+                            "bottom": True, "top": True, "left": True, "right": True},
+            'yaxiscolor': {'bottom': 'black', 'top': 'black', 'right': 'black', 'left': 'black'},
+            'minorticks': True,
+            'title': {"text": eos, "fontsize": 12},
+            'label': "xxx",
+            'legend': {},
+            'sharey': False,
+            'sharex': False,  # removes angular citkscitks
+            'fontsize': 14,
+            'labelsize': 14
+        }
+
+        if v_n_x == "q":
+            dic["xmin"] = 0.9
+            dic["xmax"] = 1.9
+        if v_n_col == "Lambda":
+            dic["vmin"] = 200
+            dic["vmax"] = 900
+
+        #
+        if v_n_y == "Mdisk3Dmax":
+            dic['ymin'], dic['ymax'] = 0.03, 0.30
+        if v_n_y == "Mej_tot" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0, 1.5
+        if v_n_y == "Mej_tot" and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0, 3.2
+        if v_n_y == "Ye_ave" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0.01, 0.30
+        if v_n_y == "Ye_ave" and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0.1, 0.4
+        if v_n_y == "vel_inf_ave" and mask_y == "geo":
+            dic['ymin'], dic['ymax'] = 0.1, 0.3
+        if v_n_y == "vel_inf_ave" and mask_y == "bern_geoend":
+            dic['ymin'], dic['ymax'] = 0.05, 0.25
+        #
+        # if eos == "SLy4":
+        #     dic['xmin'], dic['xmax'] = 380, 420
+        #     dic['xticks'] = [390, 410]
+        # if eos == "SFHo":
+        #     dic['xmin'], dic['xmax'] = 390, 430
+        #     dic['xticks'] = [400, 420]
+        # if eos == "BLh":
+        #     dic['xmin'], dic['xmax'] = 510, 550
+        #     dic['xticks'] = [520, 540]
+        # if eos == "LS220":
+        #     dic['xmin'], dic['xmax'] = 690, 730
+        #     dic['xticks'] = [700, 720]
+        # if eos == "DD2":
+        #     dic['xmin'], dic['xmax'] = 820, 860
+        #     dic['xticks'] = [830, 850]
+        # if eos == "SLy4":
+        #     dic['tick_params']['right'] = False
+        #     dic['yaxiscolor']["right"] = "lightgray"
+        # elif eos == "DD2":
+        #     dic['tick_params']['left'] = False
+        #     dic['yaxiscolor']["left"] = "lightgray"
+        # else:
+        #     dic['tick_params']['left'] = False
+        #     dic['tick_params']['right'] = False
+        #     dic['yaxiscolor']["left"] = "lightgray"
+        #     dic['yaxiscolor']["right"] = "lightgray"
+
+        #
+        # if eos != "SLy4" and eos != "DD2":
+        #     dic['yaxiscolor'] = {'left':'lightgray','right':'lightgray', 'label': 'black'}
+        #     dic['ytickcolor'] = {'left':'lightgray','right':'lightgray'}
+        #     dic['yminortickcolor'] = {'left': 'lightgray', 'right': 'lightgray'}
+        # elif eos == "DD2":
+        #     dic['yaxiscolor'] = {'left': 'lightgray', 'right': 'black', 'label': 'black'}
+        #     # dic['ytickcolor'] = {'left': 'lightgray'}
+        #     # dic['yminortickcolor'] = {'left': 'lightgray'}
+        # elif eos == "SLy4":
+        #     dic['yaxiscolor'] = {'left': 'black', 'right': 'lightgray', 'label': 'black'}
+        #     # dic['ytickcolor'] = {'right': 'lightgray'}
+        #     # dic['yminortickcolor'] = {'right': 'lightgray'}
+
+        #
+        # if eos != "SLy4":
+        #     dic['sharey'] = True
+        if eos == "BLh":
+            dic['xlabel'] = Labels.labels(v_n_x)
+        if eos == 'DD2':
+            dic['cbar'] = {'location': 'right .03 .0', 'label': Labels.labels(v_n_col),  # 'fmt': '%.1f',
+                           'labelsize': 14, 'fontsize': 14}
+        #
+        o_plot.set_plot_dics.append(dic)
+        #
+
+        # i_col = i_col + 1
+
+    #
+    o_plot.main()
+    exit(0)
 
 '''====================================================| DISK |======================================================'''
 
@@ -1518,7 +2239,93 @@ def plot_total_fluxes_sims_disk_hist():
 #
 ''' ------------- '''
 
+def tmp_plot_disk_mass_evol_SR():
+    # 11
+    sims = ["SFHo_M10651772_M0_LK_SR", "SLy4_M10651772_M0_LK_SR", "SLy4_M10201856_M0_LK_SR"]
+    #
+    colors = ["blue", "red", "green"]
+    #
+    lss=["-", "-", "-"]
+    #
+    lws = [1., 1., 1.]
+    alphas=[1., 1., 1.]
+    #
+    # ----
 
+    from scipy import interpolate
+
+    o_plot = PLOT_MANY_TASKS()
+    o_plot.gen_set["figdir"] = Paths.plots + "all2/"
+    o_plot.gen_set["type"] = "cartesian"
+    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+    o_plot.gen_set["figname"] = "tmp_disk_mass_evol_SR.png"
+    o_plot.gen_set["sharex"] = False
+    o_plot.gen_set["sharey"] = True
+    o_plot.gen_set["dpi"] = 128
+    o_plot.gen_set["subplots_adjust_h"] = 0.3
+    o_plot.gen_set["subplots_adjust_w"] = 0.0
+    o_plot.set_plot_dics = []
+
+    for sim, color, ls, lw, alpha in zip(sims, colors, lss, lws, alphas):
+        print("{}".format(sim))
+        o_data = ADD_METHODS_ALL_PAR(sim)
+        data = o_data.get_disk_mass()
+        tmerg = o_data.get_par("tmerg")
+        tarr = (data[:, 0] - tmerg) * 1e3
+        marr = data[:, 1]
+
+        if sim == "DD2_M13641364_M0_LK_SR_R04":
+            tarr = tarr[3:] # 3ms, 6ms, 51ms.... Removing initial profiles
+            marr = marr[3:] #
+        #
+        tcoll = o_data.get_par("tcoll_gw")
+        if not np.isnan(tcoll) and tcoll < tarr[-1]:
+            tcoll = (tcoll - tmerg) * 1e3
+            print(tcoll, tarr[0])
+            mcoll = interpolate.interp1d(tarr,marr,kind="linear")(tcoll)
+            tcoll_dic = {
+                'task': 'line', 'ptype': 'cartesian',
+                'position': (1, 1),
+                'xarr': [tcoll], 'yarr': [mcoll],
+                'v_n_x': "time", 'v_n_y': "mass",
+                'color': color, 'marker': "x", 'ms': 5., 'alpha': alpha,
+                'xmin': -10, 'xmax': 100, 'ymin': 0, 'ymax': .3,
+                'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels("diskmass"),
+                'label': None, 'yscale': 'linear',
+                'fancyticks': True, 'minorticks': True,
+                'fontsize': 14,
+                'labelsize': 14,
+                'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+            }
+            o_plot.set_plot_dics.append(tcoll_dic)
+        #
+        plot_dic = {
+            'task': 'line', 'ptype': 'cartesian',
+            'position': (1, 1),
+            'xarr': tarr, 'yarr': marr,
+            'v_n_x': "time", 'v_n_y': "mass",
+            'color': color, 'ls': ls, 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
+            'xmin': -10, 'xmax': 30, 'ymin': 0, 'ymax': .25,
+            'xlabel': Labels.labels("t-tmerg"), 'ylabel': Labels.labels("diskmass"),
+            'label': str(sim).replace('_', '\_'), 'yscale': 'linear',
+            'fancyticks': True, 'minorticks': True,
+            'fontsize': 14,
+            'labelsize': 14,
+            'legend': {'bbox_to_anchor':(1.1,1.05),
+                'loc': 'lower right', 'ncol': 2, 'fontsize': 8}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+        }
+        if sim == sims[-1]:
+            plot_dic['legend'] = {'bbox_to_anchor':(1.1,1.05),
+                'loc': 'lower right', 'ncol': 2, 'fontsize': 10}
+        o_plot.set_plot_dics.append(plot_dic)
+
+        print(sim)
+        print(tarr)
+        print(marr)
+        print('----')
+
+    o_plot.main()
+    exit(1)
 #
 def plot_disk_mass_evol_SR():
     # 11
@@ -2243,18 +3050,14 @@ def plot_2ejecta_1disk_timehists():
     exit(1)
 #
 if __name__  == '__main__':
+    tmp_plot_disk_mass_evol_SR()
+    # plot_summary_quntity()
+    plot_summary_quntity_all_in_one()
+    # plot_summary_quntity_all_in_one2()
 
-    plot_summary_quntity()
-
-    sims = ["BLh_M10201856_M0_LK_HR",   # 21 ms # promped
-            "BLh_M10201856_M0_LK_LR",   # 22 ms # promped
-            "BLh_M10201856_M0_LK_SR",   # 28 ms # promped
-            "BLh_M10201856_M0_HR",      # 40 ms # promped
-            "BLh_M10201856_M0_LR",      # 40 ms # promped
-            "BLh_M10201856_M0_SR"       # 23 ms # promped
-           ]
-    o_sims = ALL_SIMULATIONS_TABLE(sims)
-    exit(1)
+    #### --- CSV TALBE OF ALL SIMULATIOSN
+    # o_sims = ALL_SIMULATIONS_TABLE()
+    # exit(1)
 
 
     # plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="Mej_tot", v_n_col="q",
@@ -2270,8 +3073,8 @@ if __name__  == '__main__':
     #                                  mask_x=None,mask_y="bern_geoend",mask_col=None,det=0, plot_legend=True)
     # plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="Ye_ave", v_n_col="q",
     #                                  mask_x=None,mask_y="bern_geoend",mask_col=None,det=0, plot_legend=True)
-    plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="vel_inf_ave", v_n_col="q",
-                                     mask_x=None,mask_y="bern_geoend",mask_col=None,det=0, plot_legend=True)
+    # plot_last_disk_mass_with_lambda2(v_n_x="Lambda", v_n_y="vel_inf_ave", v_n_col="q",
+    #                                  mask_x=None,mask_y="bern_geoend",mask_col=None,det=0, plot_legend=True)
 
     # plot_total_fluxes_sims_disk_hist()
     # plot_den_unb_vel_z()
@@ -2283,8 +3086,31 @@ if __name__  == '__main__':
     #
     #
     #
-    tbl = COMPARISON_TABLE()
 
+    ### --- OVERALL ---
+    tbl1 = TEX_TABLES()
+
+    tbl1.print_mult_table([simulations["BLh"]["q=1"], simulations["BLh"]["q=1.3"], simulations["BLh"]["q=1.4"], simulations["BLh"]["q=1.7"], simulations["BLh"]["q=1.8"],
+                          simulations["DD2"]["q=1"], simulations["DD2"]["q=1.1"], simulations["DD2"]["q=1.2"], simulations["DD2"]["q=1.4"],
+                          simulations["LS220"]["q=1"], simulations["LS220"]["q=1.1"], simulations["LS220"]["q=1.2"], simulations["LS220"]["q=1.4"], simulations["LS220"]["q=1.7"],
+                          simulations["SFHo"]["q=1"], simulations["SFHo"]["q=1.1"], simulations["SFHo"]["q=1.4"], simulations["SFHo"]["q=1.7"],
+                          simulations["SLy4"]["q=1"], simulations["SLy4"]["q=1.1"], simulations["SLy4"]["q=1.4"]],
+                         [r"\hline", r"\hline", r"\hline", r"\hline",
+                          r"\hline\hline",
+                          r"\hline", r"\hline", r"\hline",
+                          r"\hline\hline",
+                          r"\hline", r"\hline", r"\hline", r"\hline",
+                          r"\hline\hline",
+                          r"\hline", r"\hline", r"\hline",
+                          r"\hline\hline",
+                          r"\hline", r"\hline", r"\hline"])
+    exit(1)
+
+
+
+
+    tbl = COMPARISON_TABLE()
+    exit(1)
     ### --- resulution effect on simulations with viscosity
     tbl.print_mult_table([["DD2_M13641364_M0_LK_SR_R04", "DD2_M13641364_M0_LK_LR_R04", "DD2_M13641364_M0_LK_HR_R04"], # HR too short
                          ["DD2_M15091235_M0_LK_SR", "DD2_M15091235_M0_LK_HR"],          # no
