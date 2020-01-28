@@ -205,6 +205,8 @@ class LOAD_FILES(LOAD_ITTIME):
         self.matrix_3d_data = [np.zeros(0,)
                                for i in range(len(self.list_3d_data_files))]
 
+
+
     def check_v_n(self, v_n):
         if not v_n in self.list_outflowed_files:
             if not v_n in self.list_gw_files:
@@ -2385,11 +2387,13 @@ class ALL_SIMULATIONS_TABLE:
         self.intable = Paths.output + "models_tmp2.csv"
         self.outtable = Paths.output + "models2.csv"
         #
-        bern_passed = ["LS220_M14691268_M0_LK_SR"]
+        self.bern_passed = ["LS220_M14691268_M0_LK_SR"]
         self.list_eos = ["BLh", "SFHo", "SLy4", "DD2", "LS220"]
         self.list_res = ["HR", "SR", "LR", "VLR"]
-        self.list_vis = ["LK"]
-        self.list_neut= ["M0"]
+        self.list_vis = ["LK"] # L5 L25 L50
+        self.list_neut= ["M0"] # LK OldM0
+
+
         # assert len(simlist) > 0
         # self.sims = simlist
 
@@ -2402,22 +2406,7 @@ class ALL_SIMULATIONS_TABLE:
         print([run["name"] for run in self.table])
         Printcolor.blue("------------------------------------")
         #
-        self.check_sim_name()
-        #
-        self.fill_self_parameters()
-        #
-        self.fill_self_bern_phase_status(bern_passed)
-        #
-        self.fill_initial_data()
-        #
-        self.fill_par_data()
-        #
-        self.fill_outflow_par(det=0, mask="geo")
-        #
-        self.fill_outflow_par(det=0, mask="bern_geoend")
-        #
-        self.save_table(self.header, self.table, self.outtable)
-        #
+
 
 
     @staticmethod
@@ -2538,14 +2527,15 @@ class ALL_SIMULATIONS_TABLE:
             run["EOS"] = eos
         Printcolor.green("> EOS, M1, M2 are extracted form the simulation name")
 
-    def fill_self_bern_phase_status(self, bern_pass):
-        assert len(bern_pass) > 0
+    def fill_self_bern_phase_status(self):
+        assert len(self.bern_passed) > 0
         for run in self.table:
-            if run["name"] in bern_pass:
+            if run["name"] in self.bern_passed:
                 run["bern_phase"] = "passed"
             else:
                 run["bern_phase"] = "not passed"
-        Printcolor.green("> 'bern phase' is added from the list of ({}) simulations".format(len(bern_pass)))
+        Printcolor.green("> 'bern phase' is added from the list of ({}) simulations"
+                         .format(len(self.bern_passed)))
 
     def fill_initial_data(self):
         '''
@@ -2692,6 +2682,207 @@ class ALL_SIMULATIONS_TABLE:
                                         ["green", "blue", "green", "blue", "green"])
         if len(missing) > 0:
             Printcolor.red("\t OUTFLOW Data is missing for ({}) runs".format(len(missing)))
+
+    def load_input_data(self):
+
+        self.header, self.table = self.load_table(self.intable)
+        Printcolor.blue("\tInitial table is loaded")
+        Printcolor.blue("------------------------------------")
+        print(self.header)
+        Printcolor.blue("------------------------------------")
+        print([run["name"] for run in self.table])
+        Printcolor.blue("------------------------------------")
+
+    def fill_input_table_with_all(self):
+        #
+        self.check_sim_name()
+        #
+        self.fill_self_parameters()
+        #
+        self.fill_self_bern_phase_status()
+        #
+        self.fill_initial_data()
+        #
+        self.fill_par_data()
+        #
+        self.fill_outflow_par(det=0, mask="geo")
+        #
+        self.fill_outflow_par(det=0, mask="bern_geoend")
+        #
+        self.save_table(self.header, self.table, self.outtable)
+        #
+
+
+class LOAD_ALL_SIMULATIONS_TABLE:
+
+    def __init__(self):
+        self.simulations = pd.read_csv(Paths.output + Files.models)
+        self.simulations = self.simulations.set_index("name")
+        # self.simulations["res"] = self.simulations["name"]
+        self.add_res()
+        self.add_q()
+        self.add_viscosity()
+        # self.add_dyn_phase_status()
+
+    def add_res(self):
+        """
+        because of the way how pandas load dictionary, one has to loop over
+        all the first row entries to select the needed resolution
+        then if the resolution SR, LR or HR is found in the simulation
+        name it is added, otherwise -- it complains and adds SR.
+        :return: Nothing
+        """
+        Printcolor.blue("...adding resolutions from sim. names")
+        resolutions = []
+        for sim_name in [sim[0] for sim in self.simulations.iterrows()]:
+            appended = False
+            for res in Lists.res:
+                # print(sim_name)
+                if str(sim_name).__contains__(str(res)):
+                    resolutions.append(res)
+                    appended = True
+            if not appended:
+                Printcolor.yellow("Warning: No 'res' found in {} name. Using 'SR' instead".format(sim_name))
+                resolutions.append('SR')
+                # raise NameError("for sim:{} resolution not found".format(sim_name))
+        self.simulations["res"] = resolutions
+
+    def add_viscosity(self):
+        """
+        because of the way how pandas load dictionary, one has to loop over
+        all the first row entries to select the needed resolution
+        then if the resolution 'LK' is found in the simulation
+        name it is added, otherwise - it complains and adds '-' (no viscosity).
+        :return: Nothing
+        """
+        Printcolor.blue("...adding viscosity from sim. names")
+        viscosities = []
+        for sim_name in [sim[0] for sim in self.simulations.iterrows()]:
+            appended = False
+            for vis in Lists.visc:
+                # print(sim_name)
+                if str(sim_name).__contains__(str(vis)):
+                    viscosities.append(vis)
+                    appended = True
+            if not appended:
+                print("Note: No 'visc' found in {} name. Using '-' instead".format(sim_name))
+                viscosities.append('-')
+                # raise NameError("for sim:{} resolution not found".format(sim_name))
+        self.simulations["visc"] = viscosities
+
+    def add_q(self):
+        Printcolor.blue("...adding q = M1/M2")
+        self.simulations["q"] = self.simulations["M1"] / self.simulations["M2"]
+
+    # def add_dyn_phase_status(self):
+    #     Printcolor.blue("...adding dynamical phase info from static list")
+    #     passed_not_passed = []
+    #
+    #     for name_sim, sim in self.simulations.iterrows():
+    #         if name_sim in Lists.dyn_not_pas:
+    #             passed_not_passed.append("passed")
+    #         else:
+    #             passed_not_passed.append("not passed")
+    #     self.simulations["dyn_phase"] = passed_not_passed
+
+    def get_all(self):
+        return self.simulations
+
+    def get_selected_models(self, lim_dic):
+        """
+        To use, provide a dictioany like :
+        {'EOS':['DD2'], 'res':['SR'], 'q':[1.], 'visc':['-'], 'maximum':'tend'}
+        Where the desired preperties are in the lists [], as they can be
+        selected in a several.
+        the last entry - 'maximum' will result in returning 1
+        simulation with the maximum (minimum) of this value
+
+        :param lim_dic:
+        :return:
+        """
+
+        cropped_sims = copy.deepcopy(self.simulations)
+        for v_n in lim_dic.keys():
+
+            if not v_n in cropped_sims.keys() and v_n != 'names':
+                raise NameError("key: {} not in table.keys()\n{}"
+                                .format(v_n, cropped_sims.keys()))
+            elif v_n == 'names':
+                # .loc[[sim1, sim2 ...]] returns a dataframe with these simulations
+                cropped_sims = cropped_sims.loc[lim_dic[v_n]]
+
+            # if v_n == 'name':
+            #     for value in lim_dic[v_n]:
+            #         cropped_sims = cropped_sims[cropped_sims[value] == value]
+
+            elif v_n == 'EOS':
+                for value in lim_dic[v_n]:
+                    cropped_sims = cropped_sims[cropped_sims[v_n] == value]
+            elif v_n == 'res':
+                for value in lim_dic[v_n]:
+                    cropped_sims = cropped_sims[cropped_sims[v_n] == value]
+            elif v_n == 'q':
+                for value in lim_dic[v_n]:
+                    cropped_sims = cropped_sims[cropped_sims[v_n] == value]
+            elif v_n == 'visc':
+                for value in lim_dic[v_n]:
+                    cropped_sims = cropped_sims[cropped_sims[v_n] == value]
+            #
+            # else:
+            #     for value in lim_dic[v_n]:
+            #         cropped_sims = cropped_sims[cropped_sims[v_n] == value]
+
+            # if v_n == 'name':
+            #     for value in lim_dic[v_n]:
+            #         cropped_sims = cropped_sims[cropped_sims[v_n] == value]
+            # else:
+            #     raise NameError("limit dic entry: {} is not reognized".format(v_n))
+
+        if 'maximum' in lim_dic.keys():
+            return cropped_sims[cropped_sims[lim_dic['maximum']] ==
+                                cropped_sims[lim_dic['maximum']].max()]
+
+        if 'minimum' in lim_dic.keys():
+            return cropped_sims[cropped_sims[lim_dic['minimum']] ==
+                                cropped_sims[lim_dic['minimum']].min()]
+
+        return cropped_sims
+
+    def save_new_table(self, new_simulations, fname="../output/summary.csv"):
+
+        header = []
+        table = []
+
+        for sim_name, sim in new_simulations.iterrows():
+            for v_n in sim.keys():
+                header.append(v_n)
+
+        table = []
+        for sim_name, sim in new_simulations.iterrows():
+            run = {}
+            for v_n in sim.keys():
+                value = sim[v_n]
+                if value == None:
+                    run[str(v_n)] = ''
+                else:
+                    run[str(v_n)] = value
+            table.append(run)
+
+                # print(sim_name)
+                # print(sim[v_n])
+                # exit(1)
+
+        with open(fname, "w") as csvfile:
+            writer = csv.DictWriter(csvfile, header)
+            writer.writeheader()
+            for run in table:
+                writer.writerow(run)
+
+    def get_value(self, sim, v_n):
+        return self.simulations.get_value(sim, v_n)
+
+
+
 
 """ ================================================================================================================ """
 

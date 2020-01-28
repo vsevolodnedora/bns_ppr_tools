@@ -824,7 +824,6 @@ class COMPUTE_OUTFLOW_SURFACE_H5(LOAD_OUTFLOW_SURFACE_H5):
         if new_v_n != None:
             if not new_v_n in self.list_comp_v_ns:
                 self.list_comp_v_ns.append(new_v_n)
-
                 self.matrix_comp_data = [[np.empty(0, )
                                           for v in self.list_comp_v_ns]
                                          for d in self.list_detectors]

@@ -13,7 +13,7 @@ import csv
 import os
 import re
 from argparse import ArgumentParser
-from utils import Paths, Printcolor, Lists, Constants
+from utils import Paths, Printcolor, Lists, Constants, UTILS
 
 
 """ ==============================================| SETTINGS |======================================================="""
@@ -892,8 +892,12 @@ class LOAD_ITTIME:
         if not isdata:
             raise ValueError("data for d1d2d3:{} not available".format(d1d2d3prof))
         if it < allit[0] or it > allit[-1]:
-            raise ValueError("it:{} is below min:{} or above max:{} in d1d2d3:{}"
-                             .format(it, allit[0], allit[-1], d1d2d3prof))
+            print("it:{} is below min:{} or above max:{} in d1d2d3:{} [{}] Using polynomial fit"
+                             .format(it, allit[0], allit[-1], d1d2d3prof, self.sim))
+            _, t = UTILS.fit_polynomial(allit, alltimes, order=1, depth=1, new_x=np.array([it]), print_formula=False)
+            return float(t)
+
+
         if not it in allit:
             print("\tWarning it:{} is not in the list of it for d1d2d3: {}".format(it, d1d2d3prof))
 
@@ -903,6 +907,9 @@ class LOAD_ITTIME:
             return float(t)
             # raise ValueError("it:{} is not in alliterations:{} for d1d2d3:{}"
             #                  .format(it, allit, d1d2d3prof))
+
+
+
 
         if isdata:
             return float(alltimes[self.find_nearest_index(allit, it)])
@@ -2077,6 +2084,16 @@ class COLLATE_DATA(LOAD_ITTIME):
                     ["Task:", "colate", "file:", "{}".format(fname), ":", "no files found..."],
                     ["blue", "green", "blue", "green", "", "red"])
 
+
+class SIM_STATUS_FROM_COLLATED:
+
+    def __init__(self, sim, indir, outdir):
+
+        self.indir = indir
+        self.outdir = outdir
+        self.sim = sim
+
+        collated = "collated/"
 
 
 if __name__ == '__main__':

@@ -214,7 +214,7 @@ class BASIC_PARTS():
     def plot_text(self, ax, dic):
         """
 
-            'text':{'coords':(0.8, 0.8), 'text':"DD2", 'color':'red', 'fs':16}
+            'textold':{'coords':(0.8, 0.8), 'text':"DD2", 'color':'red', 'fs':16}
 
         :param ax:
         :param dic:
@@ -230,13 +230,18 @@ class BASIC_PARTS():
             ax.text(coords[0], coords[1], text, color=color, fontsize=fs, transform=ax.transAxes)
 
     def plot_text2(self, ax, dic):
+        """'text':{'x':0.5, 'y':0.5, 'text':'my_text', 'fs':12, 'color':'black','horal':True}"""
+        # print("---------")
         xcorr = dic['x']
         ycorr = dic['y']
         text = dic['text']
         fs = dic['fs']
         color=dic['color']
         horal = dic['horizontalalignment']
-        ax.text(xcorr, ycorr, text, color=color, fontsize=fs, horizontalalignment=horal)
+        if 'transform' in dic.keys() and dic['transform']:
+            ax.text(xcorr, ycorr, text, color=color, fontsize=fs, horizontalalignment=horal, transform=ax.transAxes)
+        else:
+            ax.text(xcorr, ycorr, text, color=color, fontsize=fs, horizontalalignment=horal)
         return 0
 
     @staticmethod
@@ -380,10 +385,48 @@ class BASIC_PARTS():
             raise NameError("unrecognized norm: {} in task {}"
                             .format(dic["norm"], dic["v_n"]))
         #
+        if 'markers' in dic.keys() and dic['markers'] != None:
+            # sc = BASIC_PARTS.mscatter(x_arr, y_arr, ax=ax, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, m=dic["marker"], label=dic['label'], alpha=dic['alpha'], edgecolors=dic["edgecolors"])
+            if "label" in dic.keys() and dic['label'] != None:
+                sc = BASIC_PARTS.mscatter(x_arr, y_arr, ax=ax, c=z_arr, norm=norm, s=dic['ms'], cmap=cm,
+                                          m=dic["markers"], label=dic['label'],
+                                          alpha=dic['alpha'])  # , edgecolors=dic["edgecolors"])
+            else:
+                sc = BASIC_PARTS.mscatter(x_arr, y_arr, ax=ax, c=z_arr, norm=norm, s=dic['ms'], cmap=cm,
+                                          m=dic["markers"], alpha=dic['alpha'])  # , edgecolors=dic["edgecolors"])
+        elif "marker" in dic.keys() and dic["marker"] != None:
+            if "label" in dic.keys() and dic['label'] != None:
+                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], marker=dic["marker"], cmap=cm,
+                                alpha=dic['alpha'], label=dic['label'],
+                                edgecolors=dic["edgecolors"])  # edgecolors="black"
+            else:
+                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], marker=dic["marker"], cmap=cm,
+                                alpha=dic['alpha'], edgecolors=dic["edgecolors"])
+        else:
+            if "label" in dic.keys() and dic['label'] != None:
+                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, label=dic['label'],
+                                alpha=dic['alpha'], edgecolors=dic["edgecolors"])
+            else:
+                sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, alpha=dic['alpha'],
+                                edgecolors=dic["edgecolors"])
+        return sc
+
+
+
+
+
+
+
         if "edgecolors" in dic.keys() and dic["edgecolors"] != None:
-            if "marker" in dic.keys() and dic["marker"] != None:
+            if 'markers' in dic.keys() and dic['markers'] != None:
+                # sc = BASIC_PARTS.mscatter(x_arr, y_arr, ax=ax, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, m=dic["marker"], label=dic['label'], alpha=dic['alpha'], edgecolors=dic["edgecolors"])
                 if "label" in dic.keys() and dic['label'] != None:
-                    sc = BASIC_PARTS.mscatter(x_arr, y_arr, ax=ax, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, m=dic["marker"], label=dic['label'], alpha=dic['alpha'], edgecolors=dic["edgecolors"]) # edgecolors="black"
+                    sc = BASIC_PARTS.mscatter(x_arr, y_arr, ax=ax, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, m=dic["marker"], label=dic['label'], alpha=dic['alpha'])#, edgecolors=dic["edgecolors"])
+                else:
+                    sc = BASIC_PARTS.mscatter(x_arr, y_arr, ax=ax, c=z_arr, norm=norm, s=dic['ms'], cmap=cm, m=dic["marker"], alpha=dic['alpha'])#, edgecolors=dic["edgecolors"])
+            elif "marker" in dic.keys() and dic["marker"] != None:
+                if "label" in dic.keys() and dic['label'] != None:
+                    sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], marker=dic["marker"], cmap=cm, alpha=dic['alpha'], label=dic['label'], edgecolors=dic["edgecolors"]) # edgecolors="black"
                 else:
                     sc = ax.scatter(x_arr, y_arr, c=z_arr, norm=norm, s=dic['ms'], marker=dic["marker"], cmap=cm, alpha=dic['alpha'], edgecolors=dic["edgecolors"])
             else:

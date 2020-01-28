@@ -45,6 +45,8 @@ class Paths:
             fname = "/data01/numrel/vsevolod.nedora/Data/EOS/SFHo/SFHo_hydro_29-Jun-2015.h5"
         elif sim.__contains__("BLh"):
             fname = "/data01/numrel/vsevolod.nedora/Data/EOS/SFHo+BL/BLH_new_hydro_10-Jun-2019.h5"
+        elif sim.__contains__("BHBlp"):
+            fname = "/data01/numrel/vsevolod.nedora/Data/EOS/BHB/BHB_lp_hydro_10-May-2016.h5"
         else:
             raise NameError("Current dir does not contain a hint to what EOS to use: \n{}"
                             .format(sim))
@@ -359,10 +361,13 @@ class Labels:
     def labels(v_n, mask=None):
         # solar
 
-        if v_n == 'theta':
-                return r"Angle from orbital plane"
+        if v_n == "nsims":
+            return r"$N_{\rm{resolutions}}$"
 
-        if v_n == 'temp' or v_n == "temperature":
+        elif v_n == 'theta':
+            return r"Angle from orbital plane"
+
+        elif v_n == 'temp' or v_n == "temperature":
             return r"$T$ [GEO]"
 
         elif v_n == 'phi':
@@ -378,33 +383,34 @@ class Labels:
             return r'$M_{\rm{disk;max}}$ $[M_{\odot}]$'
 
         elif v_n == 'ejmass' or v_n == "Mej_tot":
-            if mask == None:
-                return r'$M_{\rm{ej}}$ $[10^{-2}M_{\odot}]$'
-            elif mask == "geo_entropy_above_10":
+
+            if mask == "geo_entropy_above_10":
                 return r'$M_{\rm{ej;s>10}}$ $[10^{-2}M_{\odot}]$'
             elif mask == "geo_entropy_below_10":
                 return r'$M_{\rm{ej;s<10}}$ $[10^{-2}M_{\odot}]$'
             else:
-                raise NameError("label for v_n:{} mask:{} is not found".format(v_n, mask))
+                return r'$M_{\rm{ej}}$ $[10^{-2}M_{\odot}]$'
+
         elif v_n == "Mej_tot_scaled":
-            if mask == None:
-                return r'$M_{\rm{ej}}/M_{\rm{b;tot}}$ $[10^{-2}M_{\odot}]$'
-            elif mask == "geo_entropy_above_10":
+            if mask == "geo_entropy_above_10":
                 return r'$M_{\rm{ej;s>10}}/M_{\rm{b;tot}}$ $[10^{-2}M_{\odot}]$'
             elif mask == "geo_entropy_below_10":
                 return r'$M_{\rm{ej;s<10}}/M_{\rm{b;tot}}$ $[10^{-2}M_{\odot}]$'
             else:
-                raise NameError("label for v_n:{} mask:{} is not found".format(v_n, mask))
+                return r'$M_{\rm{ej}}/M_{\rm{b;tot}}$ $[10^{-2}M_{\odot}]$'
+            # else:
+            #     raise NameError("label for v_n:{} mask:{} is not found".format(v_n, mask))
 
         elif v_n == "Mej_tot_scaled2":
-            if mask == None:
-                return r'$M_{\rm{ej}}/(\eta M_{\rm{b;tot}})$ $[10^{-2}M_{\odot}]$'
-            elif mask == "geo_entropy_above_10":
+
+            if mask == "geo_entropy_above_10":
                 return r'$M_{\rm{ej;s>10}}/(\eta M_{\rm{b;tot}})$ $[10^{-2}M_{\odot}]$'
             elif mask == "geo_entropy_below_10":
                 return r'$M_{\rm{ej;s<10}}/(\eta M_{\rm{b;tot}})$ $[10^{-2}M_{\odot}]$'
             else:
-                raise NameError("label for v_n:{} mask:{} is not found".format(v_n, mask))
+                return r'$M_{\rm{ej}}/(\eta M_{\rm{b;tot}})$ $[10^{-2}M_{\odot}]$'
+            # else:
+            #     raise NameError("label for v_n:{} mask:{} is not found".format(v_n, mask))
 
         elif v_n == 'ejmass3':
             return r'$M_{\rm{ej}}$ $[10^{-3}M_{\odot}]$'
@@ -928,7 +934,7 @@ class UTILS:
             return x_y_z_arr_shaped[:, 0], x_y_z_arr_shaped[:, 1], x_y_z_arr_shaped[:, 2]
 
     @staticmethod
-    def fit_polynomial(x, y, order, depth, new_x=np.empty(0, )):
+    def fit_polynomial(x, y, order, depth, new_x=np.empty(0, ), print_formula=True):
         '''
         RETURNS new_x, f(new_x)
         :param x:
@@ -944,14 +950,14 @@ class UTILS:
         lbl = None
 
         if not new_x.any():
-            new_x = np.mgrid[(x.min()):(x.max()):depth * 1j]
+            new_x = np.mgrid[x.min():x.max():depth * 1j]
 
         if order == 1:
             fit = np.polyfit(x, y, order)  # fit = set of coeddicients (highest first)
             f = np.poly1d(fit)
             lbl = '({}) + ({}*x)'.format(
-                "%.3f" % f.coefficients[1],
-                "%.3f" % f.coefficients[0]
+                "%.4f" % f.coefficients[1],
+                "%.4f" % f.coefficients[0]
             )
             # fit_x_coord = np.mgrid[(x.min()):(x.max()):depth*1j]
             # plt.plot(fit_x_coord, f(fit_x_coord), '--', color='black')
@@ -960,9 +966,9 @@ class UTILS:
             fit = np.polyfit(x, y, order)  # fit = set of coeddicients (highest first)
             f = np.poly1d(fit)
             lbl = '({}) + ({}*x) + ({}*x**2)'.format(
-                "%.3f" % f.coefficients[2],
-                "%.3f" % f.coefficients[1],
-                "%.3f" % f.coefficients[0]
+                "%.4f" % f.coefficients[2],
+                "%.4f" % f.coefficients[1],
+                "%.4f" % f.coefficients[0]
             )
             # fit_x_coord = np.mgrid[(x.min()):(x.max()):depth*1j]
             # plt.plot(fit_x_coord, f(fit_x_coord), '--', color='black')
@@ -970,10 +976,10 @@ class UTILS:
             fit = np.polyfit(x, y, order)  # fit = set of coeddicients (highest first)
             f = np.poly1d(fit)
             lbl = '({}) + ({}*x) + ({}*x**2) + ({}*x**3)'.format(
-                "%.3f" % f.coefficients[3],
-                "%.3f" % f.coefficients[2],
-                "%.3f" % f.coefficients[1],
-                "%.3f" % f.coefficients[0]
+                "%.4f" % f.coefficients[3],
+                "%.4f" % f.coefficients[2],
+                "%.4f" % f.coefficients[1],
+                "%.4f" % f.coefficients[0]
             )
             # fit_x_coord = np.mgrid[(x.min()):(x.max()):depth*1j]
             # plt.plot(fit_x_coord, f(fit_x_coord), '--', color='black')
@@ -981,11 +987,11 @@ class UTILS:
             fit = np.polyfit(x, y, order)  # fit = set of coeddicients (highest first)
             f = np.poly1d(fit)
             lbl = '({}) + ({}*x) + ({}*x**2) + ({}*x**3) + ({}*x**4)'.format(
-                "%.3f" % f.coefficients[4],
-                "%.3f" % f.coefficients[3],
-                "%.3f" % f.coefficients[2],
-                "%.3f" % f.coefficients[1],
-                "%.3f" % f.coefficients[0]
+                "%.4f" % f.coefficients[4],
+                "%.4f" % f.coefficients[3],
+                "%.4f" % f.coefficients[2],
+                "%.4f" % f.coefficients[1],
+                "%.4f" % f.coefficients[0]
             )
             # fit_x_coord = np.mgrid[(x.min()):(x.max()):depth*1j]
             # plt.plot(fit_x_coord, f(fit_x_coord), '--', color='black')
@@ -994,12 +1000,12 @@ class UTILS:
             fit = np.polyfit(x, y, order)  # fit = set of coeddicients (highest first)
             f = np.poly1d(fit)
             lbl = '({}) + ({}*x) + ({}*x**2) + ({}*x**3) + ({}*x**4) + ({}*x**5)'.format(
-                "%.3f" % f.coefficients[5],
-                "%.3f" % f.coefficients[4],
-                "%.3f" % f.coefficients[3],
-                "%.3f" % f.coefficients[2],
-                "%.3f" % f.coefficients[1],
-                "%.3f" % f.coefficients[0]
+                "%.4f" % f.coefficients[5],
+                "%.4f" % f.coefficients[4],
+                "%.4f" % f.coefficients[3],
+                "%.4f" % f.coefficients[2],
+                "%.4f" % f.coefficients[1],
+                "%.4f" % f.coefficients[0]
             )
             # fit_x_coord = np.mgrid[(x.min()):(x.max()):depth*1j]
             # plt.plot(fit_x_coord, f(fit_x_coord), '--', color='black')
@@ -1008,13 +1014,13 @@ class UTILS:
             fit = np.polyfit(x, y, order)  # fit = set of coeddicients (highest first)
             f = np.poly1d(fit)
             lbl = '({}) + ({}*x) + ({}*x**2) + ({}*x**3) + ({}*x**4) + ({}*x**5) + ({}*x**6)'.format(
-                "%.3f" % f.coefficients[6],
-                "%.3f" % f.coefficients[5],
-                "%.3f" % f.coefficients[4],
-                "%.3f" % f.coefficients[3],
-                "%.3f" % f.coefficients[2],
-                "%.3f" % f.coefficients[1],
-                "%.3f" % f.coefficients[0]
+                "%.4f" % f.coefficients[6],
+                "%.4f" % f.coefficients[5],
+                "%.4f" % f.coefficients[4],
+                "%.4f" % f.coefficients[3],
+                "%.4f" % f.coefficients[2],
+                "%.4f" % f.coefficients[1],
+                "%.4f" % f.coefficients[0]
             )
             # fit_x_coord = np.mgrid[(x.min()):(x.max()):depth*1j]
             # plt.plot(fit_x_coord, f(fit_x_coord), '--', color='black')
@@ -1024,9 +1030,22 @@ class UTILS:
             f = np.poly1d(fit)
             # raise ValueError('Supported orders: 1,2,3,4 only')
 
-        print(lbl)
+        if print_formula:
+            print(lbl)
 
         return new_x, f(new_x)
+
+    @staticmethod
+    def cart2pol(x, y):
+        rho = np.sqrt(x ** 2 + y ** 2)
+        phi = np.arctan2(y, x)
+        return (rho, phi)
+
+    @staticmethod
+    def pol2cart(rho, phi):
+        x = rho * np.cos(phi)
+        y = rho * np.sin(phi)
+        return (x, y)
 
 class PHYSICS:
 
