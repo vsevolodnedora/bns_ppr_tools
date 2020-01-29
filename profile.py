@@ -3523,20 +3523,19 @@ def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
             dr_cyl = d3intclass.new_grid.get_int_grid("dr_cyl")
             dz_cyl = d3intclass.new_grid.get_int_grid("dz_cyl")
             r_cyl = d3intclass.new_grid.get_int_grid("r_cyl")
+            I_rc = 2 * np.sum(dens_cyl * r_cyl ** 2 * dz_cyl * dphi_cyl, axis=(1, 2))
             D_rc = 2 * np.sum(dens_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
             J_rc = 2 * np.sum(ang_mom_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
             #
             ofile = open(fpath, "w")
-            ofile.write("# 1:rcyl 2:drcyl 3:M 4:J\n")
+            ofile.write("# 1:rcyl 2:drcyl 3:M 4:J 5:I\n")
             for i in range(r_cyl.shape[0]):
-                ofile.write("{} {} {} {}\n".format(r_cyl[i], dr_cyl[i], D_rc[i], J_rc[i]))
+                ofile.write("{} {} {} {} {}\n".format(r_cyl[i, 0, 0], dr_cyl[i, 0, 0], D_rc[i], J_rc[i], I_rc[i]))
             ofile.close()
             #
         else:
             print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "skipping"],
                                  ["blue", "green", "blue", "green", "", "blue"])
-
-
 
 """ ==============================================| D3 PLOTS |======================================================="""
 
