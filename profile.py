@@ -46,7 +46,7 @@ from utils import *
 
 """ ==============================================| SETTINGS |====================================================== """
 __rootoutdir__ = "profiles/"
-__profile__ = {"tasklist": ["all", "corr", "hist", "slice", "mass", "densmode", "vtk", "densmodeint",
+__profile__ = {"tasklist": ["all", "corr", "hist", "slice", "mass", "densmode", "vtk", "densmodeint", "mjenclosed",
                             "plotall", "plotcorr", "plothist", "plotslice", "plotmass",
                             "plotdensmode", "plotcenterofmass", "plotdensmodephase"]}
 __d3slicesvns__ = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "entr", "eps", "lapse", "velx", "vely", "velz",
@@ -60,6 +60,7 @@ __d3corrs__ = ["rho_r", "rho_Ye", "r_Ye", "temp_Ye", "rho_theta", "velz_theta", 
 __d3histvns__      = ["r", "theta", "Ye", "entr", "temp", "velz", "rho", "dens_unb_bern", "press"]
 __d3slicesplanes__ = ["xy", "xz"]
 __d3diskmass__ = "disk_mass.txt"
+__d3intmjfname__ = "MJ_encl.txt"
 __d3densitymodesfame__ = "density_modes_lap15.h5"
 __center_of_mass_plotname__ = "center_of_mass.png"
 # --- ploting ---
@@ -222,9 +223,11 @@ class CYLINDRICAL_GRID:
                 get_int_arr(arr)
     """
 
-    def __init__(self):
-
-        self.grid_info = {'type': 'cyl', 'n_r': 150, 'n_phi': 150, 'n_z': 100}
+    def __init__(self, grid_info = None):
+        if grid_info == None:
+            self.grid_info = {'type': 'cyl', 'n_r': 150, 'n_phi': 150, 'n_z': 100}
+        else:
+            self.grid_info = grid_info
 
         self.grid_type = self.grid_info['type']
 
@@ -3499,6 +3502,42 @@ def d3_int_data_to_vtk(d3intclass, outdir, rewrite=False):
         #     print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "skipping"],
         #                          ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
 
+def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
+    #
+    for it in glob_its:
+        sys.stdout.flush()
+        _outdir = outdir + str(it) + '/'
+        if not os.path.isdir(_outdir):
+            os.mkdir(_outdir)
+        #
+        fpath = _outdir + __d3intmjfname__
+        #
+        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+            if os.path.isfile(fpath): os.remove(fpath)
+            print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "computing"],
+                                 ["blue", "green", "blue", "green", "", "green"])
+            #
+            dens_cyl = d3intclass.get_int(it, "density")
+            ang_mom_cyl = d3intclass.get_int(it, "ang_mom")
+            dphi_cyl = d3intclass.new_grid.get_int_grid("dphi_cyl")
+            dr_cyl = d3intclass.new_grid.get_int_grid("dr_cyl")
+            dz_cyl = d3intclass.new_grid.get_int_grid("dz_cyl")
+            r_cyl = d3intclass.new_grid.get_int_grid("r_cyl")
+            D_rc = 2 * np.sum(dens_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
+            J_rc = 2 * np.sum(ang_mom_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
+            #
+            ofile = open(fpath, "w")
+            ofile.write("# 1:rcyl 2:drcyl 3:M 4:J\n")
+            for i in range(r_cyl.shape[0]):
+                ofile.write("{} {} {} {}\n".format(r_cyl[i], dr_cyl[i], D_rc[i], J_rc[i]))
+            ofile.close()
+            #
+        else:
+            print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "skipping"],
+                                 ["blue", "green", "blue", "green", "", "blue"])
+
+
+
 """ ==============================================| D3 PLOTS |======================================================="""
 
 def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
@@ -4566,6 +4605,12 @@ def d3_main_computational_loop():
         os.mkdir(outdir)
 
     # methods that required inteprolation [No masks used!]
+    if "mjenclosed" in glob_tasklist:
+        new_type = {'type': 'cyl', 'n_r': 75, 'n_phi': 64, 'n_z': 100}
+        o_grid = CYLINDRICAL_GRID(grid_info=new_type)
+        o_d3int = INTMETHODS_STORE(glob_sim, o_grid, glob_symmetry)
+        d3_interpolate_mjenclosed(o_d3int, outdir=outdir, rewrite=glob_overwrite)
+
     if "vtk" in glob_tasklist:
         o_grid = CARTESIAN_GRID()
         o_d3int = INTMETHODS_STORE(glob_sim, o_grid, glob_symmetry)
@@ -4655,7 +4700,7 @@ if __name__ == '__main__':
     glob_v_ns = args.v_ns
     glob_rls = args.reflevels
     glob_its = args.iterations
-    glob_times=args.times
+    glob_times = args.times
     glob_symmetry = args.symmetry
     glob_overwrite = args.overwrite
     simdir = Paths.gw170817 + glob_sim + '/'
