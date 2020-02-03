@@ -160,7 +160,12 @@ Purpose and usage:
 To do a comprehensive analysis of the 3D data. It allows to compute: 
 1) Compute quntities such as `dens_unb_bern` or `ang_mom_flux` with methods specified in the class `FORMULAS`  
 2) 1D histograms, 2D correlations (histograms), total mass, (applying user specified masks)
-3) Plot xz-xy snapshots of the data, initially available as well as computed. 
+3) Plot xz-xy snapshots of the data, initially available as well as computed.
+
+By default the mask is applied to 3D data, to ignore the atmosphere (density cut) and remnant (density cut) and black hole  
+(lapse cut). The exact parameters of the mask are set in the class 'MASK_STORE'. There, additional masks are avaialble, such as
+'disk' -- for disk analysis and 'remnant' for remnant, NS, analysis. Additional masks can be specified there, and the entire
+postprocessing re-done for selected data [this is not implemented at present].
 
 Parameters:  
 `-t` tasklist to do.  
@@ -179,11 +184,18 @@ This would perform the complete analysis for every `profile.h5`. For every profi
 1) `-t densmode` compute density modes for default 1-8 modes accounting for center of mass drift, saving output in the root as `density_modes_lap15`.
 2) `-t slice` computes additional variables and saves their xy and xz slices in `profile.xy.h5` and `profile.xz.h5` in the in the aforementioned subdirectories.
 3) `-t corr` computes correlations for all available variables, saving the `corr_v_n1_v_n2.h5` files in the aforementioned subdirectories.  
-4) `-t hist` computes histograms for some variables, saving the `hist_v_n.dat` files in the aforementioned subdirectories.  
-5) `-t mass` computes mass of the disk using the present masks  
-6) `-t vtk` computes a .vtr file for visit visualisation. The data for given `v_n` and `it` (or `time`) is first inteprolated onto a cartesian grid and then parsed into `gridToVTK()` function from PyEVTK library. Requires preinstallation of `https://bitbucket.org/pauloh/pyevtk`. 
+4) `-t mass` computes mass of the disk using the present mask for the disk, also computes the remnant baryonic mass, assuming that everything that has higher density than 1e13 is a remnant.  
+5) `-t hist` computes histograms for some variables, saving the `hist_v_n.dat` files in the aforementioned subdirectories.  
 
-**Note** that tor last three tasks, the mask for all data is used. Default is lapse>0.15 and 6e4<rho<1e13 (cgs)
+**Note** for `-t corr` and `-t hist`, the 'disk' mask for all data is used. Default is lapse>0.15 and 6e4<rho<1e13 (cgs)
+
+There are also analysis methods that rely on interpolated data implemented:  
+Using 'cylindrical grid', set up in a class 'CYLINDRICAL_GRID', the following tasks are performed:
+1) `-t mjenclosed` computes baryonic, angular momentum and moment of inertia enclosed in cylindrical shells.
+
+Using the 'cartesian grid', set up in class 'CARTESIAN_GRID', the following tasks are performed
+1) `-t vtk` computes a .vtr file for visit visualisation. The data for given `v_n` and `it` (or `time`) is first inteprolated onto a cartesian grid and then parsed into `gridToVTK()` function from PyEVTK library. Requires preinstallation of `https://bitbucket.org/pauloh/pyevtk`. 
+
 
 6) `-t plotslice` loads `profile.xy.h5`, `profile.xz.h5` and for every reflevel and variable plots xz-xy 2D slice, saving in `/slices/`
 7) `-t plotcorr` loads computed  `corr_v_n1_v_n2.h5` and plots data, saving in `/corr_plots/`

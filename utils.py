@@ -22,6 +22,7 @@ class Paths:
     ppr_sims =  '/data01/numrel/vsevolod.nedora/postprocessed4/'
     lorene =    '/data/numrel/Lorene/Lorene_TABEOS/GW170817/'
     # lorene =    '/data01/numrel/vsevolod.nedora/Data/Lorene/'
+    rns =       '/data01/numrel/vsevolod.nedora/Data/RNS/'
     TOVs =      '/data01/numrel/vsevolod.nedora/Data/TOVs/'
     gw170817 =   '/data1/numrel/WhiskyTHC/Backup/2018/GW170817/' # "/data01/numrel/vsevolod.nedora/tmp/" # '/data1/numrel/WhiskyTHC/Backup/2018/SLy4_M130130_SR_physics/'
     skynet =    '/data01/numrel/vsevolod.nedora/Data/skynet/'

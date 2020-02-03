@@ -72,6 +72,7 @@ class BASIC_PARTS():
 
             if "xmin" in dic.keys() and "xmax" in dic.keys():
                 if dic["xmin"] != None and dic["xmax"] != None:
+                    # print(dic['xmin'], dic['xmin']); exit(1)
                     #print("n_col:{} n_row:{} setting xlim:[{} {}]".format(n_col, n_row, dic["xmin"], dic["xmax"])),
                     ax.set_xlim(float(dic["xmin"]), float(dic["xmax"]))
                     #print("getting xlim:[{}, {}]".format(n_col, n_row, ax.get_xlim()[0], ax.get_xlim()[1]))
@@ -127,8 +128,6 @@ class BASIC_PARTS():
                     ax.set_ylabel(dic["v_n_y"].replace('_', '\_'), fontsize=dic['fontsize'])
             else:
                 print("Waning. Neither v_n_x nor xlabel are set in the dic")
-
-
 
         elif dic["ptype"] == "polar":
             pass
@@ -230,7 +229,7 @@ class BASIC_PARTS():
             ax.text(coords[0], coords[1], text, color=color, fontsize=fs, transform=ax.transAxes)
 
     def plot_text2(self, ax, dic):
-        """'text':{'x':0.5, 'y':0.5, 'text':'my_text', 'fs':12, 'color':'black','horal':True}"""
+        """'text':{'x':0.5, 'y':0.5, 'text':'my_text', 'fs':12, 'color':'black','horal':True, 'transform':True}"""
         # print("---------")
         xcorr = dic['x']
         ycorr = dic['y']
@@ -544,76 +543,91 @@ class BASIC_PARTS():
         if 'xticks' in dic.keys() and dic['xticks'] != None:
             ax.set_xticks(dic['xticks'])
 
-        if dic['task'] == 'outflow corr':
-            if dic['v_n_x'] == 'theta':
-                xmajorticks = np.arange(5) * 90. / 4.
-                xminorticks = np.arange(17) * 90. / 16
-                xmajorlabels = [r"$0^\circ$", r"$22.5^\circ$", r"$45^\circ$",
-                                r"$67.5^\circ$", r"$90^\circ$"]
-                ax.xaxis.set_major_locator(FixedLocator(xmajorticks))
-                ax.xaxis.set_minor_locator(FixedLocator(xminorticks))
-                ax.set_xticklabels(xmajorlabels)
-            if dic['v_n_y'] == 'theta':
-                ymajorticks = np.arange(5) * 90. / 4.
-                yminorticks = np.arange(17) * 90. / 16
-                ymajorlabels = [r"$0^\circ$", r"$22.5^\circ$", r"$45^\circ$",
-                                r"$67.5^\circ$", r"$90^\circ$"]
-                ax.yaxis.set_major_locator(FixedLocator(ymajorticks))
-                ax.yaxis.set_minor_locator(FixedLocator(yminorticks))
-                ax.set_yticklabels(ymajorlabels)
+        if 'xmajorticks' in dic.keys() and len(dic['xmajorticks']) > 0:
+            ax.xaxis.set_major_locator(FixedLocator(dic['xmajorticks']))
+        if 'xminorticks' in dic.keys() and len(dic['xminorticks']) > 0:
+            ax.xaxis.set_minor_locator(FixedLocator(dic['xminorticks']))
+        if 'xmajorlabels' in dic.keys() and len(dic['xmajorlabels']) > 0:
+            ax.set_xticklabels(dic['xmajorlabels'])
 
-            if dic['v_n_x'] == 'vel_inf' or dic['v_n_x'] == 'vel_inf_bern':
-                if 'sharey' in dic.keys() and dic['sharey']:
-                    ax.set_xticks(np.arange(dic['xmin'], dic['xmax'], .1))
-                else:
-                    ax.set_xticks(np.arange(dic['xmin'], dic['xmax'], .1))
+            # xmajorticks = np.arange(5) * 90. / 4.
+            # xminorticks = np.arange(17) * 90. / 16
+            # xmajorlabels = [r"$0^\circ$", r"$22.5^\circ$", r"$45^\circ$",
+            #                 r"$67.5^\circ$", r"$90^\circ$"]
+            # ax.xaxis.set_major_locator(FixedLocator(xmajorticks))
+            # ax.xaxis.set_minor_locator(FixedLocator(xminorticks))
+            # ax.set_xticklabels(xmajorlabels)
 
-            if dic['v_n_y'] == 'vel_inf' or dic['v_n_y'] == 'vel_inf_bern':
-                if 'sharex' in dic.keys() and dic['sharex']:
-                    ax.set_yticks(np.arange(0, 1.0, .2))
-                else:
-                    ax.set_yticks(np.arange(0, 1.0, .2))
-
-            if dic['v_n_x'] == 'ye':
-                if 'sharey' in dic.keys() and dic['sharey']:
-                    ax.set_xticks(np.arange(0.1, 0.5, .1))
-                else:
-                    ax.xaxis.set_major_locator(MultipleLocator(0.1))
-                    ax.xaxis.set_minor_locator(AutoMinorLocator(5))
-
-            if dic['v_n_y'] == 'ye':
-                if 'sharex' in dic.keys() and dic['sharex']:
-                    ax.set_yticks(np.arange(0.1, 0.5, .1))
-                else:
-                    ax.yaxis.set_major_locator(MultipleLocator(0.1))
-                    ax.yaxis.set_minor_locator(AutoMinorLocator(5))
-
-        if 'v_n_x' in dic.keys() and 'v_n_y' in dic.keys():
-            if (dic['v_n_x'] == 'hist_theta' and dic['v_n_y'] == 'hist_theta_m'):
-                xmajorticks = np.arange(5) * 90. / 4.
-                xminorticks = np.arange(17) * 90. / 16
-                xmajorlabels = [r"$0^\circ$", r"$22.5^\circ$", r"$45^\circ$",
-                                r"$67.5^\circ$", r"$90^\circ$"]
-                ax.xaxis.set_major_locator(FixedLocator(xmajorticks))
-                ax.xaxis.set_minor_locator(FixedLocator(xminorticks))
-                ax.set_xticklabels(xmajorlabels)
-
-            if dic['v_n_x'] == 'hist_ye' and dic['v_n_y'] == 'hist_ye_m':
-                if 'sharey' in dic.keys() and dic['sharey']:
-                    ax.set_xticks(np.arange(0.1, 0.6, .1))
-                else:
-                    ax.xaxis.set_major_locator(MultipleLocator(0.1))
-                    ax.xaxis.set_minor_locator(AutoMinorLocator(5))
-
-            if dic['v_n_x'] == 'hist_vel_inf' and dic['v_n_y'] == 'hist_vel_inf_m':
-                if 'sharey' in dic.keys() and dic['sharey']:
-                    ax.set_xticks(np.arange(0.2, 1.2, .2))
-                else:
-                    ax.set_xticks(np.arange(0, 1.2, .2))
-
-            if dic['v_n_x'] == 'A' and dic['v_n_y'] == 'Y_final':
-                ax.set_xticks(np.arange(50, 200, 50))
-
+        # if dic['task'] == 'outflow corr':
+        #     if dic['v_n_x'] == 'theta':
+        #         xmajorticks = np.arange(5) * 90. / 4.
+        #         xminorticks = np.arange(17) * 90. / 16
+        #         xmajorlabels = [r"$0^\circ$", r"$22.5^\circ$", r"$45^\circ$",
+        #                         r"$67.5^\circ$", r"$90^\circ$"]
+        #         ax.xaxis.set_major_locator(FixedLocator(xmajorticks))
+        #         ax.xaxis.set_minor_locator(FixedLocator(xminorticks))
+        #         ax.set_xticklabels(xmajorlabels)
+        #     if dic['v_n_y'] == 'theta':
+        #         ymajorticks = np.arange(5) * 90. / 4.
+        #         yminorticks = np.arange(17) * 90. / 16
+        #         ymajorlabels = [r"$0^\circ$", r"$22.5^\circ$", r"$45^\circ$",
+        #                         r"$67.5^\circ$", r"$90^\circ$"]
+        #         ax.yaxis.set_major_locator(FixedLocator(ymajorticks))
+        #         ax.yaxis.set_minor_locator(FixedLocator(yminorticks))
+        #         ax.set_yticklabels(ymajorlabels)
+        #
+        #     if dic['v_n_x'] == 'vel_inf' or dic['v_n_x'] == 'vel_inf_bern':
+        #         if 'sharey' in dic.keys() and dic['sharey']:
+        #             ax.set_xticks(np.arange(dic['xmin'], dic['xmax'], .1))
+        #         else:
+        #             ax.set_xticks(np.arange(dic['xmin'], dic['xmax'], .1))
+        #
+        #     if dic['v_n_y'] == 'vel_inf' or dic['v_n_y'] == 'vel_inf_bern':
+        #         if 'sharex' in dic.keys() and dic['sharex']:
+        #             ax.set_yticks(np.arange(0, 1.0, .2))
+        #         else:
+        #             ax.set_yticks(np.arange(0, 1.0, .2))
+        #
+        #     if dic['v_n_x'] == 'ye':
+        #         if 'sharey' in dic.keys() and dic['sharey']:
+        #             ax.set_xticks(np.arange(0.1, 0.5, .1))
+        #         else:
+        #             ax.xaxis.set_major_locator(MultipleLocator(0.1))
+        #             ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+        #
+        #     if dic['v_n_y'] == 'ye':
+        #         if 'sharex' in dic.keys() and dic['sharex']:
+        #             ax.set_yticks(np.arange(0.1, 0.5, .1))
+        #         else:
+        #             ax.yaxis.set_major_locator(MultipleLocator(0.1))
+        #             ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+        #
+        # if 'v_n_x' in dic.keys() and 'v_n_y' in dic.keys():
+        #     if (dic['v_n_x'] == 'hist_theta' and dic['v_n_y'] == 'hist_theta_m'):
+        #         xmajorticks = np.arange(5) * 90. / 4.
+        #         xminorticks = np.arange(17) * 90. / 16
+        #         xmajorlabels = [r"$0^\circ$", r"$22.5^\circ$", r"$45^\circ$",
+        #                         r"$67.5^\circ$", r"$90^\circ$"]
+        #         ax.xaxis.set_major_locator(FixedLocator(xmajorticks))
+        #         ax.xaxis.set_minor_locator(FixedLocator(xminorticks))
+        #         ax.set_xticklabels(xmajorlabels)
+        #
+        #     if dic['v_n_x'] == 'hist_ye' and dic['v_n_y'] == 'hist_ye_m':
+        #         if 'sharey' in dic.keys() and dic['sharey']:
+        #             ax.set_xticks(np.arange(0.1, 0.6, .1))
+        #         else:
+        #             ax.xaxis.set_major_locator(MultipleLocator(0.1))
+        #             ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+        #
+        #     if dic['v_n_x'] == 'hist_vel_inf' and dic['v_n_y'] == 'hist_vel_inf_m':
+        #         if 'sharey' in dic.keys() and dic['sharey']:
+        #             ax.set_xticks(np.arange(0.2, 1.2, .2))
+        #         else:
+        #             ax.set_xticks(np.arange(0, 1.2, .2))
+        #
+        #     if dic['v_n_x'] == 'A' and dic['v_n_y'] == 'Y_final':
+        #         ax.set_xticks(np.arange(50, 200, 50))
+        #
         if 'sharey' in dic.keys():
             if bool(dic['sharey']):
                 # pass
@@ -628,28 +642,28 @@ class BASIC_PARTS():
                 ax.axes.xaxis.set_ticklabels([])
                 ax.set_xlabel('')
                 ax.tick_params(labelbottom=False)
-
-        if 'centerx' in dic.keys():
-            if dic['centerx']:
-                ax.spines['bottom'].set_position('center')
-                ax.xaxis.set_ticks_position('bottom')
-
-        if 'centery' in dic.keys():
-            if dic['centery']:
-                ax.spines['left'].set_position('center')
-                ax.spines['right'].set_color('none')
-        # if 'invert_x' in dic.keys():
-        #     if dic['invert_x']:
-        #         ax.axes.invert_xaxis()
         #
-        # if 'invert_y' in dic.keys():
-        #     if dic['invert_y']:
-        #         print("revertin!")
-        #         ax = plt.gca()
-        #         ax.set_ylim(ax.get_ylim()[::-1])
-        #         ax.invert_yaxis()
-        #         ax.axes.invert_yaxis()
-        #         plt.gca().invert_yaxis()
+        # if 'centerx' in dic.keys():
+        #     if dic['centerx']:
+        #         ax.spines['bottom'].set_position('center')
+        #         ax.xaxis.set_ticks_position('bottom')
+        #
+        # if 'centery' in dic.keys():
+        #     if dic['centery']:
+        #         ax.spines['left'].set_position('center')
+        #         ax.spines['right'].set_color('none')
+        if 'invert_x' in dic.keys():
+            if dic['invert_x']:
+                ax.axes.invert_xaxis()
+        #
+        if 'invert_y' in dic.keys():
+            if dic['invert_y']:
+                print("revertin!")
+                ax = plt.gca()
+                ax.set_ylim(ax.get_ylim()[::-1])
+                ax.invert_yaxis()
+                ax.axes.invert_yaxis()
+                plt.gca().invert_yaxis()
 
     def plot_generic_vertical_line(self, ax, dic):
 
@@ -707,6 +721,7 @@ class BASIC_PARTS():
             if dic['mark_beginning']:
                 dic_mark = dic['mark_beginning']
                 self.plot_generic_line(ax, dic_mark, x_arr[0], y_arr[0])
+
         if 'mark_end' in dic.keys():
             if dic['mark_end']:
                 dic_mark = dic['mark_end']

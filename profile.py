@@ -60,6 +60,7 @@ __d3corrs__ = ["rho_r", "rho_Ye", "r_Ye", "temp_Ye", "rho_theta", "velz_theta", 
 __d3histvns__      = ["r", "theta", "Ye", "entr", "temp", "velz", "rho", "dens_unb_bern", "press"]
 __d3slicesplanes__ = ["xy", "xz"]
 __d3diskmass__ = "disk_mass.txt"
+__d3remnantmass__ = "remnant_mass.txt"
 __d3intmjfname__ = "MJ_encl.txt"
 __d3densitymodesfame__ = "density_modes_lap15.h5"
 __center_of_mass_plotname__ = "center_of_mass.png"
@@ -1296,67 +1297,170 @@ class MASK_STORE(COMPUTE_STORE):
     def __init__(self, sim, symmetry=None):
         COMPUTE_STORE.__init__(self, sim, symmetry)
 
+        # self.mask_setup = {'rm_rl': True,  # REMOVE previouse ref. level from the next
+        #                    'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
+        #                    'lapse': [0.15, 1.]} # remove apparent horizon
 
-        self.mask_setup = {'rm_rl': True,  # REMOVE previouse ref. level from the next
+        self.disk_mask_setup = {'rm_rl': True,  # REMOVE previouse ref. level from the next
                            'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
                            'lapse': [0.15, 1.]} # remove apparent horizon
 
-        self.mask_matrix = [[np.ones(0, dtype=bool)
-                            for x in range(self.nlevels)]
-                            for y in range(len(self.list_iterations))]
+        self.remnant_mask_setup = {'rm_rl': True,
+                                   'rho':[1.e13 / 6.176e+17, 1.e30],
+                                   'lapse':[0.15, 1.]}
 
+        self.list_mask_names = ["disk", "remnant"]
 
-        self.list_mask_v_n = ["x", "y", "z"]
+        self.mask_matrix = [[[np.ones(0, dtype=bool)
+                              for i in range(len(self.list_mask_names))]
+                              for x in range(self.nlevels)]
+                              for y in range(len(self.list_iterations))]
 
-    def compute_mask(self, it):
+        self._list_mask_v_n = ["x", "y", "z"]
 
-        nlevelist = np.arange(self.nlevels, 0, -1) - 1
+    def i_mask_v_n(self, v_n):
+        return int(self.list_mask_names.index(v_n))
 
-        x = []
-        y = []
-        z = []
+    def check_mask_name(self, v_n):
+        if not v_n in self.list_mask_names:
+            raise NameError("mask name:{} is not recognized. \nAvailable: {}"
+                            .format(v_n, self.list_mask_names))
 
-        for ii, rl in enumerate(nlevelist):
-            x.append(self.get_grid_data(it, rl, "x")[3:-3, 3:-3, 3:-3])
-            y.append(self.get_grid_data(it, rl, "y")[3:-3, 3:-3, 3:-3])
-            z.append(self.get_grid_data(it, rl, "z")[3:-3, 3:-3, 3:-3])
-            mask = np.ones(x[ii].shape, dtype=bool)
-            if ii > 0 and self.mask_setup["rm_rl"]:
-                x_ = (x[ii][:, :, :] <= x[ii - 1][:, 0, 0].max()) & (
-                        x[ii][:, :, :] >= x[ii - 1][:, 0, 0].min())
-                y_ = (y[ii][:, :, :] <= y[ii - 1][0, :, 0].max()) & (
-                        y[ii][:, :, :] >= y[ii - 1][0, :, 0].min())
-                z_ = (z[ii][:, :, :] <= z[ii - 1][0, 0, :].max()) & (
-                        z[ii][:, :, :] >= z[ii - 1][0, 0, :].min())
-                mask = mask & np.invert((x_ & y_ & z_))
+    # ---
 
-            for v_n in self.mask_setup.keys()[1:]:
-                self.check_v_n(v_n)
-                if len(self.mask_setup[v_n]) != 2:
-                    raise NameError("Error. 2 values are required to set a limit. Give {} for {}"
-                                    .format(self.mask_setup[v_n], v_n))
-                arr_1 = self.get_comp_data(it, rl, v_n)[3:-3, 3:-3, 3:-3]
-                min_val = float(self.mask_setup[v_n][0])
-                max_val = float(self.mask_setup[v_n][1])
-                mask_i = (arr_1 > min_val) & (arr_1 < max_val)
-                mask = mask & mask_i
-                del arr_1
-                del mask_i
+    def compute_mask(self, it, name="disk"):
 
-            self.mask_matrix[self.i_it(it)][rl] = mask
+        if name == "disk":
 
-    def is_mask_available(self, it, rl):
-        mask = self.mask_matrix[self.i_it(it)][rl]
+            mask_setup = self.disk_mask_setup
+            nlevelist = np.arange(self.nlevels, 0, -1) - 1
+            x = []
+            y = []
+            z = []
+            for ii, rl in enumerate(nlevelist):
+                x.append(self.get_grid_data(it, rl, "x")[3:-3, 3:-3, 3:-3])
+                y.append(self.get_grid_data(it, rl, "y")[3:-3, 3:-3, 3:-3])
+                z.append(self.get_grid_data(it, rl, "z")[3:-3, 3:-3, 3:-3])
+                mask = np.ones(x[ii].shape, dtype=bool)
+                if ii > 0 and mask_setup["rm_rl"]:
+                    x_ = (x[ii][:, :, :] <= x[ii - 1][:, 0, 0].max()) & (
+                            x[ii][:, :, :] >= x[ii - 1][:, 0, 0].min())
+                    y_ = (y[ii][:, :, :] <= y[ii - 1][0, :, 0].max()) & (
+                            y[ii][:, :, :] >= y[ii - 1][0, :, 0].min())
+                    z_ = (z[ii][:, :, :] <= z[ii - 1][0, 0, :].max()) & (
+                            z[ii][:, :, :] >= z[ii - 1][0, 0, :].min())
+                    mask = mask & np.invert((x_ & y_ & z_))
+
+                for v_n in mask_setup.keys()[1:]:
+                    self.check_v_n(v_n)
+                    if len(mask_setup[v_n]) != 2:
+                        raise NameError("Error. 2 values are required to set a limit. Give {} for {}"
+                                        .format(mask_setup[v_n], v_n))
+                    arr_1 = self.get_comp_data(it, rl, v_n)[3:-3, 3:-3, 3:-3]
+                    min_val = float(mask_setup[v_n][0])
+                    max_val = float(mask_setup[v_n][1])
+                    if isinstance(min_val, str):
+                        if min_val == "min": min_val = arr_1.min()
+                        elif min_val == "max": min_val = arr_1.max()
+                        else:
+                            raise NameError("unrecognized min_val:{} for mask:{}"
+                                            .format(min_val, name))
+                    else:
+                        min_val = float(mask_setup[v_n][0])
+                    #
+                    if isinstance(max_val, str):
+                        if max_val == "min": max_val = arr_1.min()
+                        elif max_val == "max": max_val = arr_1.max()
+                        else:
+                            raise NameError("unrecognized max_val:{} for mask:{}"
+                                            .format(max_val, name))
+                    else:
+                        max_val = float(mask_setup[v_n][1])
+                    mask_i = (arr_1 > min_val) & (arr_1 < max_val)
+                    mask = mask & mask_i
+                    del arr_1
+                    del mask_i
+
+                self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
+
+        elif name == "remnant":
+
+            mask_setup = self.remnant_mask_setup
+            nlevelist = np.arange(self.nlevels, 0, -1) - 1
+            x = []
+            y = []
+            z = []
+            for ii, rl in enumerate(nlevelist):
+                x.append(self.get_grid_data(it, rl, "x")[3:-3, 3:-3, 3:-3])
+                y.append(self.get_grid_data(it, rl, "y")[3:-3, 3:-3, 3:-3])
+                z.append(self.get_grid_data(it, rl, "z")[3:-3, 3:-3, 3:-3])
+                mask = np.ones(x[ii].shape, dtype=bool)
+                if ii > 0 and mask_setup["rm_rl"]:
+                    x_ = (x[ii][:, :, :] <= x[ii - 1][:, 0, 0].max()) & (
+                            x[ii][:, :, :] >= x[ii - 1][:, 0, 0].min())
+                    y_ = (y[ii][:, :, :] <= y[ii - 1][0, :, 0].max()) & (
+                            y[ii][:, :, :] >= y[ii - 1][0, :, 0].min())
+                    z_ = (z[ii][:, :, :] <= z[ii - 1][0, 0, :].max()) & (
+                            z[ii][:, :, :] >= z[ii - 1][0, 0, :].min())
+                    mask = mask & np.invert((x_ & y_ & z_))
+                #
+                for v_n in mask_setup.keys()[1:]:
+                    self.check_v_n(v_n)
+                    if len(mask_setup[v_n]) != 2:
+                        raise NameError("Error. 2 values are required to set a limit. Give {} for {}"
+                                        .format(mask_setup[v_n], v_n))
+                    arr_1 = self.get_comp_data(it, rl, v_n)[3:-3, 3:-3, 3:-3]
+                    min_val = mask_setup[v_n][0]
+                    max_val = mask_setup[v_n][1]
+                    if isinstance(min_val, str):
+                        if min_val == "min": min_val = arr_1.min()
+                        elif min_val == "max": min_val = arr_1.max()
+                        else:
+                            raise NameError("unrecognized min_val:{} for mask:{}"
+                                            .format(min_val, name))
+                    else:
+                        min_val = float(mask_setup[v_n][0])
+                    #
+                    if isinstance(max_val, str):
+                        if max_val == "min": max_val = arr_1.min()
+                        elif max_val == "max": max_val = arr_1.max()
+                        else:
+                            raise NameError("unrecognized max_val:{} for mask:{}"
+                                            .format(max_val, name))
+                    else:
+                        max_val = float(mask_setup[v_n][1])
+                    #
+                    mask_i = (arr_1 > min_val) & (arr_1 <= max_val)
+                    mask = mask & mask_i
+                    del arr_1
+                    del mask_i
+                #
+                self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
+
+        else:
+            NameError("No method found to compute mask: {} ".format(name))
+
+    # ---
+
+    def is_mask_available(self, it, rl, v_n="disk"):
+        mask = self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(v_n)]
         if len(mask) == 0:
-            self.compute_mask(it)
+            self.compute_mask(it, v_n)
 
-    def get_masked_data(self, it, rl, v_n):
+    def get_mask(self, it, rl, v_n="disk"):
+        self.check_it(it)
+        self.is_mask_available(it, rl)
+        mask = self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(v_n)]
+        return mask
+
+    def get_masked_data(self, it, rl, v_n, mask_v_n="disk"):
         self.check_v_n(v_n)
         self.check_it(it)
+        self.check_mask_name(mask_v_n)
         self.is_available(it, rl, v_n)
-        self.is_mask_available(it, rl)
+        self.is_mask_available(it, rl, mask_v_n)
         data = np.array(self.get_comp_data(it, rl, v_n))[3:-3, 3:-3, 3:-3]
-        mask = self.mask_matrix[self.i_it(it)][rl]
+        mask = self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(mask_v_n)]
         return data[mask]
 
     def __delete__(self, instance):
@@ -1547,16 +1651,36 @@ class MAINMETHODS_STORE(MASK_STORE):
 
     # ----------------------
 
-    def get_disk_mass(self, it, multiplier=2.):
-
+    def get_total_mass(self, it, multiplier=2., mask_v_n="disk"):
+        #
         self.check_it(it)
+        self.check_mask_name(mask_v_n)
         mass = 0.
         for rl in range(self.nlevels):
-            density = np.array(self.get_masked_data(it, rl, "density"))
+            density = np.array(self.get_masked_data(it, rl, "density", mask_v_n))
             delta = self.get_grid_data(it, rl, "delta")
             mass += float(multiplier * np.sum(density) * np.prod(delta))
         assert mass > 0.
         return mass
+    #
+    # def get_ns_mass(self, it, multiplier=2.):
+    #     #
+    #     self.check_it(it)
+    #     self.mask_setup = {'rm_rl': True,
+    #                        'rho':[6.e4 / 6.176e+17, 'max'],
+    #                        'lapse':[0.15, 1.]}
+    #     self.compute_mask(it)
+    #     #
+    #     mass = 0.
+    #     for rl in range(self.nlevels):
+    #         dens = self.get_comp_data(it, rl, "density")
+    #         dens = dens[3:-3, 3:-3, 3:-3]
+    #         mask = self.get_mask(it, rl)
+    #         dens = dens[mask]
+    #         delta = self.get_grid_data(it, rl, "delta")
+    #         mass += float(multiplier * np.sum(dens) * np.prod(delta))
+    #     assert mass > 0.
+    #     return mass
 
     def get_histogram(self, it, hist_task_dic, multiplier=2.):
 
@@ -1949,8 +2073,9 @@ class MAINMETHODS_STORE(MASK_STORE):
         self.check_it(it)
         # clean up mask array
         if rm_masks:
-            for rl in range(self.nlevels):
-                self.mask_matrix[self.i_it(it)][rl] = np.ones(0, dtype=bool)
+            for v_n in self.list_mask_names:
+                for rl in range(self.nlevels):
+                    self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(v_n)] = np.ones(0, dtype=bool)
         # clean up data
         if rm_masks:
             for v_n in self.list_all_v_ns:
@@ -3226,17 +3351,28 @@ def get_xmin_xmax_ymin_ymax_zmin_zmax(rl):
 """ ========================================| D3 COMPUTING MODULES |================================================ """
 
 def d3_disk_mass_for_it(it, d3corrclass, outdir, rewrite=False):
-
+    # disk
     fpath = outdir + __d3diskmass__
-
     if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
         if os.path.isfile(fpath): os.remove(fpath)
         print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), ":", "computing"],
                              ["blue", "green", "blue", "green", "", "green"])
-        mass = d3corrclass.get_disk_mass(it, multiplier=2.)
+        mass = d3corrclass.get_total_mass(it, multiplier=2., mask_v_n="disk")
         np.savetxt(fname=fpath, X=np.array([mass]))
     else:
         print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), ":", "skipping"],
+                             ["blue", "green", "blue", "green", "", "blue"])
+
+def d3_remnant_mass_for_it(it, d3corrclass, outdir, rewrite=False):
+    fpath = outdir + __d3remnantmass__
+    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+        if os.path.isfile(fpath): os.remove(fpath)
+        print_colored_string(["task:", "remnant_mass", "it:", "{}".format(it), ":", "computing"],
+                             ["blue", "green", "blue", "green", "", "green"])
+        mass = d3corrclass.get_total_mass(it, multiplier=2., mask_v_n="remnant")
+        np.savetxt(fname=fpath, X=np.array([mass]))
+    else:
+        print_colored_string(["task:", "remnant_mass", "it:", "{}".format(it), ":", "skipping"],
                              ["blue", "green", "blue", "green", "", "blue"])
 
 def d3_hist_for_it(it, d3corrclass, outdir, rewrite=False):
@@ -3503,6 +3639,11 @@ def d3_int_data_to_vtk(d3intclass, outdir, rewrite=False):
         #                          ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
 
 def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
+    # getting cylindrical grid [same for any iteration)
+    dphi_cyl = d3intclass.new_grid.get_int_grid("dphi_cyl")
+    dr_cyl = d3intclass.new_grid.get_int_grid("dr_cyl")
+    dz_cyl = d3intclass.new_grid.get_int_grid("dz_cyl")
+    r_cyl = d3intclass.new_grid.get_int_grid("r_cyl")
     #
     for it in glob_its:
         sys.stdout.flush()
@@ -3519,10 +3660,7 @@ def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
             #
             dens_cyl = d3intclass.get_int(it, "density")
             ang_mom_cyl = d3intclass.get_int(it, "ang_mom")
-            dphi_cyl = d3intclass.new_grid.get_int_grid("dphi_cyl")
-            dr_cyl = d3intclass.new_grid.get_int_grid("dr_cyl")
-            dz_cyl = d3intclass.new_grid.get_int_grid("dz_cyl")
-            r_cyl = d3intclass.new_grid.get_int_grid("r_cyl")
+            #
             I_rc = 2 * np.sum(dens_cyl * r_cyl ** 2 * dz_cyl * dphi_cyl, axis=(1, 2))
             D_rc = 2 * np.sum(dens_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
             J_rc = 2 * np.sum(ang_mom_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
@@ -3532,6 +3670,8 @@ def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
             for i in range(r_cyl.shape[0]):
                 ofile.write("{} {} {} {} {}\n".format(r_cyl[i, 0, 0], dr_cyl[i, 0, 0], D_rc[i], J_rc[i], I_rc[i]))
             ofile.close()
+            #
+            d3intclass.delete_for_it(it, []) # clear up the memory
             #
         else:
             print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "skipping"],
@@ -4628,9 +4768,9 @@ def d3_main_computational_loop():
 
     # methods that do not require interplation [Use masks for reflevels and lapse]
     d3corr_class = MAINMETHODS_STORE(glob_sim)
-    d3corr_class.mask_setup = {'rm_rl': True, # REMOVE previouse ref. level from the next
-                                'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
-                                'lapse': [0.15, 1.]}  # remove apparent horizon
+    # d3corr_class.mask_setup = {'rm_rl': True, # REMOVE previouse ref. level from the next
+    #                             'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
+    #                             'lapse': [0.15, 1.]}  # remove apparent horizon
 
     # tasks for each iteration
     for it in glob_its:
@@ -4642,8 +4782,10 @@ def d3_main_computational_loop():
             # if task in ["all", "plotall", "densmode"]:   pass
             if task == "corr":  d3_corr_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
             if task == "hist":  d3_hist_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
-            if task == "mass":  d3_disk_mass_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
             if task == "slice": d3_to_d2_slice_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
+            if task == "mass":
+                d3_disk_mass_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
+                d3_remnant_mass_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
             # else:
             #     raise NameError("d3 method is not recognized: {}".format(task))
             sys.stdout.flush()
