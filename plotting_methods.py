@@ -229,7 +229,8 @@ class BASIC_PARTS():
             ax.text(coords[0], coords[1], text, color=color, fontsize=fs, transform=ax.transAxes)
 
     def plot_text2(self, ax, dic):
-        """'text':{'x':0.5, 'y':0.5, 'text':'my_text', 'fs':12, 'color':'black','horal':True, 'transform':True}"""
+        """'text':{'x':0.5, 'y':0.5, 'text':'my_text', 'fs':12, 'color':'black',
+                   'horizontalalignment':'center', 'transform':True}"""
         # print("---------")
         xcorr = dic['x']
         ycorr = dic['y']

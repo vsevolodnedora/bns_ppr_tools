@@ -250,6 +250,9 @@ class SIM_STATUS:
         assert len(alld1outflowtimesteps) == len(alld1outflowiterations)
         # assert not np.isnan(np.sum(alld1timesteps)) and not np.isnan(np.sum(alld1iterations))
 
+        if len(alld1outflowiterations) == 0:
+            raise ValueError("No outflow data")
+
         if len(alld1timesteps) > 0:
             alld1outflowiterations = np.sort(np.unique(np.concatenate(alld1outflowiterations)))
             alld1outflowtimesteps = np.sort(np.unique(np.concatenate(alld1outflowtimesteps)))
@@ -793,6 +796,8 @@ class LOAD_ITTIME:
 
         self.exclusion_list = ["nuprofiles", "profiles", "overall"]
 
+        self.exclusion_parts = ["corrupt_", "errput", "errorput", "currapt"]
+
         if not self.clean:
             print("loaded file:\n{}\n contains:")
             for v_n in self.dfile:
@@ -805,7 +810,25 @@ class LOAD_ITTIME:
         return idx
 
     def get_list_outputs(self):
-        return [str(output) for output in self.dfile.keys() if not output in self.exclusion_list]
+        # tmp =if re.match("^[-+]?[0-9]+$", output.split("output-")[-1])
+        # for key in self.dfile.keys():
+        #     a = re.match("^[-+]?[0-9]+$", key.split("output-")[-1])
+        #     if a != None:
+        #         print(key, a.string)
+        # tmp = []
+        outputs = []
+        for key in self.dfile.keys():
+            if not key in self.exclusion_list:
+                correct = True
+                for ex in self.exclusion_parts:
+                    if key.__contains__(ex):
+                        correct= False
+                if correct:
+                    outputs.append(key)
+        return outputs
+
+        # return [str(output) for output in self.dfile.keys() if not output in self.exclusion_list
+        #         and re.match("^[-+]?[0-9]+$", output.split("output-")[-1]) ]
 
     def get_ittime(self, output="overall", d1d2d3prof='d1'):
         """
@@ -1688,7 +1711,14 @@ class INIT_DATA:
                                 run = _run
                                 break
                 if run == initial_data.split("/")[-3]:
-                    raise NameError("Filed to extract 'run': from: {}".format(initial_data))
+                    Printcolor.yellow("Filed to extract 'run': from: {}".format(initial_data))
+                    Printcolor.yellow("Manual overwrite required")
+                    manual = raw_input("set run (e.g. R01): ")
+                    if str(manual) == "":
+                        raise NameError("Filed to extract 'run': from: {}".format(initial_data))
+                    else:
+                        Printcolor.yellow("Setting Run manually to: {}".format(manual))
+                        run = str(manual)
                 #raise ValueError("found 'run':{} does not contain 'R'. in initial_data:{}".format(run, initial_data))
         #
 
@@ -2010,6 +2040,7 @@ class COLLATE_DATA(LOAD_ITTIME):
 
         self.all_fnames = Lists.collate_list
         self.all_outputs = self.get_list_outputs()
+        # print(self.all_outputs); exit(1)
         self.outdir = Paths.ppr_sims+'/'+sim+'/collated/'
         if not os.path.isdir(self.outdir):
             os.mkdir(self.outdir)

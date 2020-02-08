@@ -1660,7 +1660,7 @@ class MAINMETHODS_STORE(MASK_STORE):
             density = np.array(self.get_masked_data(it, rl, "density", mask_v_n))
             delta = self.get_grid_data(it, rl, "delta")
             mass += float(multiplier * np.sum(density) * np.prod(delta))
-        assert mass > 0.
+        # assert mass > 0.
         return mass
     #
     # def get_ns_mass(self, it, multiplier=2.):
@@ -3039,7 +3039,7 @@ class LOAD_DENSITY_MODES:
         self.grid_matrix = [np.zeros(0,)
                               for k in range(len(self.list_grid_v_ns))]
 
-        self.list_modes = []
+        self.list_modes = []#range(50)
 
     def check_data_v_n(self, v_n):
         if not v_n in self.list_data_v_ns:
@@ -3076,12 +3076,20 @@ class LOAD_DENSITY_MODES:
         if not os.path.isfile(self.gen_set['fname']):
             raise IOError("file {} npt found".format(self.gen_set['fname']))
         dfile = h5py.File(self.gen_set['fname'], "r")
-
+        list_modes = []
+        # setting list of density modes in the file
         for v_n in dfile:
-            # extracting data for all modes
             if str(v_n).__contains__("m="):
                 mode = int(v_n.split("m=")[-1])
-                self.list_modes.append(mode)
+                list_modes.append(mode)
+        self.list_modes = list_modes
+        if len(self.list_modes) > self.n_of_modes_max - 1:
+            raise ValueError("too many modes {} \n (>{}) in the file:{}"
+                             .format(self.list_modes, self.n_of_modes_max, self.gen_set['fname']))
+        # extracting data
+        for v_n in dfile:
+            if str(v_n).__contains__("m="):
+                mode = int(v_n.split("m=")[-1])
                 group = dfile[v_n]
                 for v_n_ in group:
                     if str(v_n_) in self.list_data_v_ns:
@@ -3089,9 +3097,6 @@ class LOAD_DENSITY_MODES:
                     else:
                         raise NameError("{} group has a v_n: {} that is not in the data list:\n{}"
                                         .format(v_n, v_n_, self.list_data_v_ns))
-                if len(self.list_modes) > self.n_of_modes_max - 1:
-                    raise ValueError("too many modes (>{})".format(self.n_of_modes_max))
-
             # extracting grid data, for overall
             else:
                 if v_n in self.list_grid_v_ns:
@@ -3099,7 +3104,7 @@ class LOAD_DENSITY_MODES:
                 else:
                     NameError("dfile v_n: {} not in list of grid v_ns\n{}"
                                     .format(v_n, self.list_grid_v_ns))
-
+        dfile.close()
         print("  modes: {}".format(self.list_modes))
 
     # ---
@@ -3359,6 +3364,8 @@ def d3_disk_mass_for_it(it, d3corrclass, outdir, rewrite=False):
                              ["blue", "green", "blue", "green", "", "green"])
         mass = d3corrclass.get_total_mass(it, multiplier=2., mask_v_n="disk")
         np.savetxt(fname=fpath, X=np.array([mass]))
+        if mass == 0.:
+            Printcolor.yellow("\tComputed disk mass = 0.")
     else:
         print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), ":", "skipping"],
                              ["blue", "green", "blue", "green", "", "blue"])
@@ -3371,6 +3378,8 @@ def d3_remnant_mass_for_it(it, d3corrclass, outdir, rewrite=False):
                              ["blue", "green", "blue", "green", "", "green"])
         mass = d3corrclass.get_total_mass(it, multiplier=2., mask_v_n="remnant")
         np.savetxt(fname=fpath, X=np.array([mass]))
+        if mass == 0.:
+            Printcolor.yellow("\tComputed remnant mass = 0.")
     else:
         print_colored_string(["task:", "remnant_mass", "it:", "{}".format(it), ":", "skipping"],
                              ["blue", "green", "blue", "green", "", "blue"])

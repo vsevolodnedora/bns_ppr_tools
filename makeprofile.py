@@ -111,7 +111,6 @@ class Names(object):
     #     else:
     #         return Names.dattar
 
-
 # DAVID RADICE A tabulated nuclear equation of state
 class EOSTable(object):
     def __init__(self):
