@@ -2161,7 +2161,6 @@ if __name__ == '__main__':
     glob_lorene = args.lorene
     glob_tov = args.tov
 
-
     # check given data
 
     if not os.path.isdir(glob_simdir + glob_sim):
@@ -2178,7 +2177,7 @@ if __name__ == '__main__':
     elif glob_overwrite == "yes": glob_overwrite = True
     else: raise NameError("for '--overwrite' option use 'yes' or 'no'. Given: {}"
                           .format(glob_overwrite))
-    glob_outdir_sim = Paths.ppr_sims + glob_sim
+    glob_outdir_sim = glob_outdir + glob_sim
     if not os.path.isdir(glob_outdir_sim):
         os.mkdir(glob_outdir_sim)
     if glob_lorene != None:
