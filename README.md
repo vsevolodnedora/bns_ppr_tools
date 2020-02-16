@@ -207,6 +207,10 @@ Any of these tasks can be peroformed for one or a list of:
 2) reflevels by specifying `--rl` option (will not affect `corr`, `mass`, `hist` tasks, as they use the entire simulation domain by default.
 3) variable names by specifying `--v_n` option. 
 
+Known issues:
+- making many plots, e.g. setting `--it all` and `--v_n all` for a task `-t plotcorr`, might cause some images to be emtpy.
+Cause: overload of matplotlib.pyplot cash. Required plot can be redone with the code separately. This corrects the problem. 
+
 # gw.py
 
 Requirements: 

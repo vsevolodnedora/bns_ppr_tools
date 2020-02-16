@@ -46,7 +46,9 @@ from utils import *
 
 """ ==============================================| SETTINGS |====================================================== """
 __rootoutdir__ = "profiles/"
-__profile__ = {"tasklist": ["all", "corr", "hist", "slice", "mass", "densmode", "vtk", "densmodeint", "mjenclosed",
+__addprofdir__ = "3d/"
+__profile__ = {"tasklist": ["all", "corr", "hist", "slice", "mass", "densmode", "vtk", "densmode",
+                            "densmodeint", "mjenclosed",
                             "plotall", "plotcorr", "plothist", "plotslice", "plotmass",
                             "plotdensmode", "plotcenterofmass", "plotdensmodephase"]}
 __d3slicesvns__ = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "entr", "eps", "lapse", "velx", "vely", "velz",
@@ -789,7 +791,7 @@ class LOAD_PROFILE(LOAD_ITTIME):
 
         self.symmetry = symmetry
 
-        self.profpath = Paths.gw170817 + sim + '/' + "profiles/3d/"
+        self.profpath = Paths.gw170817 + sim + '/' + __rootoutdir__ + __addprofdir__
 
         isprofs, itprofs, timeprofs = \
             self.get_ittime("profiles", "prof")
@@ -803,6 +805,7 @@ class LOAD_PROFILE(LOAD_ITTIME):
                 raise IOError("ittime.h5 says there ae no profiles, and no 3D data found.")
 
         self.list_iterations = list(itprofs)
+
         self.list_times = timeprofs
 
         self.list_prof_v_ns = [
@@ -817,12 +820,29 @@ class LOAD_PROFILE(LOAD_ITTIME):
 
         self.nlevels = 7
 
-        self.dfile_matrix = [0
-                             for it in range(len(self.list_iterations))]
+        # storage
 
-        self.grid_matrix = [0
-                             for it in range(len(self.list_iterations))]
+        self.dfile_matrix = [0 for it in range(len(self.list_iterations))]
 
+        self.grid_matrix = [0 for it in range(len(self.list_iterations))]
+
+        self.grid_data_matrix = [[[np.zeros(0,)
+                                  for v_n in range(len(self.list_grid_v_ns))]
+                                  for rl in range(self.nlevels)]
+                                  for it in range(len(self.list_iterations))]
+
+    def update_storage_lists(self, new_iterations=np.zeros(0,), new_times=np.zeros(0,)):
+        """
+        In case iteration/times are updated -- call
+        :return:
+        """
+        if len(new_iterations) > 0 or len(new_times) > 0:
+            assert len(new_iterations) == len(new_times)
+            self.list_iterations = list(new_iterations)
+            self.list_times = np.array(new_times)
+        #
+        self.dfile_matrix = [0 for it in range(len(self.list_iterations))]
+        self.grid_matrix = [0 for it in range(len(self.list_iterations))]
         self.grid_data_matrix = [[[np.zeros(0,)
                                   for v_n in range(len(self.list_grid_v_ns))]
                                   for rl in range(self.nlevels)]
@@ -1540,7 +1560,7 @@ class MAINMETHODS_STORE(MASK_STORE):
         ]
 
         self.corr_task_dic_ye_dens_unb_bern = [
-            {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}, #"edges": np.linspace(-1., 1., 500)},  # in c
+            {"v_n": "Ye",            "edges": np.linspace(0, 0.5, 500)}, #"edges": np.linspace(-1., 1., 500)},  # in c
             {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
         ]
 
@@ -2428,6 +2448,8 @@ class LOAD_RES_CORR(LOAD_ITTIME):
             raise IOError("Correlation file not found:\n{}".format(fpath))
         return fpath
 
+    # ---
+
     def load_corr_file(self, it, v_n_x, v_n_y):
 
         v_n_x = str(v_n_x)
@@ -2566,6 +2588,8 @@ class LOAD_RES_CORR(LOAD_ITTIME):
         # result = combine(arr_x, arr_y, mass)
         #
         # self.corr_matrix[self.i_it(it)][self.i_v_n(v_n_x, v_n_y)] = result
+
+    # ---
 
     def is_corr_loaded(self, it, v_n_x, v_n_y):
 
@@ -3072,9 +3096,9 @@ class LOAD_DENSITY_MODES:
     # ---
 
     def load_density_modes(self):
-
+        #
         if not os.path.isfile(self.gen_set['fname']):
-            raise IOError("file {} npt found".format(self.gen_set['fname']))
+            raise IOError("{} not found".format(self.gen_set['fname']))
         dfile = h5py.File(self.gen_set['fname'], "r")
         list_modes = []
         # setting list of density modes in the file
@@ -3169,7 +3193,7 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
         self.times = np.array(self.times)
 
         self.list_v_ns = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "eps", "lapse", "velx", "vely", "velz",
-                          "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye'] + \
+                          "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye', "entr"] + \
                          ["density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
                           "ang_mom", "ang_mom_flux", "theta", "r", "phi"] + \
                          ["Q_eff_nua", "Q_eff_nue", "Q_eff_nux", "R_eff_nua", "R_eff_nue", "R_eff_nux",
@@ -3189,7 +3213,7 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
 
     def check_v_n(self, v_n):
         if not v_n in self.list_v_ns:
-            raise NameError("v_n:{} not in list of corr_v_ns\n{}"
+            raise NameError("v_n:{} not in list of list_v_ns\n{}"
                             .format(v_n, self.list_v_ns))
 
     def check_plane(self, plane):
@@ -3208,6 +3232,8 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
     def i_v_n(self, v_n):
         self.check_v_n(v_n)
         return int(self.list_v_ns.index(v_n))
+
+    # ---
 
     def loaded_extract(self, it, plane):
 
@@ -3232,6 +3258,8 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
                     data = np.zeros(0,)
                 self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)] = data
         dfile.close()
+
+    # ---
 
     def is_data_loaded_extracted(self, it, rl, plane, v_n):
         data = self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)]
@@ -3358,31 +3386,47 @@ def get_xmin_xmax_ymin_ymax_zmin_zmax(rl):
 def d3_disk_mass_for_it(it, d3corrclass, outdir, rewrite=False):
     # disk
     fpath = outdir + __d3diskmass__
-    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-        if os.path.isfile(fpath): os.remove(fpath)
-        print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), ":", "computing"],
-                             ["blue", "green", "blue", "green", "", "green"])
-        mass = d3corrclass.get_total_mass(it, multiplier=2., mask_v_n="disk")
-        np.savetxt(fname=fpath, X=np.array([mass]))
-        if mass == 0.:
-            Printcolor.yellow("\tComputed disk mass = 0.")
-    else:
-        print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), ":", "skipping"],
-                             ["blue", "green", "blue", "green", "", "blue"])
+    try:
+        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+            if os.path.isfile(fpath): os.remove(fpath)
+            print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), ":", "computing"],
+                                 ["blue", "green", "blue", "green", "", "green"])
+
+            mass = d3corrclass.get_total_mass(it, multiplier=2., mask_v_n="disk")
+            np.savetxt(fname=fpath, X=np.array([mass]))
+            if mass == 0.:
+                Printcolor.yellow("\tComputed disk mass = 0.")
+            else:
+                pass
+    except IOError:
+        print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), ":", "IOError"],
+                         ["blue", "green", "blue", "green", "", "red"])
+    except:
+        print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), ":", "Error"],
+                         ["blue", "green", "blue", "green", "", "red"])
 
 def d3_remnant_mass_for_it(it, d3corrclass, outdir, rewrite=False):
     fpath = outdir + __d3remnantmass__
-    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-        if os.path.isfile(fpath): os.remove(fpath)
-        print_colored_string(["task:", "remnant_mass", "it:", "{}".format(it), ":", "computing"],
-                             ["blue", "green", "blue", "green", "", "green"])
-        mass = d3corrclass.get_total_mass(it, multiplier=2., mask_v_n="remnant")
-        np.savetxt(fname=fpath, X=np.array([mass]))
-        if mass == 0.:
-            Printcolor.yellow("\tComputed remnant mass = 0.")
-    else:
-        print_colored_string(["task:", "remnant_mass", "it:", "{}".format(it), ":", "skipping"],
-                             ["blue", "green", "blue", "green", "", "blue"])
+    try:
+        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+            if os.path.isfile(fpath): os.remove(fpath)
+            print_colored_string(["task:", "remnant_mass", "it:", "{}".format(it), ":", "computing"],
+                                 ["blue", "green", "blue", "green", "", "green"])
+            mass = d3corrclass.get_total_mass(it, multiplier=2., mask_v_n="remnant")
+            np.savetxt(fname=fpath, X=np.array([mass]))
+            if mass == 0.:
+                Printcolor.yellow("\tComputed remnant mass = 0.")
+        else:
+            print_colored_string(["task:", "remnant_mass", "it:", "{}".format(it), ":", "skipping"],
+                                 ["blue", "green", "blue", "green", "", "blue"])
+    except KeyboardInterrupt:
+        exit(1)
+    except IOError:
+        print_colored_string(["task:", "remnant_mass", "it:", "{}".format(it), ":", "IOError"],
+                         ["blue", "green", "blue", "green", "", "red"])
+    except:
+        print_colored_string(["task:", "remnant_mass", "it:", "{}".format(it), ":", "Error"],
+                         ["blue", "green", "blue", "green", "", "red"])
 
 def d3_hist_for_it(it, d3corrclass, outdir, rewrite=False):
 
@@ -3410,8 +3454,17 @@ def d3_hist_for_it(it, d3corrclass, outdir, rewrite=False):
             if os.path.isfile(fpath): os.remove(fpath)
             print_colored_string(["task:", "hist", "it:", "{}".format(it), "v_n:", v_n, ":", "computing"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-            edges_weights = d3corrclass.get_histogram(it, hist_dic, multiplier=2.)
-            np.savetxt(fname=fpath, X=edges_weights, header="# {}   mass".format(v_n))
+            try:
+                edges_weights = d3corrclass.get_histogram(it, hist_dic, multiplier=2.)
+                np.savetxt(fname=fpath, X=edges_weights, header="# {}   mass".format(v_n))
+            except KeyboardInterrupt:
+                exit(1)
+            except IOError:
+                print_colored_string(["task:", "hist", "it:", "{}".format(it), "v_n:", v_n, ":", "IOError"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
+                print_colored_string(["task:", "hist", "it:", "{}".format(it), "v_n:", v_n, ":", "Error"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
         else:
             print_colored_string(["task:", "hist", "it:", "{}".format(it), "v_n:", v_n, ":", "skipping"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
@@ -3475,6 +3528,9 @@ def d3_corr_for_it(it, d3corrclass, outdir, rewrite=False):
             else:
                 print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "skipping"],
                                      ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+        except IOError:
+            print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "IOError"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
         except KeyboardInterrupt:
             exit(1)
         except:
@@ -3505,7 +3561,7 @@ def d3_dens_modes(d3corrclass, outdir, rewrite=False):
     rl = 3
     mmax = 8
     Printcolor.blue("\tNote: that for density mode computation, masks (lapse etc) are NOT used")
-    if True:#try:
+    try:
         if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
             if os.path.isfile(fpath): os.remove(fpath)
             print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "computing"],
@@ -3526,7 +3582,12 @@ def d3_dens_modes(d3corrclass, outdir, rewrite=False):
         else:
             print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "skipping"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-    else:#except:
+    except KeyboardInterrupt:
+        exit(1)
+    except IOError:
+        print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "IOError"],
+                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+    except:
         print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
                              ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
@@ -3540,7 +3601,7 @@ def d3_dens_modes_int(d3intclass, outdir, rewrite=False):
     mmax = 8
     Printcolor.blue("\tNote: that for density mode computation, masks (lapse etc) are NOT used")
     Printcolor.yellow("\tNote: that in this task, grid interpolation takes long time")
-    if True:
+    try:
         if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
             if os.path.isfile(fpath): os.remove(fpath)
             print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "computing"],
@@ -3561,9 +3622,14 @@ def d3_dens_modes_int(d3intclass, outdir, rewrite=False):
         else:
             print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "skipping"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-    # except:
-    #     print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
-    #                          ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+    except KeyboardInterrupt:
+        exit(1)
+    except IOError:
+        print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "IOError"],
+                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+    except:
+        print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
+                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def d3_int_data_to_vtk(d3intclass, outdir, rewrite=False):
     private_dir = "vtk/"
@@ -3662,29 +3728,38 @@ def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
         #
         fpath = _outdir + __d3intmjfname__
         #
-        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-            if os.path.isfile(fpath): os.remove(fpath)
-            print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "computing"],
-                                 ["blue", "green", "blue", "green", "", "green"])
-            #
-            dens_cyl = d3intclass.get_int(it, "density")
-            ang_mom_cyl = d3intclass.get_int(it, "ang_mom")
-            #
-            I_rc = 2 * np.sum(dens_cyl * r_cyl ** 2 * dz_cyl * dphi_cyl, axis=(1, 2))
-            D_rc = 2 * np.sum(dens_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
-            J_rc = 2 * np.sum(ang_mom_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
-            #
-            ofile = open(fpath, "w")
-            ofile.write("# 1:rcyl 2:drcyl 3:M 4:J 5:I\n")
-            for i in range(r_cyl.shape[0]):
-                ofile.write("{} {} {} {} {}\n".format(r_cyl[i, 0, 0], dr_cyl[i, 0, 0], D_rc[i], J_rc[i], I_rc[i]))
-            ofile.close()
-            #
-            d3intclass.delete_for_it(it, []) # clear up the memory
-            #
-        else:
-            print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "skipping"],
-                                 ["blue", "green", "blue", "green", "", "blue"])
+        try:
+            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                if os.path.isfile(fpath): os.remove(fpath)
+                print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "computing"],
+                                     ["blue", "green", "blue", "green", "", "green"])
+                #
+                dens_cyl = d3intclass.get_int(it, "density")
+                ang_mom_cyl = d3intclass.get_int(it, "ang_mom")
+                #
+                I_rc = 2 * np.sum(dens_cyl * r_cyl ** 2 * dz_cyl * dphi_cyl, axis=(1, 2))
+                D_rc = 2 * np.sum(dens_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
+                J_rc = 2 * np.sum(ang_mom_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
+                #
+                ofile = open(fpath, "w")
+                ofile.write("# 1:rcyl 2:drcyl 3:M 4:J 5:I\n")
+                for i in range(r_cyl.shape[0]):
+                    ofile.write("{} {} {} {} {}\n".format(r_cyl[i, 0, 0], dr_cyl[i, 0, 0], D_rc[i], J_rc[i], I_rc[i]))
+                ofile.close()
+                #
+                d3intclass.delete_for_it(it, []) # clear up the memory
+                #
+            else:
+                print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "skipping"],
+                                     ["blue", "green", "blue", "green", "", "blue"])
+        except KeyboardInterrupt:
+            exit(1)
+        except IOError:
+            print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "IOError"],
+                                 ["blue", "green", "blue", "green", "", "red"])
+        except:
+            print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "failed"],
+                                 ["blue", "green", "blue", "green", "", "red"])
 
 """ ==============================================| D3 PLOTS |======================================================="""
 
@@ -4395,12 +4470,11 @@ def plot_d3_hist(d3histclass, rewrite=False):
         for v_n in v_ns:
 
             fpath = resdir + __rootoutdir__ + str(it) + "/" + "hist_{}.dat".format(v_n)
-            data = np.loadtxt(fpath, unpack=False)
             # print(data)
             default_dic = {
                 'task': 'hist1d', 'ptype': 'cartesian',
                 'position': (1, 1),
-                'data': data, 'normalize': False,
+                'data': None, 'normalize': False,
                 'v_n_x': 'var', 'v_n_y': 'mass',
                 'color': "black", 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha':1.0,
                 'ymin': 1e-4, 'ymax': 1e-1,
@@ -4487,7 +4561,9 @@ def plot_d3_hist(d3histclass, rewrite=False):
                     print_colored_string(["task:", "plot hist", "it:", "{}".format(it), "v_ns:", v_n, ":", "computing"],
                                          ["blue", "green", "blue", "green", "blue", "green", "", "green"])
                     #-------------------------------
+                    data = np.loadtxt(fpath, unpack=False)
                     default_dic["it"] = it
+                    default_dic["data"] = data
                     o_plot.set_plot_dics.append(default_dic)
 
                     o_plot.main()
@@ -4777,6 +4853,7 @@ def d3_main_computational_loop():
 
     # methods that do not require interplation [Use masks for reflevels and lapse]
     d3corr_class = MAINMETHODS_STORE(glob_sim)
+    d3corr_class.update_storage_lists(new_iterations=glob_its, new_times=glob_times) # remove corrupt
     # d3corr_class.mask_setup = {'rm_rl': True, # REMOVE previouse ref. level from the next
     #                             'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
     #                             'lapse': [0.15, 1.]}  # remove apparent horizon
@@ -4905,7 +4982,7 @@ if __name__ == '__main__':
     elif len(glob_its) == 0 and len(glob_times) == 0:
         raise ValueError("Please, set either iterations (--it) or times (--time)")
     elif (len(glob_times) == 1 and "all" in glob_times) or (len(glob_its) == 1 and "all" in glob_its):
-        Printcolor.print_colored_string(["Selected All", "{}".format(len(itprof)), "iterations to postprocess"],
+        Printcolor.print_colored_string(["Tasked with All", "{}".format(len(itprof)), "iterations to postprocess"],
                                         ["blue", "green", "blue"])
         glob_its = itprof
         glob_times = tprof
@@ -4939,11 +5016,39 @@ if __name__ == '__main__':
         assert len(glob_times) == len(glob_its)
     else:
         raise IOError("Input iterations (--it) or times (--time) are not recognized")
-
-    glob_its = np.array(glob_its, dtype=int)
-    Printcolor.print_colored_string(["Set iterations", "{}".format(glob_its)],["blue","green"])
-    Printcolor.print_colored_string(["Set timesteps ", "{}".format(glob_times*1e3, fmt=".1f")], ["blue", "green"])
-
+    # if source parfie.h5 is corrupt remove corresponding iteration fromthe list
+    _corrupt_it = []
+    _corrput_times = []
+    _noncorrupt_it = []
+    _non_corrupttimes = []
+    for it, t in zip(glob_its, glob_times):
+        fname = Paths.gw170817 + glob_sim + '/' + __rootoutdir__ + __addprofdir__ + str(int(it)) + ".h5"
+        assert os.path.isdir(Paths.gw170817 + glob_sim + '/' + __rootoutdir__ + __addprofdir__ )
+        assert os.path.isfile(Paths.gw170817 + glob_sim + '/' + __rootoutdir__ + __addprofdir__ + str(int(it)) + ".h5")
+        _is_readable = h5py.is_hdf5(fname)
+        if not _is_readable:
+            _corrupt_it.append(it)
+            _corrput_times.append(t)
+        else:
+            _noncorrupt_it.append(it)
+            _non_corrupttimes.append(t)
+    #
+    _corrupt_it = np.array(_corrupt_it, dtype=int)
+    _corrput_times = np.array(_corrput_times, dtype=float)
+    glob_its = np.array(_noncorrupt_it, dtype=int)
+    glob_times = np.array(_non_corrupttimes, dtype=float)
+    if len(_corrupt_it) > 0:
+        Printcolor.print_colored_string(["Set --it (corrput)  ", "{}".format(_corrupt_it)], ["red", "red"])
+        Printcolor.print_colored_string(["Set --time (corrupt)", "{}".format(_corrput_times * 1e3, fmt=".1f")],
+                                        ["red", "red"])
+    if len(glob_its) == 0:
+        Printcolor.print_colored_string(["Set --it (avial)    ", "{}".format(glob_its)],["blue","red"])
+        Printcolor.print_colored_string(["Set --time (avail)  ", "{}".format(glob_times*1e3, fmt=".1f")], ["blue", "red"])
+    else:
+        Printcolor.print_colored_string(["Set --it (avial)    ", "{}".format(glob_its)], ["blue", "green"])
+        Printcolor.print_colored_string(["Set --time (avail)  ", "{}".format(glob_times * 1e3, fmt=".1f")],
+                                        ["blue", "green"])
+    #
     if glob_overwrite == "no":
         glob_overwrite = False
     elif glob_overwrite == "yes":
@@ -4951,13 +5056,10 @@ if __name__ == '__main__':
     else:
         raise NameError("for '--overwrite' option use 'yes' or 'no'. Given: {}"
                         .format(glob_overwrite))
-    # glob_outdir_sim = Paths.ppr_sims + glob_sim + '/'
-
-    # set globals
-
 
     # tasks
-
-    d3_main_computational_loop()
-
-    Printcolor.blue("Done.")
+    if len(glob_its) > 0:
+        d3_main_computational_loop()
+        Printcolor.blue("Done.")
+    else:
+        Printcolor.yellow("No iterations set.")

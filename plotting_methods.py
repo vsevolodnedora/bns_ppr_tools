@@ -2091,6 +2091,8 @@ class PLOT_MANY_TASKS(PLOT_TASK):
         if len(self.set_plot_dics) == 0:
             raise ValueError("No plot dics have been passed. Exiting")
 
+        self.figure = None # clean figure
+        #
         self.figure = plt.figure(figsize=self.gen_set['figsize'])
         if not self.gen_set['style'] == None:
             plt.style.use(self.gen_set['style'])
