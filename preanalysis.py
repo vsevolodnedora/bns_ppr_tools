@@ -29,7 +29,7 @@ __preanalysis__ = {
 
 class SIM_STATUS:
 
-    def __init__(self, sim, clean=False, save=True):
+    def __init__(self, sim, clean=False, save=True, save_as_txt=True):
         self.sim = sim
         self.clean = clean
 
@@ -422,6 +422,23 @@ class SIM_STATUS:
         # for outout_dir in self.outputs_dirs:
             # _name = str(outout_dir.split('/')[-1])
             # print(self.outputs[_name])
+
+        if save_as_txt:
+            resfile = self.resdir + self.resfile.replace(".h5", ".txt")
+            it_tmp = []
+            t_tmp = []
+            # it_tmp = np.append(it_tmp, alld1iterations)
+            # t_tmp  = np.append(t_tmp, alld1timesteps)
+            # it_tmp = np.append(it_tmp, alld2iterations)
+            # t_tmp  = np.append(t_tmp, alld2timesteps)
+            # it_tmp = np.append(it_tmp, alld3iterations)
+            # t_tmp  = np.append(t_tmp, alld3timesteps)
+            it_tmp = np.append(it_tmp, profiterations)
+            t_tmp  = np.append(t_tmp, proftimesteps)
+            assert len(it_tmp) == len(t_tmp)
+            self.save_as_txt(resfile, it_tmp, t_tmp)
+            print("\tsaved {}".format(resfile))
+
         if save:
             resfile = self.resdir + self.resfile
             self.save(resfile)
@@ -743,6 +760,21 @@ class SIM_STATUS:
                 print("Note. No {} profiles found in dir:\n{}".format(fname, self.profdir))
             return 0, np.empty(0,), np.empty(0,)
 
+    def save_as_txt(self, fpath, itarr, timearr):
+
+        if not os.path.isdir(self.resdir):
+            os.mkdir(self.resdir)
+
+        if os.path.isfile(fpath):
+            os.remove(fpath)
+            if not self.clean:
+                print("Rewriting the result file {}".format(fpath))
+
+        x = np.vstack((itarr, timearr)).T
+
+        np.savetxt(fpath, x, header="1:it 2:time[s] ", fmt='%i %0.5f')
+
+
     def save(self, resfile):
 
         if not os.path.isdir(self.resdir):
@@ -775,6 +807,8 @@ class SIM_STATUS:
             dfile["overall"].create_dataset(key, data=self.overall[key])
 
         dfile.close()
+
+
 
 
 class LOAD_ITTIME:
