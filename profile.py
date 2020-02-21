@@ -4630,7 +4630,7 @@ def plot_center_of_mass(dmclass, rewrite=False):
     try:
         if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
             if os.path.isfile(fpath): os.remove(fpath)
-            print_colored_string(["task:", "plcot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "computing"],
+            print_colored_string(["task:", "plot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "computing"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "green"])
             o_plot.set_plot_dics.append(plot_dic)
             #
@@ -4815,6 +4815,101 @@ def plot_density_modes(dmclass, rewrite=False):
         print_colored_string(["task:", "plot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "failed"],
                              ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
+def plot_disk_mass(d3class, rewrite=False):
+    #
+    # path = Paths.ppr_sims + d3class.sim + '/' + __rootoutdir__
+    #
+
+    # fname = __d3diskmass__.replace(".txt",".png")
+    # figname = __d3diskmass__.replace(".txt",".png")
+    parfilepath = Paths.ppr_sims + d3class.sim + '/' + __rootoutdir__
+    fpath = parfilepath + __d3diskmass__
+
+
+    try:
+        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+            if os.path.isfile(fpath): os.remove(fpath)
+            print_colored_string(["task:", "plotmass", ":", "saving/plotting"],
+                                 ["blue", "green", "", "green"])
+            #
+            list_iterations = Paths.get_list_iterations_from_res_3d(d3class.sim, __rootoutdir__)
+            #
+            it_arr =   []
+            time_arr = []
+            data_arr = []
+            for it in list_iterations:
+                fpath = parfilepath + str(int(it)) + '/' + __d3diskmass__
+                time_ = d3class.get_time_for_it(it, "prof")
+                time_arr.append(time_)
+                it_arr.append(it)
+                if os.path.isfile(fpath):
+                    data_ = np.float(np.loadtxt(fpath, unpack=True))
+                    data_arr.append(data_)
+                else:
+                    data_arr.append(np.nan)
+            #
+            it_arr = np.array(it_arr, dtype=int)
+            time_arr = np.array(time_arr, dtype=float)
+            data_arr = np.array(data_arr, dtype=float)
+            #
+            if len(it_arr) > 0:
+                x = np.vstack((it_arr, time_arr, data_arr)).T
+                np.savetxt(parfilepath+__d3diskmass__, x, header="1:it 2:time[s] 3:mass[Msun]", fmt='%i %0.5f %0.5f')
+            else:
+                Printcolor.yellow("No disk mass found")
+            #
+            if len(it_arr) > 0:
+
+                time_arr = time_arr * 1e3
+
+                o_plot = PLOT_MANY_TASKS()
+                o_plot.gen_set["figdir"] = parfilepath
+                o_plot.gen_set["type"] = "cartesian"
+                o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+                o_plot.gen_set["figname"] = __d3diskmass__.replace(".txt",".png")
+                o_plot.gen_set["sharex"] = False
+                o_plot.gen_set["sharey"] = False
+                o_plot.gen_set["subplots_adjust_h"] = 0.2
+                o_plot.gen_set["subplots_adjust_w"] = 0.0
+                o_plot.set_plot_dics = []
+
+                # plot
+                plot_dic = {
+                    'task': 'line', 'ptype': 'cartesian',
+                    'xarr': time_arr, 'yarr': data_arr,
+                    'position': (1, 1),
+                    'v_n_x': 'times', 'v_n_y': 'int_phi_r abs',
+                    'marker': '.', 'color': 'black', 'ms': 5., 'alpha': 1.0, #'ds': 'default',
+                    'label': None, 'ylabel': r'$M_{\rm{disk}}$ [$M_{\odot}$]', 'xlabel': r"$t$ [ms]",
+                    'xmin': -5., 'xmax': time_arr.max(), 'ymin': 0, 'ymax': 0.5,
+                    'xscale': None, 'yscale': None,
+                    'fancyticks': True, 'minorticks': True,
+                    'legend': {'loc': 'upper right', 'ncol': 2, 'fontsize': 10, 'shadow': False, 'framealpha': 0.5,
+                               'borderaxespad': 0.0},
+                    'fontsize': 14,
+                    'labelsize': 14,
+                    'title': {'text': "Disk Mass Evolution", 'fontsize': 14},
+                    # 'mark_end': {'marker': 'x', 'ms': 5, 'color': 'red', 'alpha': 0.7, 'label': 'end'},
+                    # 'mark_beginning': {'marker': 's', 'ms': 5, 'color': 'blue', 'alpha': 0.7, 'label': 'beginning'},
+                    # 'axvline': {'x': 0, 'linestyle': 'dashed', 'color': 'gray', 'linewidth': 0.5},
+                    # 'axhline': {'y': 0, 'linestyle': 'dashed', 'color': 'gray', 'linewidth': 0.5}
+                }
+
+                o_plot.set_plot_dics.append(plot_dic)
+
+                o_plot.main()
+        else:
+            print_colored_string(["task:", "plotmass", ":", "skipping"],
+                                 ["blue", "green", "", "blue"])
+    except IOError:
+        print_colored_string(["task:", "plotmass", ":", "IOError"],
+                             ["blue", "green", "", "red"])
+    except KeyboardInterrupt:
+        exit(1)
+    except:
+        print_colored_string(["task:", "plotmass", ":", "failed"],
+                             ["blue", "green", "", "red"])
+
 """ ==============================================| D3 OTHER |======================================================="""
 
 """ ===============================================| D3 ALL |======================================================= """
@@ -4845,6 +4940,7 @@ def d3_main_computational_loop():
             sys.stdout.flush()
             o_d3int.save_vtk_file(it, glob_v_ns, glob_overwrite, outdir="profiles/", private_dir="vtk/")
             sys.stdout.flush()
+
     if "densmodeint" in glob_tasklist:
         o_grid = POLAR_GRID()
         o_d3int = INTMETHODS_STORE(glob_sim, o_grid, glob_symmetry)
@@ -4881,6 +4977,11 @@ def d3_main_computational_loop():
     # methods that require all iterations loaded
     if "densmode" in glob_tasklist:
         d3_dens_modes(d3corr_class, outdir=outdir, rewrite=glob_overwrite)
+
+    # summary plot of values in every iteration
+    if "plotmass" in glob_tasklist:
+        plot_disk_mass(d3corr_class, rewrite=glob_overwrite)
+
 
     # plotting tasks
     d3_slices = LOAD_PROFILE_XYXZ(glob_sim)

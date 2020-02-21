@@ -1,4 +1,6 @@
 from __future__ import division
+
+from itertools import ifilterfalse
 from sys import path
 # path.append('modules/')
 # import matplotlib.pyplot as plt
@@ -12,6 +14,7 @@ import h5py
 import csv
 import os
 import re
+from scipy import interpolate
 from argparse import ArgumentParser
 from utils import Paths, Printcolor, Lists, Constants, UTILS
 
@@ -21,13 +24,12 @@ from utils import Paths, Printcolor, Lists, Constants, UTILS
 __preanalysis__ = {
     "name": "preanalysis",
     "tasklist": ["update_status", "collate", "print_status", "init_data"],
-    "files": ["ittime.h5", "init_data.csv", "parfile.par"]
+    "files": ["ittime.h5", "ittime.txt", "init_data.csv", "parfile.par"]
 }
 
 """ ================================================================================================================="""
 
-
-class SIM_STATUS:
+class SIM_STATUS_OLD:
 
     def __init__(self, sim, clean=False, save=True, save_as_txt=True):
         self.sim = sim
@@ -87,12 +89,12 @@ class SIM_STATUS:
                               "betay.file_0.h5",
                               "betax.file_0.h5"
                               ]
-
+        #
         self.output_dics = {}
         '''
             {
             'output-0000':{
-                          'int':0, 'dir':True, 'dat':False,'dattar':True, 
+                          'int':0, 'dir':True, 'dat':False,'dattar':True,
                           'd1data': True,  'it1d':[1234, 1245, ...], 't1d': [0.001, 0.002, 0.003],
                           'd2data': True,  'it2d':[1234, 1245, ...], 't2d': [0.001, 0.002, 0.003],
                           'd3data': True,  'it3d':[1234, 1255, ...], 't3d': [0.001, ...],
@@ -107,14 +109,14 @@ class SIM_STATUS:
                           'd3data': True,  'it3d':[1234, 1255, ...], 't3d': [0.001, ...],
             }
         '''
-
+        #
         self.profiles = {}
-
+        #
         self.nuprofiles = {}
         '''
-            {'profdata':True, 'itprofs':[1345, ...],    'tprofs':[1345, ...]} 
+            {'profdata':True, 'itprofs':[1345, ...],    'tprofs':[1345, ...]}
         '''
-
+        #
         self.missing_outputs = []
         self.outputs_with_missing_ittime_file = []
 
@@ -148,8 +150,11 @@ class SIM_STATUS:
         #
         endtimefname = "endtime.txt"
         if os.path.isfile(self.simdir + endtimefname):
-            tend = np.loadtxt(self.simdir + endtimefname, unpack=True)
-            tend = float(tend) * Constants.time_constant * 1e-3
+            tend = float(np.loadtxt(self.simdir + endtimefname, unpack=True))
+            if tend < 1.:
+                pass
+            else:
+                tend = float(tend) * Constants.time_constant * 1e-3
             Printcolor.print_colored_string(["Warning!", "Time limit for the simulation is set to:", "t=","{:.1f}".format(tend * 1e3), "[ms]"],
                                             ["red", "yellow", "blue", "green", "blue"])
         else:
@@ -437,7 +442,7 @@ class SIM_STATUS:
             t_tmp  = np.append(t_tmp, proftimesteps)
             assert len(it_tmp) == len(t_tmp)
             self.save_as_txt(resfile, it_tmp, t_tmp)
-            print("\tsaved {}".format(resfile))
+            # print("\tsaved {}".format(resfile))
 
         if save:
             resfile = self.resdir + self.resfile
@@ -770,10 +775,12 @@ class SIM_STATUS:
             if not self.clean:
                 print("Rewriting the result file {}".format(fpath))
 
-        x = np.vstack((itarr, timearr)).T
+        if len(itarr) > 0:
+            x = np.vstack((itarr, timearr)).T
 
-        np.savetxt(fpath, x, header="1:it 2:time[s] ", fmt='%i %0.5f')
+            np.savetxt(fpath, x, header="1:it 2:time[s] ", fmt='%i %0.5f')
 
+            print("\tsaved {}".format(fpath))
 
     def save(self, resfile):
 
@@ -809,6 +816,346 @@ class SIM_STATUS:
         dfile.close()
 
 
+class SIM_STATUS:
+
+    def __init__(self, sim, save=True):
+        self.sim = sim
+        self.debug = True
+
+        self.simdir = Paths.gw170817 + sim + '/'
+        self.resdir = Paths.ppr_sims + sim + '/'
+
+        self.profdir = self.simdir + "profiles/3d/"
+
+        self.resfile = "ittime2.h5"
+        #
+        self.d1_ittime_file = "dens.norm1.asc"
+        self.d1_ittime_outflow_file = "outflow_det_0.asc"
+        self.d1_flag_files = ["dens.norm1.asc",
+                              "dens_unbnd.norm1.asc",
+                              "H.norm2.asc",
+                              "mp_Psi4_l2_m2_r400.00.asc",
+                              "rho.maximum.asc",
+                              "temperature.maximum.asc",
+                              "outflow_det_0.asc",
+                              "outflow_det_1.asc",
+                              "outflow_det_2.asc",
+                              "outflow_det_3.asc",
+                              "outflow_surface_det_0_fluxdens.asc",
+                              "outflow_surface_det_1_fluxdens.asc"]
+        self.d2_it_file = "entropy.xy.h5"
+        self.d2_flag_files = ["entropy.xy.h5",
+                              "entropy.xz.h5",
+                              "dens_unbnd.xy.h5",
+                              "dens_unbnd.xz.h5",
+                              "alp.xy.h5",
+                              "rho.xy.h5",
+                              "rho.xz.h5",
+                              "s_phi.xy.h5",
+                              "s_phi.xz.h5",
+                              "temperature.xy.h5",
+                              "temperature.xz.h5",
+                              "Y_e.xy.h5",
+                              "Y_e.xz.h5"]
+        self.d3_it_file = "Y_e.file_0.h5"
+        self.d3_flag_files = ["Y_e.file_0.h5",
+                              "w_lorentz.file_0.h5",
+                              "volform.file_0.h5",
+                              "vel[2].file_0.h5",
+                              "vel[1].file_0.h5",
+                              "vel[0].file_0.h5",
+                              "temperature.file_0.h5",
+                              "rho.file_0.h5",
+                              "gzz.file_0.h5",
+                              "gyz.file_0.h5",
+                              "gyy.file_0.h5",
+                              "gxz.file_0.h5",
+                              "gxy.file_0.h5",
+                              "gxx.file_0.h5",
+                              "betaz.file_0.h5",
+                              "betay.file_0.h5",
+                              "betax.file_0.h5"
+                              ]
+        self.output_dics = {}
+        self.missing_outputs = []
+        #
+        self.main()
+
+    def count_profiles(self, fname=''):
+        if not os.path.isdir(self.profdir):
+            if not self.debug:
+                print("Note. No profiels directory found. \nExpected: {}"
+                      .format(self.profdir))
+            return []
+        profiles = glob(self.profdir + '*' + fname)
+        if len(profiles) > 0:
+            profiles = [profile.split("/")[-1] for profile in profiles]
+        #
+        return profiles
+
+    def count_tars(self):
+        tars = glob(self.simdir + 'output-????.tar')
+        tars = [str(tar.split('/')[-1]).split('.tar')[0] for tar in tars]
+        return tars
+
+    def count_dattars(self):
+        dattars = glob(self.simdir + 'output-????.dat.tar')
+        dattars = [str(dattar.split('/')[-1]).split('.dat.tar')[0] for dattar in dattars]
+        return dattars
+
+    def count_output_dirs(self):
+        dirs = os.listdir(self.simdir)
+        output_dirs = []
+        for dir_ in dirs:
+            dir_ = str(dir_)
+            if dir_.__contains__("output-"):
+                if re.match("^[-+]?[0-9]+$", dir_.strip("output-")):
+                    output_dirs.append(dir_)
+        return output_dirs
+
+    def find_max_time(self, endtimefname = "endtime.txt"):
+        #
+        if os.path.isfile(self.simdir + endtimefname):
+            tend = float(np.loadtxt(self.simdir + endtimefname, unpack=True))
+            if tend < 1.:
+                pass
+            else:
+                tend = float(tend) * Constants.time_constant * 1e-3
+        else:
+            tend = np.nan
+        return tend # [s]
+
+    def scan_d1_data(self, output_dir, maxtime=np.nan):
+
+        d1data, itd1, td1 = False, [], []
+        if not os.path.isdir(self.simdir + '/' + output_dir + '/data/'):
+            return d1data, np.array(itd1, dtype=int), np.array(td1, dtype=float)
+        #
+        if not os.path.isfile(self.simdir + '/' + output_dir + '/data/' + self.d1_ittime_file):
+            print("\t{} does not contain {} -> d1 data is not appended".format(output_dir, self.d1_ittime_file))
+            return d1data, np.array(itd1, dtype=int), np.array(td1, dtype=float)
+        #
+        it_time_i = np.loadtxt(self.simdir + '/' + output_dir + '/data/' + self.d1_ittime_file, usecols=(0, 1))
+        itd1 = np.array(it_time_i[:, 0], dtype=int)
+        td1 = np.array(it_time_i[:, 1], dtype=float) * Constants.time_constant * 1e-3
+        #
+        if not np.isnan(maxtime):
+            itd1 = itd1[td1 < maxtime]
+            td1 = td1[td1 < maxtime]
+        #
+        return True, np.array(itd1, dtype=int), np.array(td1, dtype=float)
+
+    def scan_d2_data(self, output_dir, d1it, d1times, maxtime=np.nan):
+
+        d2data, itd2, td2 = False, [], []
+        if not os.path.isdir(self.simdir + '/' + output_dir + '/data/'):
+            return d2data, np.array(itd2, dtype=int), np.array(td2, dtype=float)
+        #
+        if not os.path.isfile(self.simdir + '/' + output_dir + '/data/' + self.d2_it_file):
+            print("\t{} does not contain {} -> d2 data is not appended".format(output_dir, self.d1_ittime_file))
+            return d2data, np.array(itd2, dtype=int), np.array(td2, dtype=float)
+        #
+        iterations = []
+        dfile = h5py.File(self.simdir + '/' + output_dir + '/data/' + self.d2_it_file, "r")
+        for row in dfile.iterkeys():
+            for subrow in row.split():
+                if subrow.__contains__("it="):
+                    iterations.append(int(subrow.split("it=")[-1]))
+        if len(iterations) > 0: iterations = np.array(list(sorted(set(iterations))),dtype=int)
+        else: iterations = np.array(iterations, dtype=int)
+        #
+        assert len(d1it) == len(d1times)
+        if len(d1times) == 0:
+            raise ValueError("len(d1it) = 0 -> cannot compute times for d2it")
+        #
+        f = interpolate.interp1d(d1it, d1times, kind="linear",bounds_error="extrapolate")
+        times = f(iterations)
+        if not np.isnan(maxtime):
+            iterations = iterations[times<maxtime]
+            times = times[times<maxtime]
+        #
+        return True, np.array(iterations, dtype=int), np.array(times, dtype=float)
+
+    def scan_d3_data(self, output_dir, d1it, d1times, maxtime=np.nan):
+
+        d3data, itd3, td3 = False, [], []
+        if not os.path.isdir(self.simdir + '/' + output_dir + '/data/'):
+            return d3data, np.array(itd3, dtype=int), np.array(td3, dtype=float)
+        #
+        if not os.path.isfile(self.simdir + '/' + output_dir + '/data/' + self.d3_it_file):
+            print("\t{} does not contain {} -> d3 data is not appended".format(output_dir, self.d3_it_file))
+            return d3data, np.array(itd3, dtype=int), np.array(td3, dtype=float)
+        #
+        iterations = []
+        dfile = h5py.File(self.simdir + '/' + output_dir + '/data/' + self.d3_it_file, "r")
+        for row in dfile.iterkeys():
+            for subrow in row.split():
+                if subrow.__contains__("it="):
+                    iterations.append(int(subrow.split("it=")[-1]))
+        if len(iterations) > 0: iterations = np.array(list(sorted(set(iterations))),dtype=int)
+        else: iterations = np.array(iterations, dtype=int)
+        #
+        assert len(d1it) == len(d1times)
+        if len(d1times) == 0:
+            raise ValueError("len(d1it) = 0 -> cannot compute times for d3it")
+        #
+        f = interpolate.interp1d(d1it, d1times, kind="linear",bounds_error="extrapolate")
+        times = f(iterations)
+        if not np.isnan(maxtime):
+            iterations = iterations[times<maxtime]
+            times = times[times<maxtime]
+        #
+        return True, np.array(iterations, dtype=int), np.array(times, dtype=float)
+
+    def scan_outflow_data(self, output_dir, maxtime=np.nan):
+
+        d1data, itd1, td1 = False, [], []
+        if not os.path.isdir(self.simdir + '/' + output_dir + '/data/'):
+            return d1data, np.array(itd1, dtype=int), np.array(td1, dtype=float)
+        #
+        if not os.path.isfile(self.simdir + '/' + output_dir + '/data/' + self.d1_ittime_file):
+            print("\t{} does not contain {} -> d1 data is not appended".format(output_dir, self.d1_ittime_file))
+            return d1data, np.array(itd1, dtype=int), np.array(td1, dtype=float)
+        #
+        it_time_i = np.loadtxt(self.simdir + '/' + output_dir + '/data/' + self.d1_ittime_file, usecols=(0, 1))
+        itd1 = np.array(it_time_i[:, 0], dtype=int)
+        td1 = np.array(it_time_i[:, 1], dtype=float) * Constants.time_constant * 1e-3
+        #
+        if not np.isnan(maxtime):
+            itd1 = itd1[td1 < maxtime]
+            td1 = td1[td1 < maxtime]
+        #
+        return True, np.array(itd1, dtype=int), np.array(td1, dtype=float)
+
+    def scan_prof_data(self, profiles, itd1, td1, extenstion=".h5", maxtime=np.nan):
+
+        profdata, itprof, tprof = False, [], []
+        if not os.path.isdir(self.profdir):
+            return profdata, np.array(itprof, dtype=int), np.array(tprof, dtype=float)
+        #
+        if len(profiles) == 0:
+            return profdata, np.array(itprof, dtype=int), np.array(tprof, dtype=float)
+        #
+        list_ = [int(profile.split(extenstion)[0]) for profile in profiles if
+                 re.match("^[-+]?[0-9]+$", profile.split('/')[-1].split(extenstion)[0])]
+        #
+        iterations = np.array(np.sort(np.array(list(list_))), dtype=int)
+        #
+        if len(iterations) != len(profiles):
+            if not self.debug:
+                print("ValueError. Though {} {} profiles found, {} iterations found."
+                      .format(len(profiles), extenstion, len(iterations)))
+        #
+        if len(iterations) == 0:
+            print("\tNote, {} files in {} -> {} selected as profiles"
+                  .format(len(profiles), self.profdir, len(iterations)))
+        #
+        f = interpolate.interp1d(itd1, td1, kind="linear", bounds_error="extrapolate")
+        times = f(iterations)
+        if not np.isnan(maxtime):
+            iterations = iterations[times < maxtime]
+            times = times[times < maxtime]
+        #
+        return True, np.array(iterations, dtype=int), np.array(times, dtype=float)
+
+    def save(self, output_dirs, maxtime=np.nan):
+
+        resfile = self.resdir + self.resfile
+
+        if not os.path.isdir(self.resdir):
+            os.mkdir(self.resdir)
+
+        if os.path.isfile(resfile):
+            os.remove(resfile)
+            if not self.debug:
+                print("Rewriting the result file {}".format(resfile))
+
+        dfile = h5py.File(resfile, "w")
+        for output in output_dirs:
+            one_output = self.output_dics[output]
+            dfile.create_group(output)
+            for key in one_output.keys():
+                if not self.debug: print("\twriting key:{} output:{}".format(key, output))
+                dfile[output].create_dataset(key, data=one_output[key])
+
+        dfile.create_group("profiles")
+        for key in self.output_dics["profile"].keys():
+            dfile["profiles"].create_dataset(key, data=self.output_dics["profile"][key])
+
+        dfile.create_group("nuprofiles")
+        for key in self.output_dics["nuprofile"].keys():
+            dfile["nuprofiles"].create_dataset(key, data=self.output_dics["nuprofile"][key])
+
+        dfile.create_group("overall")
+        for key in self.output_dics["overall"].keys():
+            if not self.debug: print("\twriting key:{} overall".format(key))
+            dfile["overall"].create_dataset(key, data=self.output_dics["overall"][key])
+
+        dfile.attrs.create("maxtime",data=maxtime)
+
+        dfile.close()
+
+    def main(self):
+
+        # d1data itd2 td2
+
+        #
+        output_tars = self.count_tars()
+        output_dattars = self.count_dattars()
+        output_dirs = self.count_output_dirs()
+        parfiles = self.count_profiles(".h5")
+        nuparfiles = self.count_profiles("nu.h5")
+        maxtime = self.find_max_time()
+        #
+        maxtime = self.find_max_time()
+
+        #
+        for output in output_dirs:
+            self.output_dics[output] = {}
+            outflowdata, itoutflow, toutflow = self.scan_outflow_data(output)
+            d1data, itd1, td1 = self.scan_d1_data(output)
+            d2data, itd2, td2 = self.scan_d2_data(output,itd1,td1)
+            d3data, itd3, td3 = self.scan_d3_data(output, itd1, td1)
+            print("\t{} [d1:{} outflow:{} d2:{} d3:{}] steps".format(output,len(toutflow),len(td1),len(td2),len(td3)))
+            self.output_dics[output]["outflowdata"] = outflowdata
+            self.output_dics[output]["itoutflow"] = itoutflow
+            self.output_dics[output]["toutflow"] = toutflow
+            self.output_dics[output]["d1data"] = d1data
+            self.output_dics[output]["itd1"] = itd1
+            self.output_dics[output]["td1"] = td1
+            self.output_dics[output]["d2data"] = d2data
+            self.output_dics[output]["itd2"] = itd2
+            self.output_dics[output]["td2"] = td2
+            self.output_dics[output]["d3data"] = d3data
+            self.output_dics[output]["itd3"] = itd3
+            self.output_dics[output]["td3"] = td3
+        #
+        self.output_dics["overall"] = {}
+        for key in ["itd1", "td1", "itd2", "td2", "itd3", "td3", "itoutflow", "toutflow"]:
+            self.output_dics["overall"][key] = np.concatenate(
+                [self.output_dics[output][key] for output in output_dirs])
+        #
+        profdata, itprof, tprof = self.scan_prof_data(parfiles, self.output_dics["overall"]["itd1"],
+                                                      self.output_dics["overall"]["td1"],".h5")
+        nuprofdata, itnuprof, tnuprof = self.scan_prof_data(nuparfiles, self.output_dics["overall"]["itd1"],
+                                                            self.output_dics["overall"]["td1"],"nu.h5")
+        #
+        self.output_dics["profile"] = {}
+        self.output_dics["nuprofile"] = {}
+        self.output_dics["profile"]["itprof"] = itprof
+        self.output_dics["profile"]["tprof"] = tprof
+        self.output_dics["nuprofile"]["itnuprof"] = itnuprof
+        self.output_dics["nuprofile"]["tnuprof"] = tnuprof
+        #
+        print("\toverall {} outputs, t1d:{} outflow:{} t2d:{} t3d:{} prof:{} nuprof:{}".format(len(output_dirs),
+                                                                  len(self.output_dics["overall"]["toutflow"]),
+                                                                  len(self.output_dics["overall"]["td1"]),
+                                                                  len(self.output_dics["overall"]["td2"]),
+                                                                  len(self.output_dics["overall"]["td3"]),
+                                                                  len(self.output_dics["profile"]["tprof"]),
+                                                                  len(self.output_dics["nuprofile"]["tnuprof"])))
+        #
+        self.save(output_dirs, maxtime)
 
 
 class LOAD_ITTIME:
@@ -818,7 +1165,7 @@ class LOAD_ITTIME:
         if not os.path.isfile(Paths.ppr_sims + sim + '/' + "ittime.h5"):
             # from analyze import SIM_STATUS
             print("\tno ittime.h5 found. Creating...")
-            SIM_STATUS(sim, save=True, clean=True)
+            SIM_STATUS(sim, save=True)
 
         self.set_use_selected_output_if_many_found = True
         self.clean = True
@@ -1604,104 +1951,103 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
 
 class INIT_DATA:
 
-    def __init__(self, sim, clean=True, lor_archive_fpath=None, tov_fpath=None):
+    list_expected_eos = [
+        "SFHo", "SLy4", "DD2", "BLh", "LS220", "BHB", "BHBlp"
+    ]
 
-        self.lor_archive_fpath = lor_archive_fpath
+    list_expected_resolutions = [
+        "HR", "LR", "SR", "VLR"
+    ]
+
+    list_expected_viscosities = [
+        "LK", "L50", "L25", "L5"
+    ]
+
+    list_expected_neutrinos = [
+        "M0", "M1"
+    ]
+
+    list_expected_initial_data = [
+        "R01", "R02", "R03", "R04", "R05", "R04_corot"
+    ]
+
+    list_tov_seq = {
+        "SFHo": "SFHo_sequence.txt",
+        "LS220":"LS220_sequence.txt",
+        "DD2": "DD2_sequence.txt",
+        "BLh": "BLh_sequence.txt",
+        "SLy4": "SLy4_sequence.txt",
+        "BHBlp": "BHBlp_love.dat"
+    }
+
+    def __init__(self, sim, clean=False):
+
         self.sim = sim
-        self.clean = clean
-        # ---
-        self.is_init_data_available = True
-        if not os.path.isdir(Paths.ppr_sims+sim):
-            if not self.clean:
-                print("Dir {} does not exist -- creating".format(Paths.ppr_sims+sim))
-                os.mkdir(Paths.ppr_sims+sim)
-        if not os.path.isfile(Paths.ppr_sims+sim+"parfile.par"):
-            if not self.clean:
-                print("parfile.par is absent in ppr dir: {} -- trying to copy"
-                      .format(Paths.ppr_sims+sim))
-            os.system("cp {} {}".format(Paths.gw170817 + sim + "/output-0003/parfile.par",
-                                  Paths.ppr_sims + sim + "/"))
-            if not os.path.isfile(Paths.ppr_sims + sim + "/" + "parfile.par"):
-                if not self.clean:
-                    print("Error. copyting of {} TO {} has failed."
-                          .format(Paths.gw170817 + sim + "/output-0003/parfile.par",
-                                  Paths.ppr_sims + sim + "/"))
-
         self.par_dic = {}
+        # ---
+        self.extract_parameters_from_sim_name()
+        # ---
+        in_simdir = Paths.gw170817 + sim + '/'
+        out_simdir = Paths.ppr_sims + sim + '/'
 
-        self.init_data_dir = Paths.ppr_sims+sim+'/initial_data/'
-        if not os.path.isdir(self.init_data_dir):
-            run, pizza_fname, hydro_fname, weak_fname = self.copy_extract_initial_data()
-            self.par_dic["run"] = run
-            self.par_dic["pizza_eos"] = pizza_fname
-            self.par_dic["hydro_eos"] = hydro_fname
-            self.par_dic["weak_eos"] = weak_fname
-        if self.is_init_data_available:
-            assert os.path.isdir(self.init_data_dir)
-            # Printcolor.blue("\tinitial_data directory is found.")
-            # ---
+        assert os.path.isdir(in_simdir)
+        assert os.path.isdir(out_simdir)
 
-            self.list_expected_eos = [
-                "SFHo", "SLy4", "DD2", "BLh", "LS220", "BHB", "BHBlp"
-            ]
-
-            self.list_expected_resolutions = [
-                "HR", "LR", "SR", "VLR"
-            ]
-
-            self.list_expected_viscosities = [
-                "LK", "L50", "L25", "L5"
-            ]
-
-            self.list_expected_neutrinos = [
-                "M0", "M1"
-            ]
-
-            self.list_expected_initial_data = [
-                "R01", "R02", "R03", "R04", "R05", "R04_corot"
-            ]
-
-            self.init_data_dir = Paths.ppr_sims+sim+'/initial_data/'
-            assert os.path.isdir(self.init_data_dir)
-
-            self.get_pars_from_sim_name()
-            Printcolor.blue("\tSelf data from the sim name is parsed")
-            self.load_calcul_extract_pars()
-            Printcolor.blue("\tData from calcul.d os parsed")
-
-            if tov_fpath != None:
-                tov_fname = tov_fpath
-            elif self.par_dic["EOS"] == 'SFHo':
-                tov_fname = Paths.TOVs + 'SFHo_sequence.txt' #'SFHo_love.dat'
-            elif self.par_dic["EOS"] == 'DD2':
-                tov_fname = Paths.TOVs + 'DD2_sequence.txt' #'DD2_love.dat'
-            elif self.par_dic["EOS"] == 'LS220':
-                tov_fname = Paths.TOVs + 'LS200_sequence.txt' #'LS220_love.dat'
-            elif self.par_dic["EOS"] == 'SLy4':
-                tov_fname = Paths.TOVs + 'SLy_sequence.txt' #'SLy4_love.dat'
-            elif self.par_dic["EOS"] == 'BHBlp' or self.par_dic["EOS"] == 'BHB':
-                tov_fname = Paths.TOVs + 'BHBlp_love.dat'
-            elif self.par_dic["EOS"] == "BLh":
-                tov_fname = Paths.TOVs + 'BLh_sequence.txt' #"BLh_love.dat"
-            else:
-                raise NameError("\tTOV sequences are not found for EOS:{} ".format(self.par_dic["EOS"]))
-            self.load_tov_extract_pars(tov_fname)
-            Printcolor.blue("\tData from TOV is parsed")
-
-            self.save_as_csv("init_data.csv")
-            Printcolor.blue("\tinitial data is saved")
+        # locate or transfer parfile
+        if not os.path.isfile(out_simdir + "parfile.par"):
+            # find parfile:
+            listdirs = os.listdir(in_simdir)
+            for dir_ in listdirs:
+                print("searching for parfile in {}".format(in_simdir+dir_ + '/'))
+                if dir_.__contains__("output-"):
+                    if os.path.isfile(in_simdir+dir_ + '/' + 'parfile.par'):
+                        os.system("cp {} {}".format(in_simdir + dir_ + '/' +'parfile.par', out_simdir))
+                        print("\tparfile is copied from {}".format(in_simdir + dir_ + '/'))
+                        break
         else:
-            Printcolor.red("\tError. Initial data was not computed")
+            print("\tparfile is already collected")
+        if not os.path.isfile(out_simdir + "parfile.par"):
+            raise IOError("parfile is neither found nor copied from source.")
+        # ---
+        initial_data_line = self.extract_parameters_from_parfile()
+        # ---
 
-    def get_fname_for_init_data_from_parfile(self):
+        if not os.path.isdir(out_simdir + "initial_data/") or \
+            not os.path.isfile(out_simdir + "initial_data/" + "calcul.d") or \
+            not os.path.isfile(out_simdir + "initial_data/" + "resu.d"):
+            # make a dir for the lorene data
+            if not os.path.isdir(out_simdir + "initial_data/"):
+                os.mkdir(out_simdir + "initial_data/")
+            # find extract and copy lorene files
+            archive_fpath = self.find_untar_move_lorene_files(initial_data_line)
+            self.extract_lorene_archive(archive_fpath, out_simdir + "initial_data/")
+            # check again
+            if not os.path.isdir(out_simdir + "initial_data/") or \
+                    not os.path.isfile(out_simdir + "initial_data/" + "calcul.d") or \
+                    not os.path.isfile(out_simdir + "initial_data/" + "resu.d"):
+                raise IOError("Failed to extract, copy lorene data: {} \ninto {}"
+                              .format(archive_fpath, out_simdir + "initial_data/"))
+        else:
+            pass
 
-        if not os.path.isfile(Paths.ppr_sims + self.sim + '/parfile.par'):
-            print("Error. parfile in ppr directory is not found. ")
+        # get masses, lambdas, etc
+        self.extract_parameters_from_calculd(out_simdir + "initial_data/" + "calcul.d")
+        #
+        tov_fname = self.list_tov_seq[self.par_dic["EOS"]]
+        self.extract_parameters_from_tov_sequences(Paths.TOVs + tov_fname)
+        #
+        self.save_as_csv(out_simdir+"init_data.csv")
+
+
+    # get the files
+
+    def extract_parameters_from_parfile(self):
 
         initial_data = ""
         pizza_eos_fname = ""
         hydro_eos_fname = ""
         weak_eos_fname = ""
+        #
         lines = open(Paths.ppr_sims + self.sim + '/parfile.par', "r").readlines()
         for line in lines:
 
@@ -1722,108 +2068,146 @@ class INIT_DATA:
 
         assert initial_data != ""
         #
-        run = initial_data.split("/")[-3]
-        initial_data_dirname = initial_data.split("/")[-2]
-        if not run.__contains__("R"):
-            if str(initial_data.split("/")[-2]).__contains__("R05"):
-                Printcolor.yellow("\tWrong path of initial data. Using R05 for initial_data:'\n\t{}".format(initial_data))
-                run = "R05"
-                initial_data_dirname = initial_data.split("/")[-2]
+        self.par_dic["hydro_eos"] = str(hydro_eos_fname[1:-1])
+        self.par_dic["pizza_eos"] = str(pizza_eos_fname.split("/")[-1])[:-1]
+        self.par_dic["weak_eos"]  = str(weak_eos_fname.split("/")[-1])[:-1]
+        #
+        return initial_data
+
+        #
+        # #
+        # run = initial_data.split("/")[-3]
+        # initial_data_archive_name = initial_data.split("/")[-2]
+        # if not run.__contains__("R"):
+        #     if str(initial_data.split("/")[-2]).__contains__("R05"):
+        #         Printcolor.yellow(
+        #             "\tWrong path of initial data. Using R05 for initial_data:'\n\t{}".format(initial_data))
+        #         run = "R05"
+        #         initial_data_archive_name = initial_data.split("/")[-2]
+        #     else:
+        #         for n in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
+        #             _run = "R0{:d}".format(n)
+        #             if os.path.isdir(Paths.lorene + _run + '/'):
+        #                 _masses = self.sim.split('_')[1]
+        #                 assert _masses.__contains__("M")
+        #                 _masses.replace('M', '')
+        #                 _lorene = Paths.lorene + _run + '/'
+        #                 onlyfiles = [f for f in os.listdir(_lorene) if os.path.isfile(os.path.join(_lorene, f))]
+        #                 assert len(onlyfiles) > 0
+        #                 for onefile in onlyfiles:
+        #                     if onefile.__contains__(_masses):
+        #                         initial_data_archive_name = onefile.split('.')[0]
+        #                         run = _run
+        #                         break
+        #         if run == initial_data.split("/")[-3]:
+        #             Printcolor.yellow("Filed to extract 'run': from: {}".format(initial_data))
+        #             Printcolor.yellow("Manual overwrite required")
+        #             manual = raw_input("set run (e.g. R01): ")
+        #             if str(manual) == "":
+        #                 raise NameError("Filed to extract 'run': from: {}".format(initial_data))
+        #             else:
+        #                 Printcolor.yellow("Setting Run manually to: {}".format(manual))
+        #                 run = str(manual)
+                # raise ValueError("found 'run':{} does not contain 'R'. in initial_data:{}".format(run, initial_data))
+        #
+
+        #
+        # pizza_fname = str(pizza_eos_fname.split("/")[-1])
+        #
+        # pizza_fname = pizza_fname[:-1]
+        # #
+        # hydro_fname = str(hydro_eos_fname[1:-1])
+        # #
+        # weak_fname = str(weak_eos_fname.split("/")[-1])
+        # weak_fname = weak_fname[:-1]
+
+    def find_untar_move_lorene_files(self, line_from_parfile):
+        #
+        run = ""
+        lorene_archive_fpath = ""
+        # if line cotains the run R01 - R05
+        for expected_run in self.list_expected_initial_data:
+            if line_from_parfile.__contains__(expected_run):
+                run = expected_run
+                print("found run: {} in the line: {}".format(run, line_from_parfile))
+                break
+        # if this run is found, check if there an archive with matching mass. If not, check ALL runs for this archive
+        if run != "":
+            _masses = self.sim.split('_')[1]
+            _lorene = Paths.lorene + run + '/'
+            onlyfiles = [f for f in os.listdir(_lorene) if os.path.isfile(os.path.join(_lorene, f))]
+            for onefile in onlyfiles:
+                if onefile.__contains__(_masses):
+                    lorene_archive_fpath = Paths.lorene + run + '/' + onefile#.split('.')[0]
+                    print("found file {} in run: {}".format(lorene_archive_fpath, run))
+                    break
+            if lorene_archive_fpath == "":
+                print("failed to find lorene archive for run: {} in {}"
+                      .format(run, _lorene))
             else:
-                for n in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
-                    _run = "R0{:d}".format(n)
-                    if os.path.isdir(Paths.lorene+_run+'/'):
-                        _masses = self.sim.split('_')[1]
-                        assert _masses.__contains__("M")
-                        _masses.replace('M', '')
-                        _lorene = Paths.lorene+_run+'/'
-                        onlyfiles = [f for f in os.listdir(_lorene) if os.path.isfile(os.path.join(_lorene, f))]
-                        assert len(onlyfiles) > 0
-                        for onefile in onlyfiles:
-                            if onefile.__contains__(_masses):
-                                initial_data_dirname = onefile.split('.')[0]
-                                run = _run
-                                break
-                if run == initial_data.split("/")[-3]:
-                    Printcolor.yellow("Filed to extract 'run': from: {}".format(initial_data))
-                    Printcolor.yellow("Manual overwrite required")
-                    manual = raw_input("set run (e.g. R01): ")
-                    if str(manual) == "":
-                        raise NameError("Filed to extract 'run': from: {}".format(initial_data))
-                    else:
-                        Printcolor.yellow("Setting Run manually to: {}".format(manual))
-                        run = str(manual)
-                #raise ValueError("found 'run':{} does not contain 'R'. in initial_data:{}".format(run, initial_data))
-        #
-
-        #
-        pizza_fname = str(pizza_eos_fname.split("/")[-1])
-        pizza_fname = pizza_fname[:-1]
-        #
-        hydro_fname = str(hydro_eos_fname[1:-1])
-        #
-        weak_fname = str(weak_eos_fname.split("/")[-1])
-        weak_fname = weak_fname[:-1]
-
-        # print(weak_fname)
-        # print(hydro_fname)
-        # print(pizza_fname)
-        # exit(1)
-        print("\t", run, initial_data_dirname, pizza_fname, hydro_fname, weak_fname)
-
-        return run, initial_data_dirname, pizza_fname, hydro_fname, weak_fname
-
-    def copy_extract_initial_data(self, finaldir='initial_data'):
-
-        # if not os.path.isdir(Paths.ppr_sims + self.sim + '/' + finaldir):
-
-        if self.lor_archive_fpath == None:
-
-            run, dirnmame, pizza_fname, hydro_fname, weak_fname = self.get_fname_for_init_data_from_parfile()
-            # print(run)
-            if not os.path.isdir(Paths.lorene + run + '/'):
-                self.is_init_data_available = False
-                Printcolor.red("\tError. Init. data source dir is not found: {}"
-                               .format(Paths.lorene + run + '/'))
-
-            elif not os.path.isfile(Paths.lorene + run + '/' + dirnmame + '.tar.gz'):
-                self.is_init_data_available = False
-                Printcolor.red("\tError. Init. data archive is not found: {}"
-                               .format(Paths.lorene + run + '/' + dirnmame + '.tar.gz'))
-
-            else:
-                self.is_init_data_available = True
-                if not os.path.isdir(Paths.ppr_sims + self.sim + '/' + finaldir + '/'):
-                    os.mkdir(Paths.ppr_sims + self.sim + '/' + finaldir + '/')
-
-                # Andrea's fucking new approach
-                if run == "R05":
-                    os.system("tar -xzf {} --directory {}".format(
-                        Paths.lorene + run + '/' + dirnmame + ".tar.gz",
-                        Paths.ppr_sims + self.sim + "/" + finaldir + '/'
-                    ))
-                else:
-                    os.system("rm -r {}".format(Paths.ppr_sims + self.sim + '/' + finaldir + '/'))
-                    os.system("tar -xzf {} --directory {}".format(
-                        Paths.lorene + run + '/' + dirnmame + ".tar.gz",
-                        Paths.ppr_sims + self.sim + "/"
-                    ))
-                    os.system("mv {} {}".format(
-                        Paths.ppr_sims + self.sim + '/' + dirnmame,
-                        Paths.ppr_sims + self.sim + '/' + finaldir
-                    ))
-
-                Printcolor.blue("Initial data {} ({}) has been extracted and moved"
-                                .format(dirnmame, run))
+                if not os.path.isfile(lorene_archive_fpath):
+                    print("file does not exist: {} Continue searching...".format(lorene_archive_fpath))
+                    lorene_archive_fpath = ""
         else:
-            raise IOError("Method to override the lor. data path is not written yet... ")
+            print("failed to find run (R0?) in {} . Trying to check ALL the list...".format(line_from_parfile))
+            for __run in self.list_expected_initial_data:
+                print("checking {}".format(__run))
+                _lorene = Paths.lorene + __run + '/'
+                onlyfiles = [f for f in os.listdir(_lorene) if os.path.isfile(os.path.join(_lorene, f))]
+                assert len(onlyfiles) > 0
+                _masses = self.sim.split('_')[1]
+                for onefile in onlyfiles:
+                    if onefile.__contains__(_masses):
+                        lorene_archive_fpath = Paths.lorene + __run + '/' + onefile#.split('.')[0]
+                        run = __run
+                        print("found file {} in run: {}".format(lorene_archive_fpath, run))
+                        break
+        # if the archive is found -- return; if NOT or if does not exist: ask user
+        if run != "" and lorene_archive_fpath != "":
+            if os.path.isfile(lorene_archive_fpath):
+                self.par_dic["run"] = run
+                return lorene_archive_fpath
+            else:
+                print("run: {} is found, but file does not exist: {} "
+                      .format(run, lorene_archive_fpath))
+        else:
+            print("failed to find run '{}' or/and archive name: '{}' ".format(run, lorene_archive_fpath))
+        # get run from the user, showing him the line
+        manual = raw_input("set run (e.g. R01): ")
+        if not manual in self.list_expected_initial_data:
+            print("Note: given run: {} is not in the list of runs:\n\t{}"
+                  .format(manual, self.list_expected_initial_data))
+        run = manual
+        # get the archive name from the user
+        manual = raw_input("archive name (e.g. SLy_1264_R45.tar.gz): ")
+        if not os.path.isfile(Paths.lorene + run + '/' + manual):
+            print("Error: given run {} + archive name {} -> file does not exists: {}"
+                  .format(run, manual, Paths.lorene + run + '/' + manual))
+            raise IOError("file not found:{}".format(Paths.lorene + run + '/' + manual))
+        lorene_archive_fpath = Paths.lorene + run + '/' + manual
+        self.par_dic["run"] = run
+        return lorene_archive_fpath
 
-        return run, pizza_fname, hydro_fname, weak_fname
+    def extract_lorene_archive(self, archive_fpath, new_dir_fpath):
+        #
+        assert os.path.isdir(new_dir_fpath)
+        assert os.path.isfile(archive_fpath)
+        #
+        run = self.par_dic["run"]
+        if run == "R05":
+            # andrea's fucking approach
+            os.system("tar -xzf {} --directory {}".format(archive_fpath, new_dir_fpath))
+        else:
+            tmp = archive_fpath.split('/')[-1]
+            tmp = tmp.split('.')[0]
+            # os.mkdir(new_dir_fpath + 'tmp/')
+            os.system("tar -xzf {} --directory {}".format(archive_fpath, new_dir_fpath))
+            os.system("mv {} {}".format(new_dir_fpath + tmp + '/*', new_dir_fpath))
+            os.rmdir(new_dir_fpath + tmp + '/')
 
-        # else:
-        #     Printcolor.blue("\tinitial_data directory is found.")
+    # extract data
 
-    def get_pars_from_sim_name(self):
+    def extract_parameters_from_sim_name(self):
 
         parts = self.sim.split("_")
         # eos
@@ -1887,21 +2271,38 @@ class INIT_DATA:
             print("Error in computing 'q' = m1/m2")
             self.par_dic["q"] = 0.
 
-    def load_calcul_extract_pars(self, fname="calcul.d"):
-        assert os.path.isfile(self.init_data_dir+fname)
-        lines = open(self.init_data_dir+fname).readlines()
+    def extract_parameters_from_calculd(self, fpath):
+
+        # print fpath; exit(1)
+
+        assert os.path.isfile(fpath)
+        lines = open(fpath).readlines()
         # data_dic = {}
         for line in lines:
 
             # if not self.clean:
-            #     print("\t\t{}".format(line))
+            # print("\t\t{}".format(line))
 
             if line.__contains__("Baryon mass required for star 1"):
-                self.par_dic["Mb1"] = float(line.split()[0]) # Msun
+                try:
+                    self.par_dic["Mb1"] = float(line.split()[0])  # Msun
+                except ValueError:
+                    try:
+                        self.par_dic["Mb1"] = float(line.split()[0][:5])
+                    except ValueError:
+                        try:
+                            self.par_dic["Mb1"] = float(line.split()[0][:4])
+                        except ValueError:
+                            try:
+                                self.par_dic["Mb1"] = float(line.split()[0][:3])
+                            except:
+                                raise ValueError("failed to extract Mb2")
+
+                # self.par_dic["Mb1"] = float(line.split()[0])  # Msun
 
             if line.__contains__("Baryon mass required for star 2"):
                 try:
-                    self.par_dic["Mb2"] = float(line.split()[0]) # Msun
+                    self.par_dic["Mb2"] = float(line.split()[0])  # Msun
                 except ValueError:
                     try:
                         self.par_dic["Mb2"] = float(line.split()[0][:5])
@@ -1914,21 +2315,22 @@ class INIT_DATA:
                             except:
                                 raise ValueError("failed to extract Mb2")
 
+            if line.__contains__("Omega") and line.__contains__("Orbital frequency"):
+                self.par_dic["Omega"] = float(line.split()[2])  # rad/s
 
             if line.__contains__("Omega") and line.__contains__("Orbital frequency"):
-                self.par_dic["Omega"] = float(line.split()[2]) # rad/s
-
-            if line.__contains__("Omega") and line.__contains__("Orbital frequency"):
-                self.par_dic["Orbital freq"] = float(line.split()[8]) # Hz
+                self.par_dic["Orbital freq"] = float(line.split()[8])  # Hz
 
             if line.__contains__("Coordinate separation"):
-                self.par_dic["CoordSep"] = float(line.split()[3]) # rm
+                self.par_dic["CoordSep"] = float(line.split()[3])  # rm
 
             if line.__contains__("1/2 ADM mass"):
-                self.par_dic["MADM"] = 2*float(line.split()[4]) # Msun
+                self.par_dic["MADM"] = 2 * float(line.split()[4])  # Msun
 
             if line.__contains__("Total angular momentum"):
-                self.par_dic["JADM"] = float(line.split()[4]) # [GMsun^2/c]
+                self.par_dic["JADM"] = float(line.split()[4])  # [GMsun^2/c]
+
+        #
 
         if float(self.par_dic["Mb1"]) < float(self.par_dic["Mb2"]):
             _m1 = self.par_dic["Mb1"]
@@ -1940,9 +2342,7 @@ class INIT_DATA:
         self.par_dic["Mb"] = float(self.par_dic["Mb1"]) + float(self.par_dic["Mb2"])
         self.par_dic["f0"] = float(self.par_dic["Omega"]) / (2. * np.pi)
 
-        # return data_dic
-
-    def load_tov_extract_pars(self, tov_fpath):
+    def extract_parameters_from_tov_sequences(self, tov_fpath):
 
         assert os.path.isfile(tov_fpath)
 
@@ -2010,9 +2410,11 @@ class INIT_DATA:
             tmp2 = (mg2 + (12 * mg1)) * (mg2 ** 4) * lam2
             self.par_dic["Lambda"] = (16. / 13.) * (tmp1 + tmp2) / (mg_tot ** 5.)
 
-    def save_as_csv(self, fname):
+    # saving
+
+    def save_as_csv(self, fpath):
         # import csv
-        w = csv.writer(open(Paths.ppr_sims+self.sim+'/'+fname, "w"))
+        w = csv.writer(open(fpath, "w"))
         for key, val in self.par_dic.items():
             w.writerow([key, val])
 
@@ -2050,7 +2452,7 @@ class LOAD_INIT_DATA:
 
     def get_par(self, v_n):
         if not v_n in self.par_dic.keys():
-            print("Error. v_n:{} sim:{} is not in init_data.keys()\n{}"
+            print("\tError. v_n:{} sim:{} is not in init_data.keys()\n\t{}"
                   .format(v_n, self.sim, self.par_dic))
         if not v_n in self.list_v_ns:
             raise NameError("v_n:{} sim:{} not in self.list_v_ns[] {} \n\nUpdate the list."
@@ -2058,7 +2460,7 @@ class LOAD_INIT_DATA:
 
         # if v_n == "Mb":
         #     return float(self.get_par("Mb1") + self.get_par("Mb2"))
-
+        # print(v_n, self.sim, self.par_dic.keys(), '\n')
         par = self.par_dic[v_n]
         try:
             return float(par)
@@ -2192,7 +2594,7 @@ if __name__ == '__main__':
     glob_outdir = args.outdir
     glob_tasklist = args.tasklist
     glob_overwrite = args.overwrite
-    glob_lorene = args.lorene
+    # glob_lorene = args.lorene
     glob_tov = args.tov
 
     # check given data
@@ -2214,10 +2616,10 @@ if __name__ == '__main__':
     glob_outdir_sim = glob_outdir + glob_sim
     if not os.path.isdir(glob_outdir_sim):
         os.mkdir(glob_outdir_sim)
-    if glob_lorene != None:
-        if not os.path.isfile(glob_lorene):
-            raise NameError("Given lorene fpath: {} is not avialable"
-                            .format(glob_lorene))
+    # if glob_lorene != None:
+    #     if not os.path.isfile(glob_lorene):
+    #         raise NameError("Given lorene fpath: {} is not avialable"
+    #                         .format(glob_lorene))
     if glob_tov != None:
         if not os.path.isfile(glob_tov):
             raise NameError("Given TOV fpath: {} is not avialable"
@@ -2234,7 +2636,7 @@ if __name__ == '__main__':
     for task in glob_tasklist:
         if task == "update_status":
             Printcolor.blue("Task:'{}' Executing...".format(task))
-            statis = SIM_STATUS(glob_sim, clean=True, save=True)
+            statis = SIM_STATUS(glob_sim, save=True)
             Printcolor.blue("Task:'{}' DONE...".format(task))
         elif task == "collate":
             COLLATE_DATA(glob_sim)
@@ -2244,7 +2646,7 @@ if __name__ == '__main__':
             Printcolor.blue("Task:'{}' DONE...".format(task))
         elif task == "init_data":
             Printcolor.blue("Task:'{}' Executing...".format(task))
-            statis = INIT_DATA(glob_sim, clean=True, lor_archive_fpath=glob_lorene)
+            statis = INIT_DATA(glob_sim)#, lor_archive_fpath=glob_lorene)
             Printcolor.blue("Task:'{}' DONE...".format(task))
         else:
             raise NameError("No method fund for task: {}".format(task))
@@ -2256,3 +2658,6 @@ if __name__ == '__main__':
     # print(l.get_par("Lambda"))
     # print(self.param_dic["initial_data_run"])
     # print(self.param_dic["initial_data_fname"])
+
+
+
