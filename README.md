@@ -58,8 +58,11 @@ To do that for data from detector (-d), run
 `python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t reshape -d 0`  
 
 **Note** Running the `-t reshape` (the longest part of the outflow analysis) on a multiprocessor 
-system can be done in parallel. For that specify `-p 4` option, setting the number to a number of processors to use.  
-
+system can be done in parallel. For that specify `-p 4` option, setting the number to a number of processors to use. Here
+the user can limit, up to what time to postprecess the data. If the maxtime attribute is present in `ittime.h5` by setting 
+`--usemaxtime auto` it will be picked up and the analysis will be limited. Another option is to set the value manually here as 
+`--usemaxtime 20` where 20 is the 20 ms time, up to which to postprocess. If no limits needed, the option can me set to 
+`--usemaxtime no` (which is the default)  
 
 2) do the comprehensive, easily extendeble analysis of this data. Available standart methods (-t otion). For that mask option (-m) has to set. For example: `-t geo` would stand for geodesic criteria to unbound material.  
 
@@ -87,9 +90,10 @@ system can be done in parallel. For that specify `-p 4` option, setting the numb
 *Additional options*  
 `-p` only valid for task `-t reshape`, for parallel processing of the input ourflowed files. Speeds up the analysis.
 `--maxtime` only valid for task `-t reshape` with parallel option `-p n`, where n is a integer, number 
-of processors to use. Allows to set a maximum time (in milliseconds). In the production of 'outflow_surface_det_?_fluxdens.asc' all the 
-timesteps above the maxtime will be scipped. Useful in case where the simulations at some point encounters numerical/other issues and its
-data becomes unreliable
+of processors to use. It allows to limit, up to what time to postprocess the data. If the maxtime attribute is present in `ittime.h5` by setting 
+`--usemaxtime auto` it will be picked up and the analysis will be limited. Another option is to set the value manually here as 
+`--usemaxtime 20` where 20 is the 20 ms time, up to which to postprocess. If no limits needed, the option can me set to 
+`--usemaxtime no` (which is the default)
 
 
 *Example:*  
@@ -187,6 +191,7 @@ Parameters:
 `--time` list of timesteps to use  
 `--it` list of iterations to use  
 `--overwrite` flag to overwrite data if already exists.  
+`--usemaxtime` flag/value to limit the usage of data (see description in `outflowed.py`)
 
 Example:  
 `python profile.py -s LS220_130130 -i /home/my_simulations/ -o /home/my_postprocessing/ 
