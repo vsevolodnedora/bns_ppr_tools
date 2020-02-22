@@ -4,7 +4,6 @@ from __future__ import division
 from sys import path
 path.append('modules/')
 from math import pi
-# Matplotlib
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -15,24 +14,9 @@ from scidata.utils import diff, fixed_freq_int_1, fixed_freq_int_2, integrate
 from scidata.windows import exponential as window
 from scipy.signal import detrend
 
-# Import data analysis tools
-# import math
-
-# import numpy as np
-# import os
-# from pprint import pprint
-# import re
-
-# import sys
-
-
-# Matplotlib
-
-
-
 from utils import *
 
-
+# relies on collated data (time limited or not)
 __gw__ = {"tasklist":['strain', "tmergtcoll"]}
 
 # adopted from David's Radice strain.py script
@@ -522,6 +506,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to collated data for sim")
     parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")
+
     #
     args = parser.parse_args()
     #
@@ -532,6 +517,9 @@ if __name__ == '__main__':
     glob_overwrite = args.overwrite
     simdir = Paths.gw170817 + glob_sim + '/'
     resdir = Paths.ppr_sims + glob_sim + '/'
+    #
+    if glob_overwrite == "no":  glob_overwrite = False
+    elif glob_overwrite == "yes": glob_overwrite = True
     #
     if glob_sim != '' and glob_simdir == Paths.gw170817:
         assert os.path.isdir(Paths.ppr_sims)
@@ -559,14 +547,6 @@ if __name__ == '__main__':
         if not os.path.isdir(glob_outdir):
             os.mkdir(glob_outdir)
 
-    # elif glob_sim == '' and glob_outdir != Paths.ppr_sims:
-    #     assert os.path.isdir(glob_outdir)
-    #     glob_outdir = glob_outdir + 'waveforms/'
-    # else:
-    #     raise IOError("Please either provide -s option for simulation, assuming the output dir would be in "
-    #                   "{} or provide -o path to where the output data should be put (the /wafeforms/ would still"
-    #                   "be created. ".format(Paths.ppr_sims+'this_simulation/waveformes/'))
-    #
     assert os.path.isdir(glob_outdir)
     #
     if len(glob_tasklist) == 1 and "all" in glob_tasklist:
@@ -576,11 +556,10 @@ if __name__ == '__main__':
             if not task in __gw__["tasklist"]:
                 raise NameError("task: {} is not recognized. Available:{}"
                                 .format(task, __gw__["tasklist"]))
+    elif len(glob_tasklist) > 1 and not "all" in glob_tasklist:
+        pass
     else:
         raise IOError("Please provide task to perform in -t option. ")
-    #
-    #
-    #
     #
     print(glob_indir)
     for task in glob_tasklist:

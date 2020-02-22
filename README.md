@@ -10,6 +10,15 @@ to have a directory with simulation(s), like `/home/my_simulations/`
 inside of which there are simulation dirs like `LS220_130130_SR/` with output subdirectories like `output-1234`    
 This `/home/my_simulations/` directory can be specified in the file `utils.py` in the class `Paths` in a variable `gw170810`    
 
+If inside of the simulation folder, there is a file `maxtime.txt` with one float, time in GEO units or in seconds,
+its value will we picked up by the `preanalysis.py` and saved as an attribute in `ittime.h5`. Later, the following
+methods can use this value to limit the analysis to this time:  
+- `preanalysis.py` with task `-t collate`
+- `gw.py` does not read this value, but since it uses collated data. The limit is also applied here, if is used there.  
+- `outflowed.py` with task `-t reshape`. Since all other tasks realy on the file that is produced by this task, -- the limit is also applied.
+- `profile.py`. There you manually set, what iterations to use. But setting `--it all` would automatically pick up that there is a limit, and 
+will not analyse profiles that correspond to times beyond maxtime.
+
 to have a separate directory for the results of postprocessing, like `/home/my_postprocessing/` 
 indide of which the pipeline would automatically create a subdirectory for every simulation it 
 analysis with the name of this simulation.  
@@ -28,12 +37,14 @@ example:
   
 ## preprocessing.py
 purpose: check and show the available data and timespans. Create an `ittime.h5` file that contains the information about timestaps and iterations of different data types, such as ascii files, .xy.h5 files and parfile.h5 files.  
-The ittime.h5 is essential for all other methods, as they do not have to scan for available data every time.  
+The `ittime.h5` file is **essential** for all other methods, as they do not have to scan for available data every time.  
 Options for this script:  
 `-s` simulation_dir_name
 `-i` /path_to_this_dir/  
 `-o` /path_to_output/  
 `-t` task to perform, such as: `update_status` or `print_status`, `collate`,  
+`--overwrite` replaces the old results if set to `yes` and does not if set to `no`
+`--usemaxtime` used only for the task `-t collate`. Essentially it limits the time up to which to collate data.
 where the last task allows to collate certain ascii files, removing the repetitions.
 
 ## outflowed.py

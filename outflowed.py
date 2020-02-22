@@ -510,7 +510,7 @@ class COMPUTE_OUTFLOW_SURFACE(EXTRACT_OUTFLOW_SURFACE):
 # with parallelalisation
 class LOAD_RESHAPE_SAVE_PARALLEL(LOAD_ITTIME):
 
-    def __init__(self, sim, det, n_proc, eosfname, maxtime=-1.):
+    def __init__(self, sim, det, n_proc, eosfname):
 
         LOAD_ITTIME.__init__(self, sim)
 
@@ -527,14 +527,24 @@ class LOAD_RESHAPE_SAVE_PARALLEL(LOAD_ITTIME):
         self.outdirtmp = Paths.ppr_sims+sim+'/tmp/'
         if not os.path.isdir(self.outdirtmp):
             os.mkdir(self.outdirtmp)
-        #
-        if maxtime < 0.:
-            maxit = -1
-        else:
+        # selecting maximum time
+        if glob_usemaxtime:
+            # use maxtime, just chose which
+            if np.isnan(glob_maxtime) and not np.isnan(self.maxtime):
+                maxtime = self.maxtime
+            elif not np.isnan(glob_maxtime) and not np.isnan(self.maxtime):
+                maxtime = glob_maxtime
+                Printcolor.yellow("\tOverwriting ittime maxtime:{:.1f}ms with {:.1f}ms"
+                                  .format(self.maxtime*1.e3, glob_maxtime*1.e3))
+            else:
+                #  np.isnan(self.maxtime) = True
+                maxtime = glob_maxtime
             _, d1it, ditimes = self.get_ittime("overall", "d1")
             maxit = self.get_it_for_time(maxtime, "d1")
             Printcolor.print_colored_string(["Max. it set:", "{}".format(maxit), "out of", "{}".format(d1it[-1])],
                                             ["yellow", "green", "yellow", "green"])
+        else:
+            maxit = -1
         #
         fname = "outflow_surface_det_%d_fluxdens.asc" % det
         if not os.path.isdir(Paths.gw170817 + sim + "/"):
@@ -2902,7 +2912,9 @@ if __name__ == '__main__':
     #
     parser.add_argument("--v_n", dest="v_ns", nargs='+', required=False, default=[], help="variable names to compute")
     #
-    parser.add_argument("--maxtime", dest="maxtime", required=False, default=-1., help="Time limiter for 'reshape' task only")
+    parser.add_argument("--usemaxtime", dest="usemaxtime", required=False, default="no",
+                        help=" yes/no to use ittime.h5 set value. Or set a float [ms] to overwrite ")
+    # parser.add_argument("--maxtime", dest="maxtime", required=False, default=-1., help="Time limiter for 'reshape' task only")
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
     parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")
@@ -2924,7 +2936,8 @@ if __name__ == '__main__':
     glob_v_ns = args.v_ns
     glob_masks = args.masks
     glob_nproc = int(args.num_proc)
-    glob_maxtime = args.maxtime
+    glob_usemaxtime = args.usemaxtime
+    glob_maxtime = np.nan
     # check given data
     if not glob_eos == None:
         if not os.path.isfile(glob_eos):
@@ -2952,6 +2965,18 @@ if __name__ == '__main__':
         os.mkdir(glob_outdir_sim)
     if len(glob_detectors) == 0:
         raise NameError("No detectors selected. Set '-d' option to 0, 1, etc")
+    # checking if to use maxtime
+    if glob_usemaxtime == "no":
+        glob_usemaxtime = False
+        glob_maxtime = np.nan
+    elif glob_usemaxtime == "yes":
+        glob_usemaxtime = True
+        glob_maxtime = np.nan
+    elif re.match(r'^-?\d+(?:\.\d+)?$', glob_usemaxtime):
+        glob_maxtime = float(glob_usemaxtime) / 1.e3 # [s]
+        glob_usemaxtime = True
+    else: raise NameError("for '--usemaxtime' option use 'yes' or 'no' or float. Given: {}"
+                          .format(glob_usemaxtime))
 
     # set globals
     Paths.gw170817 = glob_simdir
@@ -3010,8 +3035,7 @@ if __name__ == '__main__':
                 Printcolor.print_colored_string(
                     ["Task:", "reshape", "detector:", "{}".format(det), "Executing..."],
                     ["blue", "green", "blue", "green", "green"])
-                LOAD_RESHAPE_SAVE_PARALLEL(glob_sim, det, glob_nproc, glob_eos,
-                                           maxtime=float(glob_maxtime)*1e-3)
+                LOAD_RESHAPE_SAVE_PARALLEL(glob_sim, det, glob_nproc, glob_eos)
             else:
                 Printcolor.print_colored_string(
                     ["Task:", "reshape", "detector:", "{}".format(det), "skipping..."],

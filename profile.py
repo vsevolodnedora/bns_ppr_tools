@@ -4109,7 +4109,7 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                         "Required data ia missing: {}".format(datafpath + str(it) + '/' + "profile.xy(or yz).h5"))
                     continue
                 fpath = datafpath + str(it) + '/' + figdir + figname
-                t = d3class.get_time_for_it(it, "prof")
+                t = d3class.get_time_for_it(it, "profiles", "prof")
                 try:
                     if (os.path.isfile(fpath) and rewritefigs) or not os.path.isfile(fpath):
                         if os.path.isfile(fpath): os.remove(fpath)
@@ -4439,7 +4439,7 @@ def plot_d3_corr(d3histclass, rewrite=False):
 
                     #-------------------------------
                     # tr = (t - tmerg) * 1e3  # ms
-                    t = d3histclass.get_time_for_it(it, d1d2d3prof="prof")
+                    t = d3histclass.get_time_for_it(it, output="profiles", d1d2d3prof="prof")
                     default_dic["it"] = it
                     default_dic["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t*1e3))
                     o_plot.set_plot_dics.append(default_dic)
@@ -4839,7 +4839,7 @@ def plot_disk_mass(d3class, rewrite=False):
             data_arr = []
             for it in list_iterations:
                 fpath = parfilepath + str(int(it)) + '/' + __d3diskmass__
-                time_ = d3class.get_time_for_it(it, "prof")
+                time_ = d3class.get_time_for_it(it, "profiles", "prof")
                 time_arr.append(time_)
                 it_arr.append(it)
                 if os.path.isfile(fpath):
@@ -5017,6 +5017,8 @@ if __name__ == '__main__':
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
     parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")
+    parser.add_argument("--usemaxtime", dest="usemaxtime", required=False, default="no",
+                        help=" yes/no to use ittime.h5 set value. Or set a float [ms] to overwrite ")
     #
     parser.add_argument("--sym", dest="symmetry", required=False, default=None, help="symmetry (like 'pi')")
     # Info/checks
@@ -5033,12 +5035,28 @@ if __name__ == '__main__':
     glob_overwrite = args.overwrite
     simdir = Paths.gw170817 + glob_sim + '/'
     resdir = Paths.ppr_sims + glob_sim + '/'
+    glob_usemaxtime = args.usemaxtime
+    glob_maxtime = np.nan
 
     # check given data
     if glob_symmetry != None:
         if not click.confirm("Selected symmetry: {} Is it correct?".format(glob_symmetry),
                              default=True, show_default=True):
             exit(1)
+
+    # checking if to use maxtime
+    stat_it_dic = {}
+    if glob_usemaxtime == "no":
+        glob_usemaxtime = False
+        glob_maxtime = np.nan
+    elif glob_usemaxtime == "yes":
+        glob_usemaxtime = True
+        glob_maxtime = np.nan
+    elif re.match(r'^-?\d+(?:\.\d+)?$', glob_usemaxtime):
+        glob_maxtime = float(glob_usemaxtime) / 1.e3 # [s]
+        glob_usemaxtime = True
+    else: raise NameError("for '--usemaxtime' option use 'yes' or 'no' or float. Given: {}"
+                          .format(glob_usemaxtime))
 
     # check if the simulations dir exists
     if not os.path.isdir(glob_simdir + glob_sim):
@@ -5117,6 +5135,41 @@ if __name__ == '__main__':
         assert len(glob_times) == len(glob_its)
     else:
         raise IOError("Input iterations (--it) or times (--time) are not recognized")
+
+    assert len(glob_times) == len(glob_its)
+    # get maximum available iteration
+    regected_its = []
+    regected_times = []
+    if glob_usemaxtime:
+        # use maxtime, just chose which
+        if np.isnan(glob_maxtime) and not np.isnan(ittime.maxtime):
+            maxtime = ittime.maxtime
+        elif not np.isnan(glob_maxtime) and not np.isnan(ittime.maxtime):
+            maxtime = glob_maxtime
+            Printcolor.yellow("\tOverwriting ittime maxtime:{:.1f}ms with {:.1f}ms"
+                              .format(ittime.maxtime * 1.e3, glob_maxtime * 1.e3))
+        else:
+            maxtime = glob_maxtime
+        #
+        regected_times = glob_times[glob_times >= maxtime]
+        regected_its = glob_its[glob_times >= maxtime]
+        glob_its = glob_its[glob_times < maxtime]
+        glob_times = glob_times[glob_times < maxtime]
+        #
+        if len(glob_times) == 0:
+            Printcolor.print_colored_string(["Max. it set:", "{}".format(glob_its[-1]), "out of",
+                                             "{}".format(itprof[-1]), "leaving", str(len(glob_its)), "its"],
+                                            ["yellow", "green", "yellow", "green", "blue", "red", "blue"])
+        else:
+            Printcolor.print_colored_string(["Max. it set:", "{}".format(glob_its[-1]), "out of",
+                                             "{}".format(itprof[-1]), "leaving", str(len(glob_its)), "its"],
+                                            ["yellow", "green", "yellow", "green", "blue", "green", "blue"])
+    if len(regected_its) > 0:
+        Printcolor.print_colored_string(["Ignore --it (beyond maxtime)  ", "{}".format(regected_its)],
+                                        ["red", "red"])
+        Printcolor.print_colored_string(["Ignore --time (beyond maxtime)", "{}".format(regected_times * 1.e3, fmt=".1f")],
+                                        ["red", "red"])
+
     # if source parfie.h5 is corrupt remove corresponding iteration fromthe list
     _corrupt_it = []
     _corrput_times = []
@@ -5138,9 +5191,10 @@ if __name__ == '__main__':
     _corrput_times = np.array(_corrput_times, dtype=float)
     glob_its = np.array(_noncorrupt_it, dtype=int)
     glob_times = np.array(_non_corrupttimes, dtype=float)
+
     if len(_corrupt_it) > 0:
-        Printcolor.print_colored_string(["Set --it (corrput)  ", "{}".format(_corrupt_it)], ["red", "red"])
-        Printcolor.print_colored_string(["Set --time (corrupt)", "{}".format(_corrput_times * 1e3, fmt=".1f")],
+        Printcolor.print_colored_string(["Ignore --it (corrput h5)  ", "{}".format(_corrupt_it)], ["red", "red"])
+        Printcolor.print_colored_string(["Ignore --time (corrupt h5)", "{}".format(_corrput_times * 1e3, fmt=".1f")],
                                         ["red", "red"])
     if len(glob_its) == 0:
         Printcolor.print_colored_string(["Set --it (avial)    ", "{}".format(glob_its)],["blue","red"])
@@ -5157,6 +5211,8 @@ if __name__ == '__main__':
     else:
         raise NameError("for '--overwrite' option use 'yes' or 'no'. Given: {}"
                         .format(glob_overwrite))
+
+    exit(0)
 
     # tasks
     if len(glob_its) > 0:

@@ -212,6 +212,40 @@ class Lists:
         "thc_leakagem0-thc_leakage_m0_flux..asc"
     ]
 
+    time_index = {
+        "bnstrackergen-bns_positions..asc":9,
+        "dens.norm1.asc":2,
+        "dens_unbnd.norm1.asc":2,
+        "dens_unbnd_bernoulli.norm1.asc":2,
+        "dens_unbnd_garching.norm1.asc":2,
+        "H.norm2.asc":2,
+        "luminosity_nua.norm1.asc":2,
+        "luminosity_nue.norm1.asc":2,
+        "luminosity_nux.norm1.asc":2,
+        "mp_Psi4_l0_m0_r400.00.asc":1,
+        "mp_Psi4_l1_m0_r400.00.asc":1,
+        "mp_Psi4_l1_m1_r400.00.asc":1,
+        "mp_Psi4_l2_m0_r400.00.asc":1,
+        "mp_Psi4_l2_m1_r400.00.asc":1,
+        "mp_Psi4_l2_m2_r400.00.asc":1,
+        "mp_Psi4_l3_m0_r400.00.asc":1,
+        "mp_Psi4_l3_m1_r400.00.asc":1,
+        "mp_Psi4_l3_m2_r400.00.asc":1,
+        "mp_Psi4_l3_m3_r400.00.asc":1,
+        "mp_Psi4_l4_m0_r400.00.asc":1,
+        "mp_Psi4_l4_m1_r400.00.asc":1,
+        "mp_Psi4_l4_m2_r400.00.asc":1,
+        "mp_Psi4_l4_m3_r400.00.asc":1,
+        "mp_Psi4_l4_m4_r400.00.asc":1,
+        "outflow_det_0.asc":2,
+        "outflow_det_1.asc":2,
+        "outflow_det_2.asc":2,
+        "outflow_det_3.asc":2,
+        "rho.maximum.asc":2,
+        "temperature.maximum.asc":2,
+        "thc_leakagem0-thc_leakage_m0_flux..asc":2
+    }
+
     tarball = [
         # "bnstrackergen - bns_positions..asc",
         "dens.norm1.asc",
