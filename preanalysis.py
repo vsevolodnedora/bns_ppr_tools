@@ -41,7 +41,7 @@ class SIM_STATUS:
 
         self.profdir = self.simdir + "profiles/3d/"
 
-        self.resfile = "ittime2.h5"
+        self.resfile = "ittime.h5"
         #
         self.d1_ittime_file = "dens.norm1.asc"
         self.d1_ittime_outflow_file = "outflow_det_0.asc"
@@ -132,9 +132,9 @@ class SIM_STATUS:
         if os.path.isfile(self.simdir + endtimefname):
             tend = float(np.loadtxt(self.simdir + endtimefname, unpack=True))
             if tend < 1.:
-                pass
+                pass # [assume s]
             else:
-                tend = float(tend) * Constants.time_constant * 1e-3
+                tend = float(tend) * Constants.time_constant * 1e-3 # [ convert GEO to s]
         else:
             tend = np.nan
         return tend # [s]
@@ -175,6 +175,7 @@ class SIM_STATUS:
             for subrow in row.split():
                 if subrow.__contains__("it="):
                     iterations.append(int(subrow.split("it=")[-1]))
+        dfile.close()
         if len(iterations) > 0: iterations = np.array(list(sorted(set(iterations))),dtype=int)
         else: iterations = np.array(iterations, dtype=int)
         #
@@ -182,7 +183,7 @@ class SIM_STATUS:
         if len(d1times) == 0:
             raise ValueError("len(d1it) = 0 -> cannot compute times for d2it")
         #
-        f = interpolate.interp1d(d1it, d1times, kind="linear",fill_value="extrapolate")
+        f = interpolate.interp1d(d1it, d1times, kind="slinear",fill_value="extrapolate")
         times = f(iterations)
         if not np.isnan(maxtime):
             iterations = iterations[times<maxtime]
@@ -197,7 +198,7 @@ class SIM_STATUS:
             return d3data, np.array(itd3, dtype=int), np.array(td3, dtype=float)
         #
         if not os.path.isfile(self.simdir + '/' + output_dir + '/data/' + self.d3_it_file):
-            print("\t{} does not contain {} -> d3 data is not appended".format(output_dir, self.d3_it_file))
+            # print("\t{} does not contain {} -> d3 data is not appended".format(output_dir, self.d3_it_file))
             return d3data, np.array(itd3, dtype=int), np.array(td3, dtype=float)
         #
         iterations = []
@@ -206,6 +207,7 @@ class SIM_STATUS:
             for subrow in row.split():
                 if subrow.__contains__("it="):
                     iterations.append(int(subrow.split("it=")[-1]))
+        dfile.close()
         if len(iterations) > 0: iterations = np.array(list(sorted(set(iterations))),dtype=int)
         else: iterations = np.array(iterations, dtype=int)
         #
@@ -213,7 +215,7 @@ class SIM_STATUS:
         if len(d1times) == 0:
             raise ValueError("len(d1it) = 0 -> cannot compute times for d3it")
         #
-        f = interpolate.interp1d(d1it, d1times, kind="linear", fill_value="extrapolate")
+        f = interpolate.interp1d(d1it, d1times, kind="slinear", fill_value="extrapolate")
         times = f(iterations)
         if not np.isnan(maxtime):
             iterations = iterations[times<maxtime]
@@ -456,7 +458,7 @@ class LOAD_ITTIME:
 
     def get_output_for_it(self,  it, d1d2d3='d1'):
 
-        isdata, allit, alltimes = self.get_ittime(output="overall", d1d2d3prof=d1d2d3)
+        _, allit, alltimes = self.get_ittime(output="overall", d1d2d3prof=d1d2d3)
         #
         if len(allit) == 0:
             print("\tError data for d1d2d3:{} not available".format(d1d2d3))
@@ -492,7 +494,7 @@ class LOAD_ITTIME:
 
     def get_nearest_time(self, time__, d1d2d3='d1'):
 
-        isdata, allit, alltimes = self.get_ittime(output="overall", d1d2d3prof=d1d2d3)
+        _, allit, alltimes = self.get_ittime(output="overall", d1d2d3prof=d1d2d3)
         #
         if len(allit) == 0:
             print("\tError nearest time is not found for time:{} d1d2d3:{}".format(time__, d1d2d3))
@@ -768,10 +770,10 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
     def get_overall_tstart_tend(self):
 
         t1, t2 = [], []
-        isd1, itd1, td1 = self.get_ittime("overall", d1d2d3prof="d1")
-        isd2, itd2, td2 = self.get_ittime("overall", d1d2d3prof="d2")
-        isd3, itd3, td3 = self.get_ittime("overall", d1d2d3prof="d3")
-        isprof, itprof, tprof = self.get_ittime("profiles", d1d2d3prof="prof")
+        _, itd1, td1 = self.get_ittime("overall", d1d2d3prof="d1")
+        _, itd2, td2 = self.get_ittime("overall", d1d2d3prof="d2")
+        _, itd3, td3 = self.get_ittime("overall", d1d2d3prof="d3")
+        _, itprof, tprof = self.get_ittime("profiles", d1d2d3prof="prof")
         #
         if len(td1) > 0:
             assert not np.isnan(td1[0]) and not np.isnan(td1[-1])
@@ -916,7 +918,7 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
         outputs = self.get_list_outputs()
         for output in outputs:
             try:
-                isd1, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
+                _, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
 
                 output = self.path_in_data + output
                 assert os.path.isdir(output)
@@ -989,7 +991,7 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
         tend = []
         dic_outend = {}
         for output in self.get_outputs():
-            isdata, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
+            _, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
             if len(itd1) > 0:
                 tstart.append(td1[0] * 1e3)
                 tend.append(td1[-1] * 1e3)
@@ -1027,7 +1029,7 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
 
     def print_ititme_status(self, output, d1d2d3prof, start=0., stop=30., tstep=1., precision=0.5):
 
-        isdi1, itd1, td = self.get_ittime(output, d1d2d3prof=d1d2d3prof)
+        _, itd1, td = self.get_ittime(output, d1d2d3prof=d1d2d3prof)
         td = td * 1e3  # ms
         # print(td); exit(1)
         # trange = np.arange(start=td[0], stop=td[-1], step=tstep)
@@ -1115,7 +1117,7 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
 
     def print_ititme_status_(self, tstep=1.):
 
-        isdi1, itd1, td1 = self.get_ittime("overall", d1d2d3prof="d1")
+        _, itd1, td1 = self.get_ittime("overall", d1d2d3prof="d1")
         td1 = td1 * 1e3  # ms
         # print(td1); exit(1)
         Printcolor.blue("\tTime 1D [1ms]", comma=True)
@@ -1130,7 +1132,7 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
         print(']'),
         Printcolor.green("{:.1f}ms".format(td1[-1]), comma=False)
 
-        isd2, itd2, td2 = self.get_ittime("overall", d1d2d3prof="d2")
+        _, itd2, td2 = self.get_ittime("overall", d1d2d3prof="d2")
         td2 = td2 * 1e3  # ms
         # print(td1); exit(1)
         Printcolor.blue("\tTime 2D [1ms]", comma=True)
@@ -2990,10 +2992,10 @@ class PRINT_SIM_STATUS_OLD(LOAD_ITTIME):
     def get_overall_tstart_tend(self):
 
         t1, t2 = [], []
-        isd1, itd1, td1 = self.get_ittime("overall", d1d2d3prof="d1")
-        isd2, itd2, td2 = self.get_ittime("overall", d1d2d3prof="d2")
-        isd3, itd3, td3 = self.get_ittime("overall", d1d2d3prof="d3")
-        isprof, itprof, tprof = self.get_ittime("profiles", d1d2d3prof="prof")
+        _, itd1, td1 = self.get_ittime("overall", d1d2d3prof="d1")
+        _, itd2, td2 = self.get_ittime("overall", d1d2d3prof="d2")
+        _, itd3, td3 = self.get_ittime("overall", d1d2d3prof="d3")
+        _, itprof, tprof = self.get_ittime("profiles", d1d2d3prof="prof")
 
 
 
@@ -3112,7 +3114,7 @@ class PRINT_SIM_STATUS_OLD(LOAD_ITTIME):
         outputs = self.get_outputdirs()
         for output in outputs:
             try:
-                isd1, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
+                _, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
 
                 output = self.path_in_data + output
                 assert os.path.isdir(output)
@@ -3186,7 +3188,7 @@ class PRINT_SIM_STATUS_OLD(LOAD_ITTIME):
         tend = []
         dic_outend = {}
         for output in self.get_outputs():
-            isdata, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
+            _, itd1, td1 = self.get_ittime(output=output, d1d2d3prof="d1")
             if len(itd1) > 0:
                 tstart.append(td1[0] * 1e3)
                 tend.append(td1[-1] * 1e3)
@@ -3224,7 +3226,7 @@ class PRINT_SIM_STATUS_OLD(LOAD_ITTIME):
 
     def print_ititme_status(self, output, d1d2d3prof, start=0., stop=30., tstep=1., precision=0.5):
 
-        isdi1, itd1, td = self.get_ittime(output, d1d2d3prof=d1d2d3prof)
+        _, itd1, td = self.get_ittime(output, d1d2d3prof=d1d2d3prof)
         td = td * 1e3  # ms
         # print(td); exit(1)
         # trange = np.arange(start=td[0], stop=td[-1], step=tstep)
@@ -3248,7 +3250,7 @@ class PRINT_SIM_STATUS_OLD(LOAD_ITTIME):
             Printcolor.blue("\tTime {} [{}ms]".format(_name_, tstep), comma=True)
             print('['),
             for t in trange:
-                tnear = td[self.find_nearest_index(td, t)]
+                tnear = td[UTILS.find_nearest_index(td, t)]
                 if abs(tnear - t) < precision:  # (tnear - t) >= 0
                     Printcolor.green('.', comma=True)
                     # print("%.2f"%tnear, t)
@@ -3311,7 +3313,7 @@ class PRINT_SIM_STATUS_OLD(LOAD_ITTIME):
 
     def print_ititme_status_(self, tstep=1.):
 
-        isdi1, itd1, td1 = self.get_ittime("overall", d1d2d3prof="d1")
+        _, itd1, td1 = self.get_ittime("overall", d1d2d3prof="d1")
         td1 = td1 * 1e3  # ms
         # print(td1); exit(1)
         Printcolor.blue("\tTime 1D [1ms]", comma=True)
@@ -3326,7 +3328,7 @@ class PRINT_SIM_STATUS_OLD(LOAD_ITTIME):
         print(']'),
         Printcolor.green("{:.1f}ms".format(td1[-1]), comma=False)
 
-        isd2, itd2, td2 = self.get_ittime("overall", d1d2d3prof="d2")
+        _, itd2, td2 = self.get_ittime("overall", d1d2d3prof="d2")
         td2 = td2 * 1e3  # ms
         # print(td1); exit(1)
         Printcolor.blue("\tTime 2D [1ms]", comma=True)
@@ -3351,7 +3353,7 @@ class PRINT_SIM_STATUS_OLD(LOAD_ITTIME):
 
 
         for it in all_it:
-            time_ = self.get_time_for_it(it, "prof")
+            time_ = self.get_time_for_it(it, "profiles", "prof")
             is_prof = False
             if int(it) in np.array(itprof, dtype=int):
                 is_prof = True
@@ -3404,6 +3406,11 @@ class SIM_STATUS_FROM_COLLATED:
 
 if __name__ == '__main__':
 
+    o_ittime = LOAD_ITTIME("BLh_M12591482_M0_LR")
+    _, it, t = o_ittime.get_ittime("overall", "d2")
+
+    # print(it[])
+
     # LOAD_ITTIME("SFHo_M14521283_M0_LR")
 
 
@@ -3419,7 +3426,7 @@ if __name__ == '__main__':
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
     parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")
     parser.add_argument("--usemaxtime", dest="usemaxtime", required=False, default="no",
-                        help="limit the analysis to the max time in ittime.h5 (if it is set)")
+                        help=" auto/no to limit data using ittime.h5 or float to overwrite ittime value")
     #
     parser.add_argument("--lorene", dest="lorene", required=False, default=None,
                         help="path to lorene .tar.gz arxive")
@@ -3460,10 +3467,11 @@ if __name__ == '__main__':
                                 .format(task, __preanalysis__["tasklist"]))
     if glob_overwrite == "no":  glob_overwrite = False
     elif glob_overwrite == "yes": glob_overwrite = True
+    #
     if glob_usemaxtime == "no":
         glob_usemaxtime = False
         glob_maxtime = np.nan
-    elif glob_usemaxtime == "yes":
+    elif glob_usemaxtime == "auto":
         glob_usemaxtime = True
         glob_maxtime = np.nan
     elif re.match(r'^-?\d+(?:\.\d+)?$', glob_usemaxtime):

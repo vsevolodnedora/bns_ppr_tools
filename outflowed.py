@@ -528,7 +528,8 @@ class LOAD_RESHAPE_SAVE_PARALLEL(LOAD_ITTIME):
         if not os.path.isdir(self.outdirtmp):
             os.mkdir(self.outdirtmp)
         # selecting maximum time
-        if glob_usemaxtime:
+        _, d1it, ditimes = self.get_ittime("overall", "outflow")
+        if glob_usemaxtime and (~np.isnan(glob_maxtime) or ~np.isnan(self.maxtime)):
             # use maxtime, just chose which
             if np.isnan(glob_maxtime) and not np.isnan(self.maxtime):
                 maxtime = self.maxtime
@@ -536,10 +537,10 @@ class LOAD_RESHAPE_SAVE_PARALLEL(LOAD_ITTIME):
                 maxtime = glob_maxtime
                 Printcolor.yellow("\tOverwriting ittime maxtime:{:.1f}ms with {:.1f}ms"
                                   .format(self.maxtime*1.e3, glob_maxtime*1.e3))
+            elif np.isnan(glob_maxtime) and np.isnan(self.maxtime):
+                maxtime = d1it.max()
             else:
-                #  np.isnan(self.maxtime) = True
                 maxtime = glob_maxtime
-            _, d1it, ditimes = self.get_ittime("overall", "d1")
             maxit = self.get_it_for_time(maxtime, "d1")
             Printcolor.print_colored_string(["Max. it set:", "{}".format(maxit), "out of", "{}".format(d1it[-1])],
                                             ["yellow", "green", "yellow", "green"])
@@ -2913,7 +2914,7 @@ if __name__ == '__main__':
     parser.add_argument("--v_n", dest="v_ns", nargs='+', required=False, default=[], help="variable names to compute")
     #
     parser.add_argument("--usemaxtime", dest="usemaxtime", required=False, default="no",
-                        help=" yes/no to use ittime.h5 set value. Or set a float [ms] to overwrite ")
+                        help=" auto/no to use ittime.h5 set value. Or set a float [ms] to overwrite ")
     # parser.add_argument("--maxtime", dest="maxtime", required=False, default=-1., help="Time limiter for 'reshape' task only")
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
@@ -2969,7 +2970,7 @@ if __name__ == '__main__':
     if glob_usemaxtime == "no":
         glob_usemaxtime = False
         glob_maxtime = np.nan
-    elif glob_usemaxtime == "yes":
+    elif glob_usemaxtime == "auto":
         glob_usemaxtime = True
         glob_maxtime = np.nan
     elif re.match(r'^-?\d+(?:\.\d+)?$', glob_usemaxtime):

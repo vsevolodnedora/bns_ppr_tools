@@ -117,7 +117,7 @@ class LOAD_STORE_DATASETS(LOAD_ITTIME):
         # self.output_it_map = {}
 
         self.list_outputs = self.get_list_outputs()
-        isdata, self.iterations, self.times = \
+        _, self.iterations, self.times = \
             self.get_ittime(output="overall", d1d2d3prof="d2")
         # print(self.iterations[0], self.iterations[-1]); exit(1)
 
@@ -700,7 +700,7 @@ class COMPUTE_STORE(EXTRACT_FOR_RL):
             ycs.append(yc)
 
             # Extract modes
-            times.append(self.get_time_for_it(it, d1d2d3prof="d2"))
+            times.append(self.get_time_for_it(it, "overall", d1d2d3prof="d2"))
             for m in range(1, mmax + 1):
                 # modes[m].append(dxyz * ne.evaluate("sum(rho * w_lorentz * vol * exp(-1j * m * phi))"))
                 modes[m].append(dxyz * ne.evaluate("sum(rho * exp(-1j * m * phi))"))
@@ -920,7 +920,7 @@ class INTERPOLATE_STORE_2D(EXTRACT_STORE_DATA):
         # print(self.i_it(1052672)) WORKS
         # self.data_cl = data_cl
 
-        isd2, itd2, td2 = self.get_ittime("overall", d1d2d3prof="d2")
+        _, itd2, td2 = self.get_ittime("overall", d1d2d3prof="d2")
 
 
         self.intdata_matrix = [[[0
@@ -1669,7 +1669,7 @@ def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
 
 def plot_selected_data(o_slice, v_ns, times, rls, rootdir, rewrite=False):
 
-    isdata, d2it, d2t = o_slice.get_ittime("overall", d1d2d3prof="d2")
+    _, d2it, d2t = o_slice.get_ittime("overall", d1d2d3prof="d2")
     if len(d2it) == 0:
         raise ValueError("No d2 data found in ittime.h5")
 
@@ -1784,7 +1784,7 @@ def add_q_r_t_to_prof_xyxz(v_ns, rls):
 
     from preanalysis import LOAD_ITTIME
     ititme = LOAD_ITTIME(glob_sim)
-    ifprof, profit, proft = ititme.get_ittime("profiles", d1d2d3prof="prof")
+    _, profit, proft = ititme.get_ittime("profiles", d1d2d3prof="prof")
 
     if len(profit) == 0:
         Printcolor.yellow("No profiles found. Q R T values are not added to prof.xy.h5")
@@ -1984,7 +1984,7 @@ if __name__ == '__main__':
         glob_it = np.array(glob_it, dtype=int) # array of iterations
         glob_times = []
         for it in glob_it:
-            glob_times.append(o_slice.get_time_for_it(it, "d2"))
+            glob_times.append(o_slice.get_time_for_it(it, "overall", "d2"))
         glob_times = np.array(glob_times, dtype=float)
     elif len(glob_times) > 0 and not "all" in glob_times and len(glob_it) == 0:
         glob_times = np.array(glob_times, dtype=float) / 1e3  # back to seconds

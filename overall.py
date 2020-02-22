@@ -2409,7 +2409,7 @@ def plot_den_unb_vel_z():
         d3class = LOAD_PROFILE_XYXZ(sim)
         d1class = ADD_METHODS_ALL_PAR(sim)
 
-        t = d3class.get_time_for_it(it, d1d2d3prof="prof")
+        t = d3class.get_time_for_it(it, "profiles", d1d2d3prof="prof")
         tmerg = d1class.get_par("tmerg")
         time = t - tmerg
         xmin, xmax, ymin, ymax, zmin, zmax = UTILS.get_xmin_xmax_ymin_ymax_zmin_zmax(rl)

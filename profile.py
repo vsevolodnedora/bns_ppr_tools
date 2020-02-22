@@ -793,11 +793,11 @@ class LOAD_PROFILE(LOAD_ITTIME):
 
         self.profpath = Paths.gw170817 + sim + '/' + __rootoutdir__ + __addprofdir__
 
-        isprofs, itprofs, timeprofs = \
+        _, itprofs, timeprofs = \
             self.get_ittime("profiles", "prof")
-        if not isprofs:
-            is3ddata, it3d, t3d = self.get_ittime("overall", d1d2d3prof="d3")
-            if is3ddata:
+        if len(itprofs) == 0:
+            _, it3d, t3d = self.get_ittime("overall", d1d2d3prof="d3")
+            if len(it3d) == 0:
                 raise IOError("ittime.h5 says there are no profiles, while there is 3D data for times:\n{}"
                               "\n Extract profiles before proceeding"
                               .format(t3d))
@@ -1886,7 +1886,7 @@ class MAINMETHODS_STORE(MASK_STORE):
             ycs.append(yc)
 
             # Extract modes
-            times.append(self.get_time_for_it(it, d1d2d3prof="prof"))
+            times.append(self.get_time_for_it(it, "profiles", d1d2d3prof="prof"))
             for m in range(1, mmax + 1):
                 if rho_dens == "dens":
                     modes[m].append(dxyz * ne.evaluate("sum(rho * w_lorentz * vol * exp(-1j * m * phi))"))
@@ -1915,7 +1915,7 @@ class MAINMETHODS_STORE(MASK_STORE):
         for i_it, it in enumerate(iterations):
             print("\tcomputing modes for iteration {}/{}".format(i_it+1, len(iterations)))
             # collecting data
-            t = self.get_time_for_it(it, d1d2d3prof="prof")
+            t = self.get_time_for_it(it,"profiles", d1d2d3prof="prof")
             times.append(t)
             #
             delta = self.get_grid_data(it, rl, "delta")[:-1] # for XY plane
@@ -2406,7 +2406,7 @@ class LOAD_RES_CORR(LOAD_ITTIME):
         # self.times = interpoate_time_form_it(self.list_iterations, Paths.gw170817+sim+'/')
         self.times = []
         for it in self.list_iterations:
-            self.times.append(self.get_time_for_it(it, d1d2d3prof="prof"))
+            self.times.append(self.get_time_for_it(it, "profiles", d1d2d3prof="prof"))
         self.times = np.array(self.times)
 
         self.list_corr_v_ns = ["temp", "Ye", "rho", "theta", "r", "phi",
@@ -2675,7 +2675,7 @@ class LOAD_INT_DATA(LOAD_ITTIME):
         self.list_iterations = list(Paths.get_list_iterations_from_res_3d(sim, self.set_rootdir))
         self.times = []
         for it in self.list_iterations:
-            self.times.append(self.get_time_for_it(it, d1d2d3prof="prof"))
+            self.times.append(self.get_time_for_it(it, "profiles", d1d2d3prof="prof"))
         self.times = np.array(self.times)
 
         # GRID
@@ -3189,7 +3189,7 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
         # self.times = interpoate_time_form_it(self.list_iterations, Paths.gw170817+sim+'/')
         self.times = []
         for it in self.list_iterations:
-            self.times.append(self.get_time_for_it(it, d1d2d3prof="prof")) # prof
+            self.times.append(self.get_time_for_it(it, output="profiles", d1d2d3prof="prof")) # prof
         self.times = np.array(self.times)
 
         self.list_v_ns = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "eps", "lapse", "velx", "vely", "velz",
@@ -5018,7 +5018,7 @@ if __name__ == '__main__':
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
     parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")
     parser.add_argument("--usemaxtime", dest="usemaxtime", required=False, default="no",
-                        help=" yes/no to use ittime.h5 set value. Or set a float [ms] to overwrite ")
+                        help=" auto/no to use ittime.h5 set value. Or set a float [ms] to overwrite ")
     #
     parser.add_argument("--sym", dest="symmetry", required=False, default=None, help="symmetry (like 'pi')")
     # Info/checks
@@ -5049,7 +5049,7 @@ if __name__ == '__main__':
     if glob_usemaxtime == "no":
         glob_usemaxtime = False
         glob_maxtime = np.nan
-    elif glob_usemaxtime == "yes":
+    elif glob_usemaxtime == "auto":
         glob_usemaxtime = True
         glob_maxtime = np.nan
     elif re.match(r'^-?\d+(?:\.\d+)?$', glob_usemaxtime):
@@ -5082,7 +5082,7 @@ if __name__ == '__main__':
                                 .format(task, __profile__["tasklist"]))
     # check if there any profiles to use
     ittime = LOAD_ITTIME(glob_sim)
-    isprof, itprof, tprof = ittime.get_ittime("profiles", d1d2d3prof="prof")
+    _, itprof, tprof = ittime.get_ittime("profiles", d1d2d3prof="prof")
     #
     if len(itprof) == 0:
         Printcolor.red("No profiles found. Please, extract profiles for {} "
@@ -5112,7 +5112,7 @@ if __name__ == '__main__':
         for it in glob_its:
             if int(it) in itprof:
                 _glob_its = np.append(_glob_its, it)
-                _glob_times = np.append(_glob_times, ittime.get_time_for_it(it, "prof"))
+                _glob_times = np.append(_glob_times, ittime.get_time_for_it(it, "profiles", "prof"))
             else:
                 raise ValueError("For given iteraton:{} profile is not found (in ittime.h5)"
                                  .format(it))
@@ -5140,7 +5140,7 @@ if __name__ == '__main__':
     # get maximum available iteration
     regected_its = []
     regected_times = []
-    if glob_usemaxtime:
+    if glob_usemaxtime and (~np.isnan(glob_maxtime) or ~np.isnan(ittime.maxtime)):
         # use maxtime, just chose which
         if np.isnan(glob_maxtime) and not np.isnan(ittime.maxtime):
             maxtime = ittime.maxtime
@@ -5148,13 +5148,15 @@ if __name__ == '__main__':
             maxtime = glob_maxtime
             Printcolor.yellow("\tOverwriting ittime maxtime:{:.1f}ms with {:.1f}ms"
                               .format(ittime.maxtime * 1.e3, glob_maxtime * 1.e3))
+        elif np.isnan(glob_maxtime) and np.isnan(ittime.maxtime):
+            maxtime = tprof[-1]
         else:
             maxtime = glob_maxtime
         #
-        regected_times = glob_times[glob_times >= maxtime]
-        regected_its = glob_its[glob_times >= maxtime]
-        glob_its = glob_its[glob_times < maxtime]
-        glob_times = glob_times[glob_times < maxtime]
+        regected_times = glob_times[glob_times > maxtime]
+        regected_its = glob_its[glob_times > maxtime]
+        glob_its = glob_its[glob_times <= maxtime]
+        glob_times = glob_times[glob_times <= maxtime]
         #
         if len(glob_times) == 0:
             Printcolor.print_colored_string(["Max. it set:", "{}".format(glob_its[-1]), "out of",
@@ -5212,7 +5214,7 @@ if __name__ == '__main__':
         raise NameError("for '--overwrite' option use 'yes' or 'no'. Given: {}"
                         .format(glob_overwrite))
 
-    exit(0)
+    # exit(0)
 
     # tasks
     if len(glob_its) > 0:
