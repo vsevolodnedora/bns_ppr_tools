@@ -4553,11 +4553,11 @@ def plot_d3_hist(d3histclass, rewrite=False):
             o_plot.gen_set["subplots_adjust_w"] = 0.2
             o_plot.set_plot_dics = []
 
-            fpath = outfpath + "{}.png".format(v_n)
+            figpath = outfpath + "{}.png".format(v_n)
 
             try:
-                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                    if os.path.isfile(fpath): os.remove(fpath)
+                if (os.path.isfile(figpath) and rewrite) or not os.path.isfile(figpath):
+                    if os.path.isfile(figpath): os.remove(figpath)
                     print_colored_string(["task:", "plot hist", "it:", "{}".format(it), "v_ns:", v_n, ":", "computing"],
                                          ["blue", "green", "blue", "green", "blue", "green", "", "green"])
                     #-------------------------------
