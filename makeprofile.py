@@ -374,8 +374,9 @@ class ExtractProfile:
 
     def interpolate_save_eos_quantity(self, v_n, dset_rho, dset_temp, dset_ye, eostable):
 
-        print("\t Insterpolating/saving {} ...".format(v_n)),
+        print("\t Insterpolating/saving {} ...".format(v_n))
         start_t = time.time()
+
         dfile = h5py.File(self.outpath + str(self.it) + '_' + v_n + ".h5", "w")
 
         if self.description is not None:
