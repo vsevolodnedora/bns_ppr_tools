@@ -6,6 +6,7 @@ import numpy as np
 import h5py
 import argparse
 from math import sqrt
+import gc
 
 from scidata.utils import locate
 import scidata.carpet.hdf5 as h5
@@ -371,6 +372,7 @@ class ExtractProfile:
         dfile.close()
         print("done! (%.2f sec)" % (time.time() - start_t))
         dset.close_files()
+        gc.collect()
 
     def interpolate_save_eos_quantity(self, v_n, dset_rho, dset_temp, dset_ye, eostable):
 
@@ -420,8 +422,14 @@ class ExtractProfile:
 
             dfile[gname].create_dataset(v_n, data=data_arr, dtype=np.float32)
 
+            del arr_rho
+            del group_temp
+            del group_ye
+
         dfile.close()
         print("done! (%.2f sec)" % (time.time() - start_t))
+
+        gc.collect()
 
     def inter_save_eos_vars(self):
 
