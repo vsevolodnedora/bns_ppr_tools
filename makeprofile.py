@@ -226,7 +226,7 @@ class ExtractProfile:
         self.inpath = inpath
         self.outpath = outpath
         self.description = None
-        self.nlevels = 7
+        self.nlevels = 7 # has to be updated for every file
         self.eos_fpath = eos_fpath
         self.overwrite = overwrite
         # self.gen_set = gen_set
@@ -239,10 +239,10 @@ class ExtractProfile:
         if (not os.path.isfile(outfname)) or \
                 (os.path.isfile(outfname) and self.overwrite):
 
-
             print("Extracting carpet grid for future use")
             self.dset_rho, self.grid = self.get_grid_for_it(def_v_n)
-
+            self.nlevels =  len(self.grid.levels)
+            print("\tfound {} ref.levels".format(self.nlevels))
             # for every var. name, load, create dataset, save only for a given iteration
             print("Processing available data")
             for key, val in Names.dattar.iteritems():#Names.dattar.iteritems():
@@ -332,7 +332,6 @@ class ExtractProfile:
 
         if self.description is not None:
             dfile.create_dataset("description", data=np.string_(self.description))
-
 
         print("\t Saving {}...".format(outfname)),
         for rl in range(len(self.grid)):
@@ -788,10 +787,10 @@ if __name__ == "__main__":
         for output, iteration in zip(outputs, iterations):
             print("it:{} ({}/{})".format(iteration, n, len(iterations)))
             if "prof" in glob_tasklist:
-
+                #
                 ExtractProfile(iteration, output, glob_input_dir, glob_output_dir + Names.outdir, glob_eosfpath, "rho",
                                overwrite=False)
-
+                #
                 # try:
                 #     ExtractProfile(iteration, output, glob_input_dir, glob_output_dir+Names.outdir, glob_eosfpath, "rho", overwrite=False)
                 # except KeyboardInterrupt:
