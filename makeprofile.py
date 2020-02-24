@@ -169,7 +169,7 @@ class EOSTable(object):
                 (self.ye, self.log_temp, self.log_rho), self.table[prop],
                 method="linear", bounds_error=False, fill_value=None)
         else:
-            print("EOS table already has v_n: {} returning".format(prop))
+            print("EOS interp. object already exists")
 
         return self.interp[prop](xi).reshape(rho.shape)
 
@@ -788,12 +788,16 @@ if __name__ == "__main__":
         for output, iteration in zip(outputs, iterations):
             print("it:{} ({}/{})".format(iteration, n, len(iterations)))
             if "prof" in glob_tasklist:
-                try:
-                    ExtractProfile(iteration, output, glob_input_dir, glob_output_dir+Names.outdir, glob_eosfpath, "rho", overwrite=False)
-                except KeyboardInterrupt:
-                    exit(0)
-                except:
-                    print("ERROR HYDRO output:{} iteration:{}".format(output, iteration))
+
+                ExtractProfile(iteration, output, glob_input_dir, glob_output_dir + Names.outdir, glob_eosfpath, "rho",
+                               overwrite=False)
+
+                # try:
+                #     ExtractProfile(iteration, output, glob_input_dir, glob_output_dir+Names.outdir, glob_eosfpath, "rho", overwrite=False)
+                # except KeyboardInterrupt:
+                #     exit(0)
+                # except:
+                #     print("ERROR HYDRO output:{} iteration:{}".format(output, iteration))
             if "nuprof" in glob_tasklist:
                 if True:
                     ExtractNuProfile(iteration, output, glob_input_dir, glob_output_dir+Names.outdir, "thc_M0_abs_energy", overwrite=False)
