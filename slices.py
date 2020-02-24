@@ -718,6 +718,7 @@ class COMPUTE_STORE(EXTRACT_FOR_RL):
         r = np.sqrt(x**2 + y**2)
         rho = o_slice.get_data_rl(it, "xy", rl, "rho")
 
+
 class CYLINDRICAL_GRID:
     """
         Creates a stretched cylindrical grid and allows

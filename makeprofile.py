@@ -167,6 +167,8 @@ class EOSTable(object):
             self.interp[prop] = RegularGridInterpolator(
                 (self.ye, self.log_temp, self.log_rho), self.table[prop],
                 method="linear", bounds_error=False, fill_value=None)
+        else:
+            print("EOS table already has v_n: {} returning".format(prop))
 
         return self.interp[prop](xi).reshape(rho.shape)
 
@@ -380,6 +382,8 @@ class ExtractProfile:
             dfile.create_dataset("description", data=np.string_(self.description))
 
         for rl in range(self.nlevels):
+            print("\t\trl:{}".format(rl))
+            print("\t\t extracting rho, temp, ye...")
             group_rho = dset_rho["reflevel={}".format(rl)]
             group_temp = dset_temp["reflevel={}".format(rl)]
             group_ye = dset_ye["reflevel={}".format(rl)]
@@ -392,8 +396,10 @@ class ExtractProfile:
             # arr_temp_ = units.conv_temperature(units.cactus, units.cgs, arr_temp)
 
             # print("\t interpolating eos rl:{}".format(rl))
+            print("\t\t evaluating {}".format(Names.eos[v_n]))
             data_arr = eostable.evaluate(Names.eos[v_n], arr_rho, arr_temp, arr_ye)
 
+            print("\t\t converting units for {}".format(Names.eos[v_n]))
             if v_n == 'eps':
                 data_arr = ut.conv_spec_energy(ut.cgs, ut.cactus, data_arr)
             elif v_n == 'press':
