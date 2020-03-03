@@ -1329,7 +1329,7 @@ class MASK_STORE(COMPUTE_STORE):
                                    'rho':[1.e13 / 6.176e+17, 1.e30],
                                    'lapse':[0.15, 1.]}
 
-        self.list_mask_names = ["disk", "remnant"]
+        self.list_mask_names = ["disk", "remnant", "rl_xy", "rl_xz"]
 
         self.mask_matrix = [[[np.ones(0, dtype=bool)
                               for i in range(len(self.list_mask_names))]
@@ -1350,8 +1350,66 @@ class MASK_STORE(COMPUTE_STORE):
 
     def compute_mask(self, it, name="disk"):
 
-        if name == "disk":
+        if name == "rl":
+            #
+            mask_setup = self.disk_mask_setup
+            nlevelist = np.arange(self.nlevels, 0, -1) - 1
+            x = []
+            y = []
+            z = []
+            for ii, rl in enumerate(nlevelist):
+                x.append(self.get_grid_data(it, rl, "x")[3:-3, 3:-3, 3:-3])
+                y.append(self.get_grid_data(it, rl, "y")[3:-3, 3:-3, 3:-3])
+                z.append(self.get_grid_data(it, rl, "z")[3:-3, 3:-3, 3:-3])
+                mask = np.ones(x[ii].shape, dtype=bool)
+                if ii > 0 and mask_setup["rm_rl"]:
+                    x_ = (x[ii][:, :, :] <= x[ii - 1][:, 0, 0].max()) & (
+                            x[ii][:, :, :] >= x[ii - 1][:, 0, 0].min())
+                    y_ = (y[ii][:, :, :] <= y[ii - 1][0, :, 0].max()) & (
+                            y[ii][:, :, :] >= y[ii - 1][0, :, 0].min())
+                    z_ = (z[ii][:, :, :] <= z[ii - 1][0, 0, :].max()) & (
+                            z[ii][:, :, :] >= z[ii - 1][0, 0, :].min())
+                    mask = mask & np.invert((x_ & y_ & z_))
 
+                self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
+
+        elif name == "rl_xy":
+            nlevelist = np.arange(self.nlevels, 0, -1) - 1
+            x = []
+            y = []
+            for ii, rl in enumerate(nlevelist):
+                __z = self.get_grid_data(it, rl, "z")
+                iz0 = np.argmin(np.abs(__z[0, 0, :]))
+                assert abs(__z[0, 0, iz0]) < 1e-10
+                x.append(self.get_grid_data(it, rl, "x")[3:-3, 3:-3, iz0])
+                y.append(self.get_grid_data(it, rl, "y")[3:-3, 3:-3, iz0])
+                mask = np.ones(x[ii].shape, dtype=bool)
+                if ii > 0:
+                    x_ = (x[ii][:, :] <= x[ii - 1][:, 0].max()) & (x[ii][:, :] >= x[ii - 1][:, 0].min())
+                    y_ = (y[ii][:, :] <= y[ii - 1][0, :].max()) & (y[ii][:, :] >= y[ii - 1][0, :].min())
+                    mask = mask & np.invert((x_ & y_))
+                #
+                self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
+        elif name == "rl_xz":
+            nlevelist = np.arange(self.nlevels, 0, -1) - 1
+            x = []
+            z = []
+            for ii, rl in enumerate(nlevelist):
+                __y = self.get_grid_data(it, rl, "y")
+                iy0 = np.argmin(np.abs(__y[0, :, 0]))
+                assert abs(__y[0, iy0, 0]) < 1e-10
+                x.append(self.get_grid_data(it, rl, "x")[3:-3, iy0, 3:-3])
+                z.append(self.get_grid_data(it, rl, "z")[3:-3, iy0, 3:-3])
+                mask = np.ones(x[ii].shape, dtype=bool)
+                if ii > 0:
+                    x_ = (x[ii][:, :] <= x[ii - 1][:, 0].max()) & (x[ii][:, :] >= x[ii - 1][:, 0].min())
+                    z_ = (z[ii][:, :] <= z[ii - 1][0, :].max()) & (z[ii][:, :] >= z[ii - 1][0, :].min())
+                    mask = mask & np.invert((x_ & z_))
+                #
+                self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
+
+        elif name == "disk":
+            #
             mask_setup = self.disk_mask_setup
             nlevelist = np.arange(self.nlevels, 0, -1) - 1
             x = []
@@ -1404,7 +1462,7 @@ class MASK_STORE(COMPUTE_STORE):
                 self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
 
         elif name == "remnant":
-
+            #
             mask_setup = self.remnant_mask_setup
             nlevelist = np.arange(self.nlevels, 0, -1) - 1
             x = []
@@ -1784,7 +1842,22 @@ class MAINMETHODS_STORE(MASK_STORE):
             outfile[gname].attrs.create("iteration", int(it))  # iteration)
             outfile[gname].attrs.create("reflevel", rl)
             outfile[gname].attrs.create("time", time)  # dset.get_time(iteration))
+            #
+            # mask = self.get_mask(it, rl, "rl_{}".format(plane))
+            # outfile[gname].create_dataset("rl_mask", data=np.array(mask, dtype=np.int))
 
+            # if plane == 'xy':
+            #     mask = mask[:, :, 0]
+            # elif plane == 'xz':
+            #     y = self.get_comp_data(it, rl, "y")
+            #     iy0 = np.argmin(np.abs(y[0, :, 0]))
+            #     mask = mask[:, iy0, :]
+            # elif plane == 'yz':
+            #     x = self.get_comp_data(it, rl, "x")
+            #     ix0 = np.argmin(np.abs(x[:, 0, 0]))
+            #     mask = mask[ix0, :, :]
+            # outfile[gname].create_dataset("rl_mask", data=np.array(mask, dtype=np.int))
+            #
             for v_n in v_ns:
                 data = self.get_comp_data(it, rl, v_n)
                 # print("{} {} {}".format(it, rl, v_n))
@@ -3197,7 +3270,8 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
                          ["density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
                           "ang_mom", "ang_mom_flux", "theta", "r", "phi"] + \
                          ["Q_eff_nua", "Q_eff_nue", "Q_eff_nux", "R_eff_nua", "R_eff_nue", "R_eff_nux",
-                          "optd_0_nua", "optd_0_nue", "optd_0_nux", "optd_1_nua", "optd_1_nue", "optd_1_nux"]
+                          "optd_0_nua", "optd_0_nue", "optd_0_nux", "optd_1_nua", "optd_1_nue", "optd_1_nux"] + \
+                         ["rl_mask"]
         self.list_planes = ["xy", "xz", "yz"]
 
         self.data_matrix = [[[[np.zeros(0,)
@@ -3543,7 +3617,7 @@ def d3_to_d2_slice_for_it(it, d3corrclass, outdir, rewrite=False):
 
     for plane in selected_planes:
         fpath = outdir + "profile" + '.' + plane + ".h5"
-        try:
+        if True: #try:
             if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                 if os.path.isfile(fpath): os.remove(fpath)
                 print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "computing"],
@@ -3552,9 +3626,9 @@ def d3_to_d2_slice_for_it(it, d3corrclass, outdir, rewrite=False):
             else:
                 print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "skipping"],
                                      ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        except:
-            print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "failed"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+        # except:
+        #     print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "failed"],
+        #                          ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def d3_dens_modes(d3corrclass, outdir, rewrite=False):
     fpath = outdir + "density_modes_lap15.h5"
@@ -4758,40 +4832,6 @@ def plot_density_modes(dmclass, rewrite=False):
     o_plot.gen_set["sharey"] = False
     o_plot.set_plot_dics = []
 
-    mags = dmclass.get_data(1, "int_phi_r")
-    times = dmclass.get_grid("times")
-    densmode_m1 = {
-        'task': 'line',  'ptype': 'cartesian',
-        'xarr':times*1e3, 'yarr':mags,
-        'position': (1, 1),
-        'v_n_x': 'times', 'v_n_y': 'int_phi_r abs',
-        'mode': 1, 'norm_to_m': 0,
-        'ls': '-', 'color': 'black', 'lw': 1., 'ds': 'default', 'alpha': 1.,
-        'label': r'$m=1$', 'ylabel': r'$C_m/C_0$ Magnitude', 'xlabel': r'time [ms]',
-        'xmin': None, 'xmax': None, 'ymin': 1e-4, 'ymax': 1e0,
-        'xscale': None, 'yscale': 'log', 'legend': {},
-        'fancyticks': True, 'minorticks': True,
-        'fontsize': 14,
-        'labelsize': 14,
-    }
-
-    mags = dmclass.get_data(2, "int_phi_r")
-    times = dmclass.get_grid("times")
-    densmode_m2 = {
-        'task': 'line',  'ptype': 'cartesian',
-        'xarr':times*1e3, 'yarr':mags,
-        'position': (1, 1),
-        'v_n_x': 'times', 'v_n_y': 'int_phi_r abs',
-        'mode': 2, 'norm_to_m': 0,
-        'ls': ':', 'color': 'black', 'lw': 0.8, 'ds': 'default', 'alpha': 1.,
-        'label': r'$m=2$', 'ylabel': r'$C_m/C_0$ Magnitude', 'xlabel': r'time [ms]',
-        'xmin': None, 'xmax': None, 'ymin': 1e-4, 'ymax': 1e0,
-        'xscale': None, 'yscale': 'log',
-        'fancyticks': True, 'minorticks': True,
-        'legend': {'loc': 'best', 'ncol': 1, 'fontsize': 14},
-        'fontsize': 14,
-        'labelsize': 14,
-    }
     # o_plot.set_plot_dics.append(densmode_m0)
 
     try:
@@ -4799,6 +4839,43 @@ def plot_density_modes(dmclass, rewrite=False):
             if os.path.isfile(fpath): os.remove(fpath)
             print_colored_string(["task:", "plot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "computing"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+            #
+            mags = dmclass.get_data(1, "int_phi_r")
+            times = dmclass.get_grid("times")
+            densmode_m1 = {
+                'task': 'line', 'ptype': 'cartesian',
+                'xarr': times * 1e3, 'yarr': mags,
+                'position': (1, 1),
+                'v_n_x': 'times', 'v_n_y': 'int_phi_r abs',
+                'mode': 1, 'norm_to_m': 0,
+                'ls': '-', 'color': 'black', 'lw': 1., 'ds': 'default', 'alpha': 1.,
+                'label': r'$m=1$', 'ylabel': r'$C_m/C_0$ Magnitude', 'xlabel': r'time [ms]',
+                'xmin': None, 'xmax': None, 'ymin': 1e-4, 'ymax': 1e0,
+                'xscale': None, 'yscale': 'log', 'legend': {},
+                'fancyticks': True, 'minorticks': True,
+                'fontsize': 14,
+                'labelsize': 14,
+            }
+
+            mags = dmclass.get_data(2, "int_phi_r")
+            times = dmclass.get_grid("times")
+            densmode_m2 = {
+                'task': 'line', 'ptype': 'cartesian',
+                'xarr': times * 1e3, 'yarr': mags,
+                'position': (1, 1),
+                'v_n_x': 'times', 'v_n_y': 'int_phi_r abs',
+                'mode': 2, 'norm_to_m': 0,
+                'ls': ':', 'color': 'black', 'lw': 0.8, 'ds': 'default', 'alpha': 1.,
+                'label': r'$m=2$', 'ylabel': r'$C_m/C_0$ Magnitude', 'xlabel': r'time [ms]',
+                'xmin': None, 'xmax': None, 'ymin': 1e-4, 'ymax': 1e0,
+                'xscale': None, 'yscale': 'log',
+                'fancyticks': True, 'minorticks': True,
+                'legend': {'loc': 'best', 'ncol': 1, 'fontsize': 14},
+                'fontsize': 14,
+                'labelsize': 14,
+            }
+
+            #
             o_plot.set_plot_dics.append(densmode_m1)
             o_plot.set_plot_dics.append(densmode_m2)
 
@@ -4807,7 +4884,7 @@ def plot_density_modes(dmclass, rewrite=False):
             print_colored_string(["task:", "plot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "skipping"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
     except IOError:
-        print_colored_string(["task:", "plot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "missing file"],
+        print_colored_string(["task:", "plot dens modes", "fname:", plotfname, "mmodes:", "[1,2]", ":", "missing input efile"],
                              ["blue", "green", "blue", "green", "blue", "green", "", "red"])
     except KeyboardInterrupt:
         exit(1)
