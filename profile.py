@@ -4408,7 +4408,7 @@ def plot_d3_corr(d3histclass, rewrite=False):
             else:
                 raise NameError("vn1vn2:{} is not recognized"
                                 .format(vn1vn2))
-            outfpath = resdir + __rootoutdir__ + str(it) + "/corr_plots/"
+            outfpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + "/corr_plots/"
             if not os.path.isdir(outfpath):
                 os.mkdir(outfpath)
             fpath = outfpath + "{}.png".format(vn1vn2)
@@ -4469,7 +4469,7 @@ def plot_d3_hist(d3histclass, rewrite=False):
     for it in iterations:
         for v_n in v_ns:
 
-            fpath = resdir + __rootoutdir__ + str(it) + "/" + "hist_{}.dat".format(v_n)
+            fpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + "/" + "hist_{}.dat".format(v_n)
             # print(data)
             default_dic = {
                 'task': 'hist1d', 'ptype': 'cartesian',
@@ -4538,7 +4538,7 @@ def plot_d3_hist(d3histclass, rewrite=False):
             else:
                 raise NameError("hist v_n:{} is not recognized".format(v_n))
 
-            outfpath = resdir + __rootoutdir__ + str(it) + "/hist_plots/"
+            outfpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + "/hist_plots/"
             if not os.path.isdir(outfpath):
                 os.mkdir(outfpath)
 
@@ -5033,8 +5033,8 @@ if __name__ == '__main__':
     glob_times = args.times
     glob_symmetry = args.symmetry
     glob_overwrite = args.overwrite
-    simdir = Paths.gw170817 + glob_sim + '/'
-    resdir = Paths.ppr_sims + glob_sim + '/'
+    # simdir = Paths.gw170817 + glob_sim + '/'
+    # resdir = Paths.ppr_sims + glob_sim + '/'
     glob_usemaxtime = args.usemaxtime
     glob_maxtime = np.nan
 
