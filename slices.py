@@ -58,7 +58,7 @@ from preanalysis import LOAD_ITTIME
 from plotting_methods import PLOT_MANY_TASKS
 
 """ ================================================================================================================ """
-
+__d3slicesplanes__ = ["xy", "xz"]
 __slices__ = {
     "name": "slices",
     "outdir": "slices",
@@ -202,7 +202,7 @@ class LOAD_STORE_DATASETS(LOAD_ITTIME):
                              "\nFiles: {}"
                              .format(len(files), fname, self.gen_set['indir'] + o_dir +'/', files))
         if len(files) == 0:
-            raise ValueError("NO fils found for {}. \nlocation:{}"
+            raise IOError("NO fils found for {}. \nlocation:{}"
                              .format(fname, self.gen_set['indir'] + o_dir +'/'))
         dset = h5.dataset(files)
         # grid = dset.get_grid(iteration=it)
@@ -1340,9 +1340,6 @@ class ADD_METHODS_FOR_2DINT_DATA(LOAD_INT_DATA_2D):
         else:
             raise NameError("Unknown 'mod' parameter:{} ".format(mod))
 
-
-
-
 """ ===============================================================================================================  """
 
 def __plot_data_for_a_slice(o_slice, v_n, it, t, rl, outdir):
@@ -1775,8 +1772,6 @@ def make_movie(v_ns, rls, rootdir, rewrite=False):
                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"]
                 )
 
-#
-
 def add_q_r_t_to_prof_xyxz(v_ns, rls):
     # glob_sim = "LS220_M14691268_M0_LK_SR"
     glob_profxyxz_path = Paths.ppr_sims+glob_sim+'/profiles/'
@@ -1786,48 +1781,157 @@ def add_q_r_t_to_prof_xyxz(v_ns, rls):
     from preanalysis import LOAD_ITTIME
     ititme = LOAD_ITTIME(glob_sim)
     _, profit, proft = ititme.get_ittime("profiles", d1d2d3prof="prof")
-
+    #
     if len(profit) == 0:
         Printcolor.yellow("No profiles found. Q R T values are not added to prof.xy.h5")
         return 0
-
-    # from slices import COMPUTE_STORE, LOAD_STORE_DATASETS
-    # from profile import LOAD_PROFILE_XYXZ
-    # locate prof.xy and prof xz:
-    d2data = COMPUTE_STORE(glob_sim)
-    # d3data = LOAD_PROFILE_XYXZ(glob_sim)
     #
-    # nu_arr = d2data.get_data(1425408, "xz", "Q_eff_nua")[3]
-    # hydro_arr = d3data.get_data(1425408, 3, "xz", "rho")
-    # print(nu_arr.shape, hydro_arr.shape)
-    # exit(1)
-
+    d2data = COMPUTE_STORE(glob_sim)
+    #
     assert len(glob_reflevels) > 0
     assert len(v_ns) > 0
-
-    for it in profit:
-        for plane in ["xy", "xz"]:
+    #
+    for it in glob_it:
+        for plane in glob_planes:
             fpath = glob_profxyxz_path + str(int(it)) + '/' + "profile.{}.h5".format(plane)
             if os.path.isfile(fpath):
                 try:
                     dfile = h5py.File(glob_profxyxz_path + str(int(it)) + '/' + "profile.{}.h5".format(plane), "a")
 
                     Printcolor.print_colored_string(
-                        ["task:", "adding neutrino data to prof. slice", "it:", "{}".format(it), ':', "Adding"],
-                        ["blue", "green",                                "blue", "green",        "", "green"]
+                        ["task:", "addm0", "it:", "{}".format(it), "plane", plane, ':', "Adding"], ["blue", "green", "blue", "green","blue", "green",  "", "green"]
                     )
                     for rl in rls:
                         gname = "reflevel=%d" % rl
                         for v_n in v_ns:
                             if (v_n in dfile[gname] and glob_overwrite) or not v_n in dfile[gname]:
-                                nu_arr = d2data.get_data(it, plane, v_n)[rl]
+                                if v_n in dfile[gname]:
+                                        del dfile[gname][v_n]
+                                #
+                                prof_rho = dfile[gname]["rho"]
+                                rho_arr = d2data.get_data(it, plane, "rho")[rl][3:-3, 3:-3]
+                                nu_arr = d2data.get_data(it, plane, v_n)[rl][3:-3, 3:-3]
+                                assert rho_arr.shape == nu_arr.shape
+
+                                if prof_rho.shape != nu_arr.shape:
+                                    Printcolor.yellow("Size Mismatch. Profile:{} 2D data:{} Filling with nans..."
+                                                      .format(prof_rho.shape, nu_arr.shape))
+                                    px, py, pz = dfile[gname]["x"], dfile[gname]["y"], dfile[gname]["z"]
+                                    nx, nz = d2data.get_grid_v_n_rl(it, plane, rl, "x")[3:-3, 3:-3], \
+                                           d2data.get_grid_v_n_rl(it, plane, rl, "z")[3:-3, 3:-3]
+                                    # print("mismatch prof_rho:{} nu:{}".format(prof_rho.shape, nu_arr.shape))
+                                    # print("mismatch prof x:{} prof z:{}".format(px.shape, pz.shape))
+                                    # print("mismatch x:{} z:{}".format(nx.shape, nz.shape))
+                                    # arr = np.full(prof_rho[:,0,:].shape, 1)
+
+                                    # tst = np.where((px>=nx.min()) | (px<=nx.max()), arr, nu_arr)
+                                    # print(tst)
+
+                                    tmp = np.full(prof_rho.shape, np.nan)
+                                    # for ipx in range(len(px)):
+
+                                    for ipx in range(len(px[:, 0])):
+                                        for ipz in range(len(pz[0, :])):
+                                            if px[ipx] in nx and pz[ipz] in nz:
+                                                # print("found: {} {}".format(px[ipx], py[ipz]))
+                                                # print(px[(px[ipx] == nx)&(pz[ipz] == nz)])
+                                                # print(pz[(px[ipx] == nx) & (pz[ipz] == nz)])
+                                                # print(nu_arr[(px[ipx] == nx)&(pz[ipz] == nz)])
+                                                # print("x:{} z:{}".format(px[ipx, 0], pz[0,  ipz]))
+                                                # print(nu_arr[(px[ipx, 0] == nx)&(pz[0, ipz] == nz)])
+                                                # print(float(nu_arr[(px[ipx, 0] == nx) & (pz[0, ipz] == nz)]))
+                                                tmp[ipx, ipz] = float(nu_arr[(px[ipx, 0] == nx) & (pz[0, ipz] == nz)])
+                                                # print("x:{} z:{} filling with:{}".format(px[ipx, 0], pz[0, ipz], tmp[ipx, ipz]))
+                                    #
+                                    nu_arr = tmp
+                                            # else:
+                                                # print("wrong: {}".format(px[ipx], py[ipz]))
+                                    # print(tmp)
+                                    # print(tmp.shape)
+                                    # exit(1)
+
+                                    # UTILS.find_nearest_index()
+                                    #
+                                    #
+                                    #
+                                    # for ix in range(len(arr[:, 0])):
+                                    #     for iz in range(len(arr[0, :])):
+                                    #         x = np.round(px[ix, iz], decimals=1)
+                                    #         z = np.round(py[ix, iz], decimals=1)
+                                    #
+                                    #
+                                    #
+                                    #         if x in np.round(nx, decimals=1) and z in np.round(nz, decimals=1):
+                                    #             arr[ix, iz] = nu_arr[np.where((np.round(nx, decimals=1) == x) & (np.round(nz, decimals=1) == z))]
+                                    #             print('\t\treplacing {} {}'.format(ix, iz))
+                                    # print(arr)
+                                    #
+                                    # exit(1)
+                                    #
+                                    #
+                                    # ileft, iright = np.where(px<nx.min()), np.where(px>nx.max())
+                                    # print(ileft)  # (axis=0 -- array, axis=1 -- array)
+                                    # print(iright)
+                                    # ilower, iupper = np.where(pz<nz.min()), np.where(pz>nz.max())
+                                    # print(ilower)
+                                    # print(iupper)
+                                    #
+                                    # #
+                                    # import copy
+                                    # tmp = copy.deepcopy(nu_arr)
+                                    # for axis in range(len(ileft)):
+                                    #     for element in ileft[axis]:
+                                    #         tmp = np.insert(tmp, 0, np.full(len(tmp[0,:]), np.nan), axis=0)
+                                    #
+                                    # # tmp = copy.deepcopy(nu_arr)
+                                    # for axis in range(len(iright)):
+                                    #     print("\taxis:{} indexes:{}".format(axis, iright[axis]))
+                                    #     for element in iright[axis]:
+                                    #         tmp = np.insert(tmp, -1, np.full(len(tmp[0,:]), np.nan), axis=0)
+                                    #     print(tmp.shape)
+                                    #
+                                    # print(prof_rho.shape)
+                                    # print(tmp.shape)
+
+                                    # indexmap = np.where((px<nx.min()) | (px>nx.max()), arr, 0)
+                                    # arr[indexmap] = nu_arr
+                                    # print(indexmap)
+                                    # print(arr)
+                                    # print(indexmap.shape)
+
+                                    # insert coordinates
+                                    # exit(1)
+
+
+                                    # arr = np.full(prof_rho.shape, np.nan)
+
+
+
+                                    # exit(1)
+                                    #
+                                    #
+                                    #
+                                    #
+                                    # arr = np.full(prof_rho.shape,np.nan)
+                                    # for ix in range(len(arr[:, 0])):
+                                    #     for iz in range(len(arr[0,:])):
+                                    #         x = px[ix, iz]
+                                    #         z = py[ix, iz]
+                                    #         if x in nx and z in nz:
+                                    #             arr[ix, iz] = nu_arr[np.where((nx == x)&(nz == z))]
+                                    #             print('\t\treplacing {} {}'.format(ix, iz))
+                                    # print(arr);
+                                    #
+                                    # exit(1)
+
+                                print("\t{} nu:{} prof_rho:{}".format(rl, nu_arr.shape, prof_rho.shape))
+                                # nu_arr = nu_arr[3:-3, 3:-3]
                                 # hydro_arr = d3data.get_data(it, rl, plane, "rho")
                                 # assert nu_arr.shape == hydro_arr.shape
                                 gname = "reflevel=%d" % rl
                                 dfile[gname].create_dataset(v_n, data=np.array(nu_arr, dtype=np.float32))
                             else:
-                                Printcolor.print_colored_string(
-                                    ["\trl:", str(rl), "v_n:", v_n, ':',
+                                Printcolor.print_colored_string(["\trl:", str(rl), "v_n:", v_n, ':',
                                      "skipping"],
                                     ["blue", "green","blue", "green", "", "blue"]
                                 )
@@ -1836,16 +1940,19 @@ def add_q_r_t_to_prof_xyxz(v_ns, rls):
                     exit(1)
                 except ValueError:
                     Printcolor.print_colored_string(
-                        ["task:", "adding neutrino data to prof. slice", "it:", "{}".format(it), ':', "ValueError"],
-                        ["blue", "green", "blue", "green", "", "red"]
+                        ["task:", "addm0", "it:", "{}".format(it), "plane", plane, ':', "ValueError"],
+                        ["blue", "green", "blue", "green","blue", "green", "", "red"]
                     )
                 except IOError:
                     Printcolor.print_colored_string(
-                        ["task:", "adding neutrino data to prof. slice", "it:", "{}".format(it), ':', "IOError"],
-                        ["blue", "green", "blue", "green", "", "red"]
+                        ["task:", "addm0", "it:", "{}".format(it), "plane", plane, ':', "IOError"],
+                        ["blue", "green", "blue", "green","blue", "green", "", "red"]
                     )
                 except:
-                    pass
+                    Printcolor.print_colored_string(
+                        ["task:", "addm0", "it:", "{}".format(it), "plane", plane, ':', "FAILED"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "red"]
+                    )
             else:
                 Printcolor.print_colored_string(
                     ["task:", "adding neutrino data to prof. slice", "it:", "{}".format(it), ':', "IOError: profile.{}.h5 does not exist".format(plane)],
@@ -1855,9 +1962,6 @@ def add_q_r_t_to_prof_xyxz(v_ns, rls):
     #     #
     #     fpathxy = glob_profxyxz_path + str(int(it)) + '/' + "profile.xy.h5"
     #     fpathxz = glob_profxyxz_path + str(int(it)) + '/' + "profile.xz.h5"
-
-#
-
 
 def compute_density_modes(o_slice, rls, outdir, rewrite=True):
 
@@ -1898,11 +2002,6 @@ def compute_density_modes(o_slice, rls, outdir, rewrite=True):
     #     Printcolor.print_colored_string(["task:", "rho modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
     #                          ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
-#
-
-
-
-
 """ ================================================================================================================ """
 
 if __name__ == '__main__':
@@ -1916,6 +2015,7 @@ if __name__ == '__main__':
     parser.add_argument("--it", dest="it", nargs='+', required=False, default=[],
                         help="iterations to use ")
     parser.add_argument("--rl", dest="reflevels", nargs='+', required=False, default=[], help="reflevels to use")
+    parser.add_argument('--plane', dest="plane", required=False, nargs='+', default=[], help='Plane: xy,xz,yz for slice analysis')
     #
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
@@ -1931,6 +2031,7 @@ if __name__ == '__main__':
     glob_times =args.times
     glob_it = args.it
     glob_reflevels = args.reflevels
+    glob_planes = args.plane
     #
     glob_profxyxz_path = Paths.ppr_sims+glob_sim+'/profiles/'
     #
@@ -1954,15 +2055,22 @@ if __name__ == '__main__':
     glob_outdir_sim = Paths.ppr_sims + glob_sim
     if not os.path.isdir(glob_outdir_sim):
         os.mkdir(glob_outdir_sim)
-    #
-    # if task!=len() == 0:
-    #     raise NameError("No detectors selected. Set '-d' option to 0, 1, etc")
+
+    # check plane
+    if len(glob_planes) == 0:
+        raise IOError("Option --plane unfilled")
+    elif len(glob_planes) == 1 and "all" in glob_planes:
+        glob_planes = __d3slicesplanes__
+    elif len(glob_planes) > 1:
+        for plane in glob_planes:
+            if not plane in __d3slicesplanes__:
+                raise NameError("plane:{} is not in the list of the __d3slicesplanes__:{}"
+                                .format(plane, __d3slicesplanes__))
 
     # set globals
     Paths.gw170817 = glob_simdir
     Paths.ppr_sims = glob_outdir
-    #
-    # print(Paths.gw170817); exit(1)
+
     #
     if len(glob_tasklist) == 1 and "all" in glob_tasklist:
         # do all tasksk
@@ -1978,9 +2086,11 @@ if __name__ == '__main__':
     elif len(glob_times) == 0 and len(glob_it) == 1 and "all" in glob_it:
         do_all_iterations = True
         glob_times = o_slice.times
+        glob_it = o_slice.iterations
     elif len(glob_it) == 0 and len(glob_times) == 1 and "all" in glob_times:
         do_all_iterations = True
         glob_times = o_slice.times
+        glob_it = o_slice.iterations
     elif len(glob_it) > 0 and not "all" in glob_it and len(glob_times) == 0:
         glob_it = np.array(glob_it, dtype=int) # array of iterations
         glob_times = []
@@ -2017,8 +2127,11 @@ if __name__ == '__main__':
         if do_all_reflevels: Printcolor.print_colored_string(["reflevels", "({})".format(len(glob_reflevels))],
                                                              ["blue", "green"], comma=True)
         Printcolor.yellow("this might take time.")
-        if not click.confirm(text="Confirm?",default=True,show_default=True):
-            exit(0)
+        # if not click.confirm(text="Confirm?",default=True,show_default=True):
+        #     exit(0)
+
+    # print(glob_it, glob_times); exit(1)
+
     for task in glob_tasklist:
         # do tasks one by one
         if task == "plot":
@@ -2059,6 +2172,7 @@ if __name__ == '__main__':
         if task == "addm0":
             if len(glob_v_ns) == len(o_slice.list_v_ns):
                 glob_v_ns = o_slice.list_neut_v_ns
+            print glob_it
             add_q_r_t_to_prof_xyxz(glob_v_ns, glob_reflevels)
 
         if task == "dm":

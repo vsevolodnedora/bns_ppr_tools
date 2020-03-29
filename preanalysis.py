@@ -492,9 +492,9 @@ class LOAD_ITTIME:
             raise ValueError("Set 'self.set_use_1st_found_output_for_it=True' to get"
                              "0th output out of many found")
 
-    def get_nearest_time(self, time__, d1d2d3='d1'):
+    def get_nearest_time(self, time__, output="overall", d1d2d3='d1'):
 
-        _, allit, alltimes = self.get_ittime(output="overall", d1d2d3prof=d1d2d3)
+        _, allit, alltimes = self.get_ittime(output=output, d1d2d3prof=d1d2d3)
         #
         if len(allit) == 0:
             print("\tError nearest time is not found for time:{} d1d2d3:{}".format(time__, d1d2d3))
@@ -511,14 +511,14 @@ class LOAD_ITTIME:
         #
         return alltimes[UTILS.find_nearest_index(alltimes, time__)]
 
-    def get_it_for_time(self, time__, d1d2d3='d1'):
+    def get_it_for_time(self, time__, output="overall", d1d2d3='d1'):
 
-        _, allit, alltime = self.get_ittime(output="overall", d1d2d3prof=d1d2d3)
+        _, allit, alltime = self.get_ittime(output=output, d1d2d3prof=d1d2d3)
         #
         if time__ in alltime:
             return int(allit[UTILS.find_nearest_index(alltime, time__)])
         #
-        time_ = self.get_nearest_time(time__, d1d2d3=d1d2d3)
+        time_ = self.get_nearest_time(time__,output=output, d1d2d3=d1d2d3)
         if not np.isnan(time_):
             return int(allit[UTILS.find_nearest_index(alltime, time_)])
         else:

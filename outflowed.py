@@ -698,7 +698,7 @@ class HISTOGRAM_EDGES:
         if v_n == "Y_e": return np.linspace(0.035, 0.55, 50)
         elif v_n == "theta": return np.linspace(0.031, 3.111, 50) # return np.linspace(0.0, np.pi, 50)
         elif v_n == "phi": return np.linspace(0.06, 6.29, 93)
-        elif v_n == "vel_inf" or v_n == "vel_inf_bern": return np.linspace(0., 1., 50)
+        elif v_n == "vel_inf" or v_n == "vel_inf_bern": return np.linspace(0., 1., 200)
         elif v_n == "entropy": return np.linspace(0, 200, 100)
         elif v_n == "temperature": #return 10.0 ** np.linspace(-2, 2, 100)
             return np.linspace(0, 5, 100)
@@ -1136,7 +1136,7 @@ class EJECTA(ADD_MASK):
 
         self.list_hist_v_ns = ["Y_e", "theta", "phi", "vel_inf", "entropy", "temperature"]
 
-        self.list_corr_v_ns = ["Y_e theta", "vel_inf theta"]
+        self.list_corr_v_ns = ["Y_e theta", "vel_inf theta", "Y_e vel_inf"]
 
         self.list_ejecta_v_ns = [
                                     "tot_mass", "tot_flux",  "weights", "corr3d Y_e entropy tau",

@@ -3,14 +3,7 @@
 # This is a comprehensive set of analysis methods and tools                       #
 # for the standart output of the Neutron Star Merger simulations                  #
 # done with WhiskyTHC code.                                                       #
-# For D1 analysis:                                                                #
-#   :required: output of the Hydro Thorn of Cactus (for extraction spheres)       #
-# For D2 analysis:                                                                #
-#   :required: variable.xy.h5 files containing the xy ad xz slices of variables   #
-# For D3 analysis:                                                                #
-#   :required: iteration.h5 - profiles, containing 3D data for multiple variables #
-#                             already put on one grid (for each refinment level)  #
-# To use: run the analysis.py                                                     #
+#                                                   #
 ###################################################################################
 from __future__ import division
 import os.path
@@ -49,16 +42,22 @@ __rootoutdir__ = "profiles/"
 __addprofdir__ = "3d/"
 __profile__ = {"tasklist": ["all", "corr", "hist", "slice", "mass", "densmode", "vtk", "densmode",
                             "densmodeint", "mjenclosed",
-                            "plotall", "plotcorr", "plothist", "plotslice", "plotmass",
+                            "plotall", "plotcorr", "plotslicecorr", "plothist", "plotslice", "plotmass", "slicecorr",
                             "plotdensmode", "plotcenterofmass", "plotdensmodephase"]}
+__masks__ = ["disk", "remnant"]#, "rl" ,"rl_Ye04", "rl_theta60", "rl_hu0"]
 __d3slicesvns__ = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "entr", "eps", "lapse", "velx", "vely", "velz",
                     "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye'] + \
-                    ["density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
+                    ["u_0", "density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
                     "ang_mom", "ang_mom_flux", "theta", "r", "phi" ]
 __d3corrs__ = ["rho_r", "rho_Ye", "r_Ye", "temp_Ye", "rho_theta", "velz_theta", "rho_ang_mom", "velz_Ye",
-                    "rho_ang_mom_flux", "rho_dens_unb_bern", "ang_mom_flux_theta",
-                    "ang_mom_flux_dens_unb_bern", "inv_ang_mom_flux_dens_unb_bern",
-                    "velz_dens_unb_bern", "Ye_dens_unb_bern", "theta_dens_unb_bern"]
+               "rho_ang_mom_flux", "rho_dens_unb_bern", "ang_mom_flux_theta",
+               "ang_mom_flux_dens_unb_bern", "inv_ang_mom_flux_dens_unb_bern",
+               "velz_dens_unb_bern", "Ye_dens_unb_bern", "theta_dens_unb_bern",
+               "hu_0_ang_mom", "hu_0_ang_mom_flux", "hu_0_Ye", "hu_0_temp", "hu_0_entr" #"hu_0_pressure"
+               ]
+__d2corrs__ = ["Q_eff_nua_u_0", "Q_eff_nua_hu_0", "Q_eff_nua_dens_unb_bern",
+               "Q_eff_nua_over_density_hu_0", "Q_eff_nua_over_density_theta", "Q_eff_nua_over_density_Ye",
+               "Q_eff_nua_Ye", "velz_Ye"]
 __d3histvns__      = ["r", "theta", "Ye", "entr", "temp", "velz", "rho", "dens_unb_bern", "press"]
 __d3slicesplanes__ = ["xy", "xz"]
 __d3diskmass__ = "disk_mass.txt"
@@ -651,6 +650,10 @@ class FORMULAS:
         return w_lorentz * (shvel - lapse)
 
     @staticmethod
+    def hu_0(h, u_0):
+        return h * u_0
+
+    @staticmethod
     def vlow(metric, vup):
         vlow = [np.zeros_like(vv) for vv in [vup[0], vup[1], vup[2]]]
         for i in range(3):  # for x, y
@@ -694,11 +697,15 @@ class FORMULAS:
     @staticmethod
     def dens_unb_bern(enthalpy, u_0, rho, w_lorentz, vol):
 
+        density = rho * w_lorentz * vol
+
         c_ber = -enthalpy * u_0 - 1.0
         mask_ber = (c_ber > 0).astype(int)
-        rho_unbnd_bernoulli = rho * mask_ber
-        density_unbnd_bernoulli = rho_unbnd_bernoulli * w_lorentz * vol
-
+        # rho_unbnd_bernoulli = rho * mask_ber
+        density_unbnd_bernoulli = density * mask_ber
+        # print(density_unbnd_bernoulli); exit(1)
+        print(np.sum(density_unbnd_bernoulli / density))
+        # print(np.unique(density_unbnd_bernoulli / density)); exit(1)
         return density_unbnd_bernoulli
 
     @staticmethod
@@ -752,6 +759,10 @@ class FORMULAS:
             raise ValueError("slice:{} not recognized. Use 'xy', 'yz' or 'xz' to get a slice")
         return res
 
+
+    @staticmethod
+    def q_eff_nua_over_density(q_eff_nea, density):
+        return q_eff_nea / density
 
     # --------- OUTFLOWED -----
 
@@ -818,7 +829,9 @@ class LOAD_PROFILE(LOAD_ITTIME):
 
         self.list_grid_v_ns = ["x", "y", "z", "delta", "extent", "origin"]
 
-        self.nlevels = 7
+        # self.nlevels = 7
+        self.set_max_nlevels = 8
+        self.list_nlevels = [0 for it in range(len(self.list_iterations))]
 
         # storage
 
@@ -828,7 +841,7 @@ class LOAD_PROFILE(LOAD_ITTIME):
 
         self.grid_data_matrix = [[[np.zeros(0,)
                                   for v_n in range(len(self.list_grid_v_ns))]
-                                  for rl in range(self.nlevels)]
+                                  for rl in range(self.set_max_nlevels)]
                                   for it in range(len(self.list_iterations))]
 
     def update_storage_lists(self, new_iterations=np.zeros(0,), new_times=np.zeros(0,)):
@@ -845,7 +858,7 @@ class LOAD_PROFILE(LOAD_ITTIME):
         self.grid_matrix = [0 for it in range(len(self.list_iterations))]
         self.grid_data_matrix = [[[np.zeros(0,)
                                   for v_n in range(len(self.list_grid_v_ns))]
-                                  for rl in range(self.nlevels)]
+                                  for rl in range(self.set_max_nlevels)]
                                   for it in range(len(self.list_iterations))]
 
     def check_prof_v_n(self, v_n):
@@ -880,6 +893,7 @@ class LOAD_PROFILE(LOAD_ITTIME):
             dfile = h5py.File(fpath, "r")
         except IOError:
             raise IOError("Cannot open file: {}".format(fpath))
+        self.list_nlevels[self.i_it(it)] = len(dfile.keys())
         self.dfile_matrix[self.i_it(it)] = dfile
 
     def is_dfile_loaded(self, it):
@@ -911,6 +925,11 @@ class LOAD_PROFILE(LOAD_ITTIME):
         #     raise NameError("profile {} does not seem to have a pi symmetry. Check"
         #                     .format(self.profile))
 
+    def get_nlevels(self, it):
+        self.check_it(it)
+        self.is_dfile_loaded(it)
+        return int(self.list_nlevels[self.i_it(it)])
+
     # ---
 
     def get_group(self, it, rl):
@@ -930,8 +949,9 @@ class LOAD_PROFILE(LOAD_ITTIME):
         L = []
         dfile = self.get_profile_dfile(it)
 
+        nlevels = len(dfile.keys())
         if self.enforce_xy_grid:
-            for il in range(self.nlevels):
+            for il in range(nlevels):
                 gname = "reflevel={}".format(il)
                 group = dfile[gname]
                 level = grid.basegrid()
@@ -964,7 +984,7 @@ class LOAD_PROFILE(LOAD_ITTIME):
                 level.rlevel = il
                 L.append(level)
         else:
-            for il in range(self.nlevels):
+            for il in range(nlevels):
                 gname = "reflevel={}".format(il)
                 group = dfile[gname]
                 level = grid.basegrid()
@@ -1031,8 +1051,6 @@ class LOAD_PROFILE(LOAD_ITTIME):
             self.grid_data_matrix[self.i_it(it)][rl][self.i_grid_v_n("delta")] = delta
             self.grid_data_matrix[self.i_it(it)][rl][self.i_grid_v_n("extent")] = extent
             self.grid_data_matrix[self.i_it(it)][rl][self.i_grid_v_n("origin")] = origin
-
-
 
     def is_grid_data_extracted(self, it, rl):
         if len(self.grid_data_matrix[self.i_it(it)][rl][self.i_grid_v_n("x")]) == 0:
@@ -1111,16 +1129,16 @@ class LOAD_PROFILE(LOAD_ITTIME):
             raise ValueError('Error extracting v_n:{} from profile for it:{} rl:{}'.format(v_n, it, rl))
         return arr
 
-    def __delete__(self, instance):
-
-        instance.dfile_matrix = [0
-                                  for it in range(len(self.list_iterations))]
-        instance.grid_matrix = [0
-                                  for it in range(len(self.list_iterations))]
-        instance.grid_data_matrix = [[[np.zeros(0,)
-                                  for v_n in range(len(self.list_grid_v_ns))]
-                                  for rl in range(self.nlevels)]
-                                  for it in range(len(self.list_iterations))]
+    # def __delete__(self, instance):
+    #
+    #     instance.dfile_matrix = [0
+    #                               for it in range(len(self.list_iterations))]
+    #     instance.grid_matrix = [0
+    #                               for it in range(len(self.list_iterations))]
+    #     instance.grid_data_matrix = [[[np.zeros(0,)
+    #                               for v_n in range(len(self.list_grid_v_ns))]
+    #                               for rl in range(7)]
+    #                               for it in range(len(self.list_iterations))]
 
 
 class COMPUTE_STORE(LOAD_PROFILE):
@@ -1131,7 +1149,7 @@ class COMPUTE_STORE(LOAD_PROFILE):
 
         self.list_comp_v_ns = [
             "density", "vup", "metric", "shift",
-            "enthalpy", "shvel", "u_0",
+            "enthalpy", "shvel", "u_0", "hu_0",
             "vlow", "vphi", "vr",
             "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
             "ang_mom", "ang_mom_flux",
@@ -1144,7 +1162,7 @@ class COMPUTE_STORE(LOAD_PROFILE):
 
         self.data_matrix = [[[np.zeros(0,)
                              for y in range(len(self.list_all_v_ns))]
-                             for x in range(self.nlevels)]
+                             for x in range(self.set_max_nlevels)]
                              for i in range(len(self.list_iterations))]
 
     def check_v_n(self, v_n):
@@ -1213,6 +1231,10 @@ class COMPUTE_STORE(LOAD_PROFILE):
             arr = FORMULAS.u_0(self.get_comp_data(it, rl, "w_lorentz"),
                                self.get_comp_data(it, rl, "shvel"),  # not input
                                self.get_comp_data(it, rl, "lapse"))
+
+        elif v_n == 'hu_0':
+            arr = FORMULAS.hu_0(self.get_comp_data(it, rl, "enthalpy"),
+                                self.get_comp_data(it, rl, "u_0"))
 
         elif v_n == 'vlow':
             arr = FORMULAS.vlow(self.get_comp_data(it, rl, "metric"),
@@ -1305,11 +1327,11 @@ class COMPUTE_STORE(LOAD_PROFILE):
 
         return self.data_matrix[self.i_it(it)][rl][self.i_v_n(v_n)]
 
-    def __delete__(self, instance):
-        instance.dfile.close()
-        instance.data_matrix = [[np.zeros(0, )
-                             for x in range(self.nlevels)]
-                            for y in range(len(self.list_all_v_ns))]
+    # def __delete__(self, instance):
+    #     instance.dfile.close()
+    #     instance.data_matrix = [[np.zeros(0, )
+    #                          for x in range(self.nlevels)]
+    #                         for y in range(len(self.list_all_v_ns))]
 
 
 class MASK_STORE(COMPUTE_STORE):
@@ -1329,11 +1351,11 @@ class MASK_STORE(COMPUTE_STORE):
                                    'rho':[1.e13 / 6.176e+17, 1.e30],
                                    'lapse':[0.15, 1.]}
 
-        self.list_mask_names = ["disk", "remnant", "rl_xy", "rl_xz"]
+        self.list_mask_names = ["disk", "remnant", "rl_xy", "rl_xz", "rl"]
 
         self.mask_matrix = [[[np.ones(0, dtype=bool)
                               for i in range(len(self.list_mask_names))]
-                              for x in range(self.nlevels)]
+                              for x in range(self.set_max_nlevels)]
                               for y in range(len(self.list_iterations))]
 
         self._list_mask_v_n = ["x", "y", "z"]
@@ -1352,8 +1374,9 @@ class MASK_STORE(COMPUTE_STORE):
 
         if name == "rl":
             #
+            nlevels = self.get_nlevels(it)
             mask_setup = self.disk_mask_setup
-            nlevelist = np.arange(self.nlevels, 0, -1) - 1
+            nlevelist = np.arange(nlevels, 0, -1) - 1
             x = []
             y = []
             z = []
@@ -1372,15 +1395,16 @@ class MASK_STORE(COMPUTE_STORE):
                     mask = mask & np.invert((x_ & y_ & z_))
 
                 self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
-
         elif name == "rl_xy":
-            nlevelist = np.arange(self.nlevels, 0, -1) - 1
+            nlevels = self.get_nlevels(it)
+            nlevelist = np.arange(nlevels, 0, -1) - 1
             x = []
             y = []
             for ii, rl in enumerate(nlevelist):
                 __z = self.get_grid_data(it, rl, "z")
                 iz0 = np.argmin(np.abs(__z[0, 0, :]))
-                assert abs(__z[0, 0, iz0]) < 1e-10
+                # print( abs(__z[0, 0, iz0]))
+                # assert abs(__z[0, 0, iz0]) < 1e-10
                 x.append(self.get_grid_data(it, rl, "x")[3:-3, 3:-3, iz0])
                 y.append(self.get_grid_data(it, rl, "y")[3:-3, 3:-3, iz0])
                 mask = np.ones(x[ii].shape, dtype=bool)
@@ -1390,28 +1414,60 @@ class MASK_STORE(COMPUTE_STORE):
                     mask = mask & np.invert((x_ & y_))
                 #
                 self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
+        # elif name == "rl_xz":
+
         elif name == "rl_xz":
-            nlevelist = np.arange(self.nlevels, 0, -1) - 1
+            nlevels = self.get_nlevels(it)
+            nlevelist = np.arange(nlevels, 0, -1) - 1
             x = []
             z = []
             for ii, rl in enumerate(nlevelist):
-                __y = self.get_grid_data(it, rl, "y")
-                iy0 = np.argmin(np.abs(__y[0, :, 0]))
-                assert abs(__y[0, iy0, 0]) < 1e-10
-                x.append(self.get_grid_data(it, rl, "x")[3:-3, iy0, 3:-3])
-                z.append(self.get_grid_data(it, rl, "z")[3:-3, iy0, 3:-3])
-                mask = np.ones(x[ii].shape, dtype=bool)
+                x.append(self.get_grid_data(it, rl, "x")[3:-3, 3:-3, 3:-3])
+                __y = self.get_grid_data(it, rl, "y")[3:-3, 3:-3, 3:-3]
+                z.append(self.get_grid_data(it, rl, "z")[3:-3, 3:-3, 3:-3])
+
+                mask = np.ones(x[ii][:, 0, :].shape, dtype=bool)
+
                 if ii > 0:
-                    x_ = (x[ii][:, :] <= x[ii - 1][:, 0].max()) & (x[ii][:, :] >= x[ii - 1][:, 0].min())
-                    z_ = (z[ii][:, :] <= z[ii - 1][0, :].max()) & (z[ii][:, :] >= z[ii - 1][0, :].min())
-                    mask = mask & np.invert((x_ & z_))
-                #
+                    # if y=0 slice is right at the 0 ->
+                    iy0 = np.argmin(np.abs(__y[0, :, 0]))
+                    if abs(__y[0, iy0, 0]) < 1e-15:
+                        x_ = (x[ii][:, iy0, :] <= x[ii - 1][:, iy0, 0].max()) & (x[ii][:, iy0, :] >= x[ii - 1][:, iy0, 0].min())
+                        z_ = (z[ii][:, iy0, :] <= z[ii - 1][0, iy0, :].max()) & (z[ii][:, iy0, :] >= z[ii - 1][0, iy0, :].min())
+                        mask = mask & np.invert((x_ & z_))
+                    else:
+                        # if y = 0 Does not exists, only y = -0.1 and y 0.1 ->
+                        if __y[0, iy0, 0] > 0:
+                            iy0 -= 1
+                        x_ = (x[ii][:, iy0, :] <= x[ii - 1][:, iy0, 0].max()) & (x[ii][:, iy0, :] >= x[ii - 1][:, iy0, 0].min())
+                        z_ = (z[ii][:, iy0, :] <= z[ii - 1][0, iy0, :].max()) & (z[ii][:, iy0, :] >= z[ii - 1][0, iy0, :].min())
+                        mask_ = np.invert((x_ & z_))
+                        #
+                        iy0 = iy0 + 1
+                        #
+                        x_ = (x[ii][:, iy0, :] <= x[ii - 1][:, iy0, 0].max()) & (x[ii][:, iy0, :] >= x[ii - 1][:, iy0, 0].min())
+                        z_ = (z[ii][:, iy0, :] <= z[ii - 1][0, iy0, :].max()) & (z[ii][:, iy0, :] >= z[ii - 1][0, iy0, :].min())
+                        mask__ = np.invert((x_ & z_))
+                        #
+                        mask = mask & mask_ #& mask__
                 self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
 
+                # print(abs(__y[0, iy0, 0]))
+                # assert abs(__y[0, iy0, 0]) < 1e-10
+                # x.append(self.get_grid_data(it, rl, "x")[3:-3, iy0, 3:-3])
+                # z.append(self.get_grid_data(it, rl, "z")[3:-3, iy0, 3:-3])
+                # mask = np.ones(x[ii].shape, dtype=bool)
+                # if ii > 0:
+                #     x_ = (x[ii][:, :] <= x[ii - 1][:, 0].max()) & (x[ii][:, :] >= x[ii - 1][:, 0].min())
+                #     z_ = (z[ii][:, :] <= z[ii - 1][0, :].max()) & (z[ii][:, :] >= z[ii - 1][0, :].min())
+                #     mask = mask & np.invert((x_ & z_))
+                # #
+                # self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
         elif name == "disk":
             #
             mask_setup = self.disk_mask_setup
-            nlevelist = np.arange(self.nlevels, 0, -1) - 1
+            nlevels = self.get_nlevels(it)
+            nlevelist = np.arange(nlevels, 0, -1) - 1
             x = []
             y = []
             z = []
@@ -1421,12 +1477,9 @@ class MASK_STORE(COMPUTE_STORE):
                 z.append(self.get_grid_data(it, rl, "z")[3:-3, 3:-3, 3:-3])
                 mask = np.ones(x[ii].shape, dtype=bool)
                 if ii > 0 and mask_setup["rm_rl"]:
-                    x_ = (x[ii][:, :, :] <= x[ii - 1][:, 0, 0].max()) & (
-                            x[ii][:, :, :] >= x[ii - 1][:, 0, 0].min())
-                    y_ = (y[ii][:, :, :] <= y[ii - 1][0, :, 0].max()) & (
-                            y[ii][:, :, :] >= y[ii - 1][0, :, 0].min())
-                    z_ = (z[ii][:, :, :] <= z[ii - 1][0, 0, :].max()) & (
-                            z[ii][:, :, :] >= z[ii - 1][0, 0, :].min())
+                    x_ = (x[ii][:, :, :] <= x[ii - 1][:, 0, 0].max()) & (x[ii][:, :, :] >= x[ii - 1][:, 0, 0].min())
+                    y_ = (y[ii][:, :, :] <= y[ii - 1][0, :, 0].max()) & (y[ii][:, :, :] >= y[ii - 1][0, :, 0].min())
+                    z_ = (z[ii][:, :, :] <= z[ii - 1][0, 0, :].max()) & (z[ii][:, :, :] >= z[ii - 1][0, 0, :].min())
                     mask = mask & np.invert((x_ & y_ & z_))
 
                 for v_n in mask_setup.keys()[1:]:
@@ -1460,11 +1513,11 @@ class MASK_STORE(COMPUTE_STORE):
                     del mask_i
 
                 self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
-
         elif name == "remnant":
             #
             mask_setup = self.remnant_mask_setup
-            nlevelist = np.arange(self.nlevels, 0, -1) - 1
+            nlevels = self.get_nlevels(it)
+            nlevelist = np.arange(nlevels, 0, -1) - 1
             x = []
             y = []
             z = []
@@ -1514,7 +1567,6 @@ class MASK_STORE(COMPUTE_STORE):
                     del mask_i
                 #
                 self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
-
         else:
             NameError("No method found to compute mask: {} ".format(name))
 
@@ -1527,7 +1579,7 @@ class MASK_STORE(COMPUTE_STORE):
 
     def get_mask(self, it, rl, v_n="disk"):
         self.check_it(it)
-        self.is_mask_available(it, rl)
+        self.is_mask_available(it, rl, v_n)
         mask = self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(v_n)]
         return mask
 
@@ -1541,12 +1593,12 @@ class MASK_STORE(COMPUTE_STORE):
         mask = self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(mask_v_n)]
         return data[mask]
 
-    def __delete__(self, instance):
-        instance.dfile.close()
-        instance.data_matrix = [[np.zeros(0, )
-                                 for x in range(self.nlevels)]
-                                 for y in range(len(self.list_all_v_ns))]
-        instance.mask_matrix = [np.ones(0, dtype=bool) for x in range(self.nlevels)]
+    # def __delete__(self, instance):
+    #     instance.dfile.close()
+    #     instance.data_matrix = [[np.zeros(0, )
+    #                              for x in range(self.nlevels)]
+    #                              for y in range(len(self.list_all_v_ns))]
+    #     instance.mask_matrix = [np.ones(0, dtype=bool) for x in range(self.nlevels)]
 
 
 class MAINMETHODS_STORE(MASK_STORE):
@@ -1562,6 +1614,31 @@ class MAINMETHODS_STORE(MASK_STORE):
         # "v_n": "temp", "points: number, "scale": "log", (and "min":number, "max":number)
 
         rho_const = 6.176269145886162e+17
+
+        self.corr_task_dic_hu_0_ang_mom = [
+            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
+            {"v_n": "ang_mom", "points": 500, "scale": "log", "min":1e-9} # find min, max yourself
+        ]
+
+        self.corr_task_dic_hu_0_ang_mom_flux = [
+            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
+            {"v_n": "ang_mom_flux", "points": 300, "scale": "log", "min":1e-12},  # not in CGS :^
+        ]
+
+        self.corr_task_dic_hu_0_ye = [
+            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
+            {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)},  # not in CGS :^
+        ]
+
+        self.corr_task_dic_hu_0_temp = [
+            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
+            {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
+        ]
+
+        self.corr_task_dic_hu_0_entr = [
+            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
+            {"v_n": "entr", "edges": np.linspace(0., 200., 500)}
+        ]
 
         self.corr_task_dic_r_phi = [
             {"v_n": "r", "edges": np.linspace(0, 50, 500)},
@@ -1632,11 +1709,6 @@ class MAINMETHODS_STORE(MASK_STORE):
             {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
         ]
 
-        self.corr_task_dic_rho_dens_unb_bern = [
-            {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
-        ]
-
         self.corr_task_dic_velz_dens_unb_bern = [
             {"v_n": "velz", "points": 500, "scale": "linear"}, #"edges": np.linspace(-1., 1., 500)},  # in c
             {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
@@ -1665,23 +1737,26 @@ class MAINMETHODS_STORE(MASK_STORE):
             {"v_n": "ang_mom_flux", "points": 500, "scale": "log", "min": 1e-12}
         ]
 
-        # hist
+        # hist [d - disk, r - remnant
 
-        self.hist_task_dic_entropy = {"v_n": "entr", "edges": np.linspace(0., 200., 500)}
-        self.hist_task_dic_r = {"v_n": "r", "edges": np.linspace(10., 200., 500)}
-        self.hist_task_dic_theta = {"v_n": "theta", "edges": np.linspace(0., np.pi / 2., 500)}
-        self.hist_task_dic_ye = {"v_n": "Ye",   "edges": np.linspace(0., 0.5, 500)}
-        self.hist_task_dic_temp = {"v_n": "temp", "edges": 10.0 ** np.linspace(-2., 2., 300)}
-        self.hist_task_dic_velz = {"v_n": "velz", "edges": np.linspace(-1., 1., 500)}
-        self.hist_task_dic_rho = {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const}
+        self.hist_task_dic_entropy_d ={"v_n": "entr", "edges": np.linspace(0., 200., 500)}
+        self.hist_task_dic_entropy_r = {"v_n": "entr", "edges": np.linspace(0., 25., 300)}
+        self.hist_task_dic_r =      {"v_n": "r", "edges": np.linspace(0., 200., 500)}
+        self.hist_task_dic_theta =  {"v_n": "theta", "edges": np.linspace(0., np.pi / 2., 500)}
+        self.hist_task_dic_ye =     {"v_n": "Ye",   "edges": np.linspace(0., 0.5, 500)}
+        self.hist_task_dic_temp =   {"v_n": "temp", "edges": 10.0 ** np.linspace(-2., 2., 300)}
+        self.hist_task_dic_velz =   {"v_n": "velz", "edges": np.linspace(-1., 1., 500)}
+        self.hist_task_dic_rho_d =    {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const}
+        self.hist_task_dic_rho_r =    {"v_n": "rho", "edges": 10.0 ** np.linspace(10.0, 17.0, 500) / rho_const}
         self.hist_task_dens_unb_bern = {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
-        self.hist_task_pressure = {"v_n": "press", "edges": 10.0 ** np.linspace(-13., 5., 300)}
+        self.hist_task_pressure =   {"v_n": "press", "edges": 10.0 ** np.linspace(-13., 5., 300)}
 
     def get_min_max(self, it, v_n):
         self.check_it(it)
         # self.check_v_n(v_n)
         min_, max_ = [], []
-        for rl in range(self.nlevels):
+        nlevels = self.get_nlevels(it)
+        for rl in range(nlevels):
 
             if v_n == 'inv_ang_mom_flux':
                 v_n = 'ang_mom_flux'
@@ -1734,43 +1809,26 @@ class MAINMETHODS_STORE(MASK_STORE):
         self.check_it(it)
         self.check_mask_name(mask_v_n)
         mass = 0.
-        for rl in range(self.nlevels):
+        nlevels = self.get_nlevels(it)
+        for rl in range(nlevels):
             density = np.array(self.get_masked_data(it, rl, "density", mask_v_n))
             delta = self.get_grid_data(it, rl, "delta")
             mass += float(multiplier * np.sum(density) * np.prod(delta))
         # assert mass > 0.
         return mass
-    #
-    # def get_ns_mass(self, it, multiplier=2.):
-    #     #
-    #     self.check_it(it)
-    #     self.mask_setup = {'rm_rl': True,
-    #                        'rho':[6.e4 / 6.176e+17, 'max'],
-    #                        'lapse':[0.15, 1.]}
-    #     self.compute_mask(it)
-    #     #
-    #     mass = 0.
-    #     for rl in range(self.nlevels):
-    #         dens = self.get_comp_data(it, rl, "density")
-    #         dens = dens[3:-3, 3:-3, 3:-3]
-    #         mask = self.get_mask(it, rl)
-    #         dens = dens[mask]
-    #         delta = self.get_grid_data(it, rl, "delta")
-    #         mass += float(multiplier * np.sum(dens) * np.prod(delta))
-    #     assert mass > 0.
-    #     return mass
 
-    def get_histogram(self, it, hist_task_dic, multiplier=2.):
+    def get_histogram(self, it, hist_task_dic, mask, multiplier=2.):
 
         v_n = hist_task_dic["v_n"]
         edge = self.get_edges(it, hist_task_dic)
         # print(edge); exit(1)
         histogram = np.zeros(len(edge) - 1)
         _edge = []
-        for rl in range(self.nlevels):
-            weights = self.get_masked_data(it, rl, "density").flatten() * \
+        nlevels = self.get_nlevels(it)
+        for rl in range(nlevels):
+            weights = self.get_masked_data(it, rl, "density", mask).flatten() * \
                       np.prod(self.get_grid_data(it, rl, "delta")) * multiplier
-            data = self.get_masked_data(it, rl, v_n)
+            data = self.get_masked_data(it, rl, v_n, mask)
             tmp1, _ = np.histogram(data, bins=edge, weights=weights)
             histogram = histogram + tmp1
         # print(len(histogram), len(_edge), len(edge))
@@ -1784,10 +1842,11 @@ class MAINMETHODS_STORE(MASK_STORE):
         for setup_dictionary in list_corr_task_dic:
             edges.append(self.get_edges(it, setup_dictionary))
         edges = tuple(edges)
-
+        #
         correlation = np.zeros([len(edge) - 1 for edge in edges])
-
-        for rl in range(self.nlevels):
+        #
+        nlevels = self.get_nlevels(it)
+        for rl in range(nlevels):
             data = []
             weights = self.get_masked_data(it, rl, "density").flatten() * \
                       np.prod(self.get_grid_data(it, rl, "delta")) * multiplier
@@ -1815,8 +1874,8 @@ class MAINMETHODS_STORE(MASK_STORE):
             raise NameError("Plane:{} is not recognized".format(plane))
 
         outfile = h5py.File(outfname, "w")
-
-        for rl in np.arange(start=0, stop=self.nlevels, step=1):
+        nlevels = self.get_nlevels(it)
+        for rl in np.arange(start=0, stop=nlevels, step=1):
             gname = "reflevel=%d" % rl
             delta = self.get_grid_data(it, rl, "delta")
             extent = self.get_grid_data(it, rl, "extent")
@@ -1842,24 +1901,24 @@ class MAINMETHODS_STORE(MASK_STORE):
             outfile[gname].attrs.create("iteration", int(it))  # iteration)
             outfile[gname].attrs.create("reflevel", rl)
             outfile[gname].attrs.create("time", time)  # dset.get_time(iteration))
-            #
-            # mask = self.get_mask(it, rl, "rl_{}".format(plane))
+            # saving masks
+            mask = self.get_mask(it, rl, "rl".format(plane))
             # outfile[gname].create_dataset("rl_mask", data=np.array(mask, dtype=np.int))
-
-            # if plane == 'xy':
-            #     mask = mask[:, :, 0]
-            # elif plane == 'xz':
-            #     y = self.get_comp_data(it, rl, "y")
-            #     iy0 = np.argmin(np.abs(y[0, :, 0]))
-            #     mask = mask[:, iy0, :]
-            # elif plane == 'yz':
-            #     x = self.get_comp_data(it, rl, "x")
-            #     ix0 = np.argmin(np.abs(x[:, 0, 0]))
-            #     mask = mask[ix0, :, :]
-            # outfile[gname].create_dataset("rl_mask", data=np.array(mask, dtype=np.int))
+            # print(np.array(mask, dtype=np.int)); exit(1)
+            if plane == 'xy':
+                mask = mask[:, :, 0]
+            elif plane == 'xz':
+                y = self.get_comp_data(it, rl, "y")
+                iy0 = np.argmin(np.abs(y[0, :, 0]))
+                mask = mask[:, iy0, :]
+            elif plane == 'yz':
+                x = self.get_comp_data(it, rl, "x")
+                ix0 = np.argmin(np.abs(x[:, 0, 0]))
+                mask = mask[ix0, :, :]
+            outfile[gname].create_dataset("rl_mask", data=np.array(mask, dtype=np.int))
             #
             for v_n in v_ns:
-                data = self.get_comp_data(it, rl, v_n)
+                data = self.get_comp_data(it, rl, v_n)[3:-3, 3:-3, 3:-3]
                 # print("{} {} {}".format(it, rl, v_n))
                 if plane == 'xy':
                     data = data[:, :, 0]
@@ -1887,6 +1946,9 @@ class MAINMETHODS_STORE(MASK_STORE):
                             ix0 -= 1
                         _i_ = ix0
                         data = 0.5 * (data[ix0, :, :] + data[ix0 + 1, :, :])
+
+                # print(mask.shape, data.shape)
+                assert mask.shape == data.shape
                 outfile[gname].create_dataset(v_n, data=np.array(data, dtype=np.float32))
 
         outfile.close()
@@ -2155,26 +2217,27 @@ class MAINMETHODS_STORE(MASK_STORE):
         #
         # return times, iterations, xcs, ycs, modes, rs, mmodes
 
-    def __delete__(self, instance):
-        # instance.dfile.close()
-        instance.data_matrix = [[np.zeros(0, )
-                                 for x in range(self.nlevels)]
-                                 for y in range(len(self.list_all_v_ns))]
-        instance.mask_matrix = [np.ones(0, dtype=bool) for x in range(self.nlevels)]
+    # def __delete__(self, instance):
+    #     # instance.dfile.close()
+    #     instance.data_matrix = [[np.zeros(0, )
+    #                              for x in range(self.nlevels)]
+    #                              for y in range(len(self.list_all_v_ns))]
+    #     instance.mask_matrix = [np.ones(0, dtype=bool) for x in range(self.nlevels)]
 
     def delete_for_it(self, it, except_v_ns, rm_masks=True, rm_comp=True, rm_prof=True):
         self.check_it(it)
+        nlevels = self.get_nlevels(it)
         # clean up mask array
         if rm_masks:
             for v_n in self.list_mask_names:
-                for rl in range(self.nlevels):
+                for rl in range(nlevels):
                     self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(v_n)] = np.ones(0, dtype=bool)
         # clean up data
         if rm_masks:
             for v_n in self.list_all_v_ns:
                 if v_n not in except_v_ns:
                     self.check_v_n(v_n)
-                    for rl in range(self.nlevels):
+                    for rl in range(nlevels):
                         self.data_matrix[self.i_it(it)][rl][self.i_v_n(v_n)] = np.zeros(0, )
 
         # clean up the initial data
@@ -2183,7 +2246,7 @@ class MAINMETHODS_STORE(MASK_STORE):
             self.grid_matrix[self.i_it(it)] = 0
             for v_n in self.list_grid_v_ns:
                 if not v_n in except_v_ns:
-                    for rl in range(self.nlevels):
+                    for rl in range(nlevels):
                         self.grid_data_matrix[self.i_it(it)][rl][self.i_grid_v_n(v_n)] = np.zeros(0,)
 
 
@@ -2245,7 +2308,8 @@ class INTERPOLATE_STORE(MAINMETHODS_STORE):
     def do_interpolate(self, it, v_n):
 
         tmp = []
-        for rl in range(self.nlevels):
+        nlevels = self.get_nlevels(it)
+        for rl in range(nlevels):
             data = self.get_comp_data(it, rl, v_n)
             if self.new_grid.grid_type == "pol":
                 tmp.append(data)
@@ -2463,6 +2527,463 @@ class INTMETHODS_STORE(INTERPOLATE_STORE):
             # m_int_phi, m_int_phi_r = \
             #     PHYSICS.get_dens_decomp_2d(density, phi_pol, dphi_pol, dr_pol, m=mode)
 
+""" =======================================| PROFILE SLICE PROCESSING |=============================================="""
+
+class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
+
+    def __init__(self, sim):
+
+        LOAD_ITTIME.__init__(self, sim)
+
+
+        self.set_max_nlevels = 8
+
+        self.sim = sim
+
+        self.set_rootdir = __rootoutdir__
+
+        self.list_iterations = Paths.get_list_iterations_from_res_3d(sim, self.set_rootdir)
+        # isprof, itprof, tprof = self.get_ittime("profiles", "")
+        # self.times = interpoate_time_form_it(self.list_iterations, Paths.gw170817+sim+'/')
+        self.times = []
+        for it in self.list_iterations:
+            self.times.append(self.get_time_for_it(it, output="profiles", d1d2d3prof="prof")) # prof
+        self.times = np.array(self.times)
+
+        self.list_attrs_v_n = ["delta", "extent", "iteration", "origin", "reflevel", "time"]
+
+        self.list_prof_v_ns = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "eps", "lapse", "velx", "vely", "velz",
+                          "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye', "entr"] + \
+                              ["u_0", "density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern",
+                          "dens_unb_garch", "ang_mom", "ang_mom_flux", "theta", "r", "phi"] + \
+                              ["Q_eff_nua", "Q_eff_nue", "Q_eff_nux", "R_eff_nua", "R_eff_nue", "R_eff_nux",
+                          "optd_0_nua", "optd_0_nue", "optd_0_nux", "optd_1_nua", "optd_1_nue", "optd_1_nux"] + \
+                              ["rl_mask"]
+        self.list_planes = ["xy", "xz", "yz"]
+
+        self.list_nlevels = [[0 for p in range(len(self.list_planes))]
+                                for i in range(len(self.list_iterations))]
+
+        self.prof_data_matrix = [[[[np.zeros(0, )
+                                    for v_n in range(len(self.list_prof_v_ns))]
+                                   for p in range(len(self.list_planes))]
+                                  for x in range(self.set_max_nlevels)]  # Here 2 * () as for correlation 2 v_ns are aneeded
+                                 for y in range(len(self.list_iterations))]
+
+        self.prof_attr_matrix = [[[[np.zeros(0, )
+                                    for v_n in range(len(self.list_prof_v_ns))]
+                                   for p in range(len(self.list_planes))]
+                                  for x in range(self.set_max_nlevels)]  # Here 2 * () as for correlation 2 v_ns are aneeded
+                                 for y in range(len(self.list_iterations))]
+
+    def check_it(self, it):
+        if not it in self.list_iterations:
+            raise NameError("it:{} not in the list of iterations\n{}"
+                            .format(it, self.list_iterations))
+
+    def check_v_n(self, v_n):
+        if not v_n in self.list_prof_v_ns:
+            raise NameError("v_n:{} not in list of list_v_ns\n{}"
+                            .format(v_n, self.list_prof_v_ns))
+
+    def check_attrs_v_n(self, v_n):
+        if not v_n in self.list_attrs_v_n:
+            raise NameError("v_n:{} not in the list of list_attrs_v_ns\n{}"
+                            .format(v_n, self.list_attrs_v_n))
+
+    def check_plane(self, plane):
+        if plane not in self.list_planes:
+            raise NameError("plane:{} not in the plane_list (in the class)\n{}"
+                            .format(plane, self.list_planes))
+
+    def i_it(self, it):
+        self.check_it(it)
+        return int(self.list_iterations.index(it))
+
+    def i_plane(self, plane):
+        self.check_plane(plane)
+        return int(self.list_planes.index(plane))
+
+    def i_prof_v_n(self, v_n):
+        self.check_v_n(v_n)
+        return int(self.list_prof_v_ns.index(v_n))
+
+    def i_attr_v_n(self, v_n):
+        return int(self.list_attrs_v_n.index(v_n))
+
+    # ---
+
+    def loaded_extract(self, it, plane):
+
+        path = Paths.ppr_sims + self.sim + '/' + self.set_rootdir + str(it) + '/'
+        fname = "profile" + '.' + plane + ".h5"
+        fpath = path + fname
+
+        if not os.path.isfile(fpath):
+            raise IOError("file: {} not found".format(fpath))
+
+        try:
+            dfile = h5py.File(fpath, "r")
+        except IOError:
+            raise IOError("unable to open {}".format(fpath))
+
+        nlevels = len(dfile.keys())
+        self.list_nlevels[self.i_it(it)][self.i_plane(plane)] = nlevels
+
+        for rl in np.arange(start=0, stop=nlevels, step=1):
+            # datasets
+            group = dfile["reflevel=%d" % rl]
+            missing_v_ns = []
+            # extracting data
+            for v_n in self.list_prof_v_ns:
+                if v_n in group.keys():
+                    data = np.array(group[v_n])
+                else:
+                    missing_v_ns.append(v_n)
+                    data = np.zeros(0,)
+                self.prof_data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_prof_v_n(v_n)] = data
+            missing_attrs = []
+            # extracting attributes
+            for v_n in self.list_attrs_v_n:
+                if v_n in group.attrs.keys():
+                    attr = group.attrs[v_n]
+                else:
+                    missing_attrs.append(v_n)
+                    attr = 0.
+                self.prof_attr_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_attr_v_n(v_n)] = attr
+            # checks
+            if len(missing_v_ns) > 0:
+                print("\tmissing data from {}/profile_{}.h5\n\t{}".format(it, plane, missing_v_ns))
+            if len(missing_attrs) > 0:
+                print("\tmissing attr from {}/profile_{}.h5\n\t{}".format(it, plane, missing_attrs))
+
+
+        dfile.close()
+
+    # ---
+
+    def is_data_loaded_extracted(self, it, rl, plane, v_n):
+        data = self.prof_data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_prof_v_n(v_n)]
+        if len(data) == 0:
+            self.loaded_extract(it, plane)
+
+        data = self.prof_data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_prof_v_n(v_n)]
+        if len(data) == 0:
+            raise NameError("failed tp extract data. it:{} rl:{} plane:{} v_n:{}"
+                             .format(it, rl, plane, v_n))
+
+    def get_nlevels(self, it, plane):
+        self.is_data_loaded_extracted(it, plane)
+        return int(self.list_nlevels[self.i_it(it)][self.i_plane(plane)])
+
+    def get_data(self, it, rl, plane, v_n):
+        self.check_v_n(v_n)
+        self.check_it(it)
+        self.check_plane(plane)
+
+        self.is_data_loaded_extracted(it, rl, plane, v_n)
+        return self.prof_data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_prof_v_n(v_n)]
+
+    def is_attr_loaded_extracted(self, it, rl, plane, v_n):
+        data = self.prof_attr_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_attr_v_n(v_n)]
+        if len(data) == 0:
+            self.loaded_extract(it, plane)
+
+        data = self.prof_attr_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_attr_v_n(v_n)]
+        if len(data) == 0:
+            raise NameError("failed tp extract attr. it:{} rl:{} plane:{} v_n:{}"
+                            .format(it, rl, plane, v_n))
+
+    def get_attr(self, it, rl, plane, v_n):
+        self.check_attrs_v_n(v_n)
+        self.check_it(it)
+        self.check_plane(plane)
+
+        self.is_attr_loaded_extracted(it, rl, plane, v_n)
+        return self.prof_attr_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_attr_v_n(v_n)]
+
+
+class COMPUTE_STORE_XYXZ(LOAD_PROFILE_XYXZ):
+
+    def __init__(self, sim):
+
+        LOAD_PROFILE_XYXZ.__init__(self, sim)
+
+        self.list_comp_v_ns = ["hu_0", "Q_eff_nua_over_density"]
+
+        self.list_all_v_ns = self.list_prof_v_ns + self.list_comp_v_ns
+
+        self.data_matrix = [[[[np.zeros(0,)
+                             for y in range(len(self.list_all_v_ns))]
+                             for p in range(len(self.list_planes))]
+                             for x in range(self.set_max_nlevels)]
+                             for i in range(len(self.list_iterations))]
+
+    def check_comp_v_n(self, v_n):
+        if v_n not in self.list_all_v_ns:
+            raise NameError("v_n:{} not in the v_n list \n{}"
+                            .format(v_n, self.list_all_v_ns))
+
+    def i_v_n(self, v_n):
+        return int(self.list_all_v_ns.index(v_n))
+
+    def set_data(self, it, rl, plane, v_n, arr):
+        self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)] = arr
+
+    def extract_data(self, it, rl, plane, v_n):
+        data = self.get_data(it, rl, plane, v_n)
+        self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)] = data
+
+    # --- #
+
+    def compute_data(self, it, rl, plane, v_n):
+
+        if v_n == "Q_eff_nua_over_density":
+            arr = FORMULAS.q_eff_nua_over_density(self.get_comp_data(it, rl, plane, "Q_eff_nua"),
+                                                  self.get_comp_data(it, rl, plane, "density"))
+        elif v_n == "hu_0":
+            arr = FORMULAS.hu_0(self.get_comp_data(it, rl, plane, "enthalpy"),
+                                self.get_comp_data(it, rl, plane, "u_0"))
+        else:
+            raise NameError("No method found for v_n:{} plane:{} rl:{} it:{} Add entry to 'compute()'"
+                            .format(v_n, plane, rl, it))
+
+        self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)] = arr
+
+    # --- #
+
+    def is_available(self, it, rl, plane, v_n):
+
+        data = self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)]
+        if len(data) == 0:
+            if v_n in self.list_prof_v_ns:
+                self.extract_data(it, rl, plane, v_n)
+            elif v_n in self.list_comp_v_ns:
+                self.compute_data(it, rl, plane, v_n)
+            else:
+                raise NameError("v_n is not recognized: '{}' [COMPUTE STORE]".format(v_n))
+
+    def get_comp_data(self, it, rl, plane, v_n):
+        self.check_it(it)
+        self.check_plane(plane)
+        self.check_comp_v_n(v_n)
+        self.is_available(it, rl, plane, v_n)
+
+        return self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)]
+
+
+class ADD_MASK_XYXZ(COMPUTE_STORE_XYXZ):
+
+    def __init__(self, sim):
+
+        COMPUTE_STORE_XYXZ.__init__(self, sim)
+
+        self.list_mask_v_ns = __masks__
+
+        self.mask_matrix = [[[[np.zeros(0,)
+                             for y in range(len(self.list_mask_v_ns))]
+                             for p in range(len(self.list_planes))]
+                             for x in range(self.list_nlevels)]
+                             for i in range(len(self.list_iterations))]
+
+    def check_mask_v_n(self, v_n):
+        if not v_n in self.list_mask_v_ns:
+            raise NameError("mask: {} is not recognized. Use:\n\t{}"
+                            .format(v_n, self.list_mask_v_ns))
+
+    def i_mask(self, v_n):
+        return int(self.list_mask_v_ns.index(v_n))
+
+    # -----------------------
+
+    def compute_mask(self, it, rl, plane, mask_v_n):
+
+        if mask_v_n == "None":
+            rho = self.get_comp_data(it, rl, plane, "rho")
+            arr = np.ones(rho.shape)
+        elif mask_v_n == "rl":
+            arr = self.get_comp_data(it, rl, plane, "rl_mask")
+        elif mask_v_n == "rl_Ye04":
+            rl_mask = self.get_mask(it, rl, plane, "rl")
+            ye_mask = self.get_comp_data(it, rl, plane, "Ye")
+            ye_mask[ye_mask < 0.4] = 0
+            ye_mask[ye_mask >= 0.4] = 1
+            arr = rl_mask * ye_mask
+        elif mask_v_n == "rl_theta60":
+            rl_mask = self.get_mask(it, rl, plane, "rl")
+            theta = self.get_comp_data(it, rl, plane, "theta")
+            theta = 90 - (theta * 180 / np.pi)
+            # print(theta); exit(1)
+            theta = np.nan_to_num(theta)
+            # print("{}: min:{} max:{} shape:{}".format("theta", theta.min(), theta.max(), theta.shape));
+            # exit(1)
+            theta[theta < 60.] = 0
+            theta[theta >= 60.] = 1
+            # print(theta)
+            arr = rl_mask * theta
+        elif mask_v_n == "rl_hu0":
+            rl_mask = self.get_mask(it, rl, plane, "rl")
+            hu0 = self.get_comp_data(it, rl, plane, "hu_0") * -1. # -1.6 -0.6
+            hu0[hu0 < 1.] = 0.
+            hu0[hu0 >= 1.] = 1
+            arr = rl_mask * hu0
+        else:
+            raise NameError("No method set for mask: {}".format(mask_v_n))
+        return arr
+
+    # -----------------------
+
+    def is_mask_computed(self, it, rl, plane, mask_v_n):
+
+        arr = self.mask_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_mask(mask_v_n)]
+        if len(arr) == 0:
+            arr = self.compute_mask(it, rl, plane, mask_v_n)
+
+        self.mask_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_mask(mask_v_n)] = arr
+
+    def get_mask(self, it, rl, plane, mask_v_n):
+        #
+        self.check_it(it)
+        self.check_plane(plane)
+        self.check_mask_v_n(mask_v_n)
+        self.is_mask_computed(it, rl, plane, mask_v_n)
+        #
+        arr = self.mask_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_mask(mask_v_n)]
+        return arr
+
+
+class MAINMETHODS_STORE_XYXZ(ADD_MASK_XYXZ):
+
+    def __init__(self, sim):
+
+        ADD_MASK_XYXZ.__init__(self, sim)
+
+        # correlation tasks
+
+        self.corr_task_dic_q_eff_nua_ye = [
+            {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
+            {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)}
+        ]
+
+        self.corr_task_dic_q_eff_nua_dens_unb_bern = [
+            {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
+            {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
+        ]
+
+        self.corr_task_dic_q_eff_nua_over_D_theta = [
+            {"v_n": "Q_eff_nua_over_density", "edges": 10.0 ** np.linspace(-10., -2., 500)},
+            {"v_n": "theta", "edges": np.linspace(0., np.pi / 2., 500)}
+        ]
+
+        self.corr_task_dic_q_eff_nua_over_D_Ye = [
+            {"v_n": "Q_eff_nua_over_density", "edges": 10.0 ** np.linspace(-10., -2., 500)},
+            {"v_n": "Ye", "edges": np.linspace(0., 0.5, 500)}
+        ]
+
+        self.corr_task_dic_q_eff_nua_u_0 = [
+            {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
+            {"v_n": "u_0", "edges": np.linspace(-1.2, 1.2, 500)}
+        ]
+
+        self.corr_task_dic_q_eff_nua_over_D_hu_0 = [
+            {"v_n": "Q_eff_nua_over_density", "edges": 10.0 ** np.linspace(-10., -2., 500)},
+            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)}
+        ]
+
+        self.corr_task_dic_velz_ye = [
+            {"v_n": "velz", "edges": np.linspace(-1., 1., 500)},  # in c
+            {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)}
+        ]
+
+    def get_edges(self, it, corr_task_dic):
+
+        dic = dict(corr_task_dic)
+
+        if "edges" in dic.keys():
+            return dic["edges"]
+
+        # if "points" in dic.keys() and "scale" in dic.keys():
+        #     min_, max_ = self.get_min_max(it, dic["v_n"])
+        #     if "min" in dic.keys(): min_ = dic["min"]
+        #     if "max" in dic.keys(): max_ = dic["max"]
+        #     print("\tv_n: {} is in ({}->{}) range"
+        #           .format(dic["v_n"], min_, max_))
+        #     if dic["scale"] == "log":
+        #         if min_ <= 0: raise ValueError("for Logscale min cannot be < 0. "
+        #                                        "found: {}".format(min_))
+        #         if max_ <= 0:raise ValueError("for Logscale max cannot be < 0. "
+        #                                        "found: {}".format(max_))
+        #         edges = 10.0 ** np.linspace(np.log10(min_), np.log10(max_), dic["points"])
+        #
+        #     elif dic["scale"] == "linear":
+        #         edges = np.linspace(min_, max_, dic["points"])
+        #     else:
+        #         raise NameError("Unrecoginzed scale: {}".format(dic["scale"]))
+        #     return edges
+
+        raise NameError("specify 'points' or 'edges' in the setup dic for {}".format(dic['v_n']))
+
+    def get_correlation(self, it, plane, list_corr_task_dic, mask_v_n, multiplier=2.):
+
+        edges = []
+        for setup_dictionary in list_corr_task_dic:
+            edges.append(self.get_edges(it, setup_dictionary))
+        edges = tuple(edges)
+        #
+        correlation = np.zeros([len(edge) - 1 for edge in edges])
+        #
+        nlevels = self.get_nlevels(it)
+        for rl in range(nlevels):
+            data = []
+            # ye_mask = self.get_comp_data(it, rl, plane, "Ye")
+            # ye_mask[ye_mask < 0.4] = 0
+            # ye_mask[ye_mask >= 0.4] = 1
+            mask = self.get_mask(it, rl, plane, mask_v_n)
+            dens = self.get_comp_data(it, rl, plane, "density")
+            weights = ((dens * mask) * np.prod(self.get_attr(it, rl, plane, "delta")) * multiplier)
+            print("rl:{} weights:{}".format(rl, weights.shape))
+            for corr_dic in list_corr_task_dic:
+                tmp = self.get_comp_data(it, rl, plane, corr_dic["v_n"])
+                # print("\tdata:{} | {} min:{} max:{} "
+                #       .format(tmp.shape, corr_dic["v_n"], tmp.min(), tmp.max()))
+                data.append(tmp.flatten())
+            data = tuple(data)
+
+            #
+            #
+            # mask = self.get_data(it, rl, plane, "rl_mask")
+            # print("mask", mask.shape)
+            # dens = self.get_data(it, rl, plane, "density")
+            # print("dens", dens.shape)
+            # dens_ = dens * mask
+            # print("dens[mask]", dens_.shape)
+            # weights = dens * np.prod(self.get_attr(it, rl, plane, "delta")) * multiplier
+            # print(weights.shape),
+            # weights = weights.flatten()
+            # print(weights.shape)
+            # # print("rl:{} mass:{} masked:{}".format(rl, np.sum(weights), np.sum(weights[mask])))
+            # # weights = weights[mask]
+            # for corr_dic in list_corr_task_dic:
+            #     v_n = corr_dic["v_n"]
+            #     data_ = self.get_data(it, rl, plane, v_n)
+            #     # print(data_.shape)
+            #     data.append(data_.flatten())
+            #     print("data: {} {}".format(data_.shape, data[-1].shape))
+            #     # if v_n == "Q_eff_nua":
+            #     #     data[-1] = data[-1][3:-3, 3:-3]
+            #     print("\t{} min:{} max:{} ".format(v_n, data[-1].min(), data[-1].max()))
+            # data = tuple(data)
+            try:
+                tmp, _ = np.histogramdd(data, bins=edges, weights=weights.flatten())
+            except ValueError:
+                tmp = np.zeros([len(edge)-1 for edge in edges])
+                Printcolor.red("ValueError it:{} rl:{} plane:{}".format(it, rl, plane))
+            correlation += tmp
+
+        assert np.sum(correlation) > 0
+
+        return edges, correlation
+
 """ ====================================| LOAD RESULTS OF PROFILE PROCESSING |====================================== """
 
 class LOAD_RES_CORR(LOAD_ITTIME):
@@ -2470,6 +2991,8 @@ class LOAD_RES_CORR(LOAD_ITTIME):
     def __init__(self, sim):
 
         LOAD_ITTIME.__init__(self, sim)
+
+        self.set_corr_fname_intro = "corr_"
 
         self.set_rootdir = __rootoutdir__
 
@@ -2484,7 +3007,8 @@ class LOAD_RES_CORR(LOAD_ITTIME):
 
         self.list_corr_v_ns = ["temp", "Ye", "rho", "theta", "r", "phi",
                                "ang_mom", "ang_mom_flux", "dens_unb_bern",
-                               "inv_ang_mom_flux", 'vr', 'velz', 'vely', 'velx'
+                               "inv_ang_mom_flux", 'vr', 'velz', 'vely', 'velx',
+                               "Q_eff_nua", "Q_eff_nua_over_density", "hu_0"
                                ]
 
         self.corr_matrix = [[np.zeros(0,)
@@ -2533,14 +3057,15 @@ class LOAD_RES_CORR(LOAD_ITTIME):
 
         # check if the direct file exists or the inverse
         fpath_direct = Paths.ppr_sims + self.sim + '/' + self.set_rootdir + str(it) \
-                       + "/corr_" + v_n_x + '_' + v_n_y + ".h5"
+                       + '/' + self.set_corr_fname_intro + v_n_x + '_' + v_n_y + ".h5"
         fpath_inverse = Paths.ppr_sims + self.sim + '/' + self.set_rootdir + str(it) \
-                        + "/corr_" + v_n_y + '_' + v_n_x + ".h5"
+                        + '/' + self.set_corr_fname_intro + v_n_y + '_' + v_n_x + ".h5"
         if os.path.isfile(fpath_direct):
             fpath = fpath_direct
         elif os.path.isfile(fpath_inverse):
             fpath = fpath_inverse
         else:
+            print("IOError file not found :\n{}\n nor \n{}".format(fpath_direct, fpath_inverse))
             raise IOError("Correlation files not found:\n{}\n nor \n{}".format(fpath_direct, fpath_inverse))
 
         # check if the data inside is in the right format
@@ -3244,115 +3769,6 @@ class LOAD_DENSITY_MODES:
         data = self.get_data(mode, v_n)
         return data[iteration.index(it)]
 
-
-class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
-
-    def __init__(self, sim):
-
-        LOAD_ITTIME.__init__(self, sim)
-
-        self.nlevels = 7
-
-        self.sim = sim
-
-        self.set_rootdir = __rootoutdir__
-
-        self.list_iterations = Paths.get_list_iterations_from_res_3d(sim, self.set_rootdir)
-        # isprof, itprof, tprof = self.get_ittime("profiles", "")
-        # self.times = interpoate_time_form_it(self.list_iterations, Paths.gw170817+sim+'/')
-        self.times = []
-        for it in self.list_iterations:
-            self.times.append(self.get_time_for_it(it, output="profiles", d1d2d3prof="prof")) # prof
-        self.times = np.array(self.times)
-
-        self.list_v_ns = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "eps", "lapse", "velx", "vely", "velz",
-                          "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye', "entr"] + \
-                         ["density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
-                          "ang_mom", "ang_mom_flux", "theta", "r", "phi"] + \
-                         ["Q_eff_nua", "Q_eff_nue", "Q_eff_nux", "R_eff_nua", "R_eff_nue", "R_eff_nux",
-                          "optd_0_nua", "optd_0_nue", "optd_0_nux", "optd_1_nua", "optd_1_nue", "optd_1_nux"] + \
-                         ["rl_mask"]
-        self.list_planes = ["xy", "xz", "yz"]
-
-        self.data_matrix = [[[[np.zeros(0,)
-                             for v_n in range(len(self.list_v_ns))]
-                             for p in range(len(self.list_planes))]
-                             for x in range(self.nlevels)] # Here 2 * () as for correlation 2 v_ns are aneeded
-                             for y in range(len(self.list_iterations))]
-
-    def check_it(self, it):
-        if not it in self.list_iterations:
-            raise NameError("it:{} not in the list of iterations\n{}"
-                            .format(it, self.list_iterations))
-
-    def check_v_n(self, v_n):
-        if not v_n in self.list_v_ns:
-            raise NameError("v_n:{} not in list of list_v_ns\n{}"
-                            .format(v_n, self.list_v_ns))
-
-    def check_plane(self, plane):
-        if plane not in self.list_planes:
-            raise NameError("plane:{} not in the plane_list (in the class)\n{}"
-                            .format(plane, self.list_planes))
-
-    def i_it(self, it):
-        self.check_it(it)
-        return int(self.list_iterations.index(it))
-
-    def i_plane(self, plane):
-        self.check_plane(plane)
-        return int(self.list_planes.index(plane))
-
-    def i_v_n(self, v_n):
-        self.check_v_n(v_n)
-        return int(self.list_v_ns.index(v_n))
-
-    # ---
-
-    def loaded_extract(self, it, plane):
-
-        path = Paths.ppr_sims + self.sim + '/' + self.set_rootdir + str(it) + '/'
-        fname = "profile" + '.' + plane + ".h5"
-        fpath = path + fname
-
-        if not os.path.isfile(fpath):
-            raise IOError("file: {} not found".format(fpath))
-
-        try:
-            dfile = h5py.File(fpath, "r")
-        except IOError:
-            raise IOError("unable to open {}".format(fpath))
-
-        for rl in np.arange(start=0, stop=self.nlevels, step=1):
-            for v_n in self.list_v_ns:
-                try:
-                    data = np.array(dfile["reflevel=%d" % rl][v_n], dtype=np.float32)
-                except KeyError:
-                    # print("\tKeyerror: v_n:{} not in file:{}".format(v_n, fpath))
-                    data = np.zeros(0,)
-                self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)] = data
-        dfile.close()
-
-    # ---
-
-    def is_data_loaded_extracted(self, it, rl, plane, v_n):
-        data = self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)]
-        if len(data) == 0:
-            self.loaded_extract(it, plane)
-
-        data = self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)]
-        if len(data) == 0:
-            raise NameError("failed tp extract data. it:{} rl:{} plane:{} v_n:{}"
-                             .format(it, rl, plane, v_n))
-
-    def get_data(self, it, rl, plane, v_n):
-        self.check_v_n(v_n)
-        self.check_it(it)
-        self.check_plane(plane)
-
-        self.is_data_loaded_extracted(it, rl, plane, v_n)
-        return self.data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_v_n(v_n)]
-
 """ ================================================================================================================ """
 
 def select_number(list, ful_list, dtype=int):
@@ -3506,42 +3922,49 @@ def d3_hist_for_it(it, d3corrclass, outdir, rewrite=False):
 
     selected_vn1vn2s = select_string(glob_v_ns, __d3histvns__)
 
-    for v_n in selected_vn1vn2s:
-        # chose a dic
-        if v_n == "r":       hist_dic = d3corrclass.hist_task_dic_r
-        elif v_n == "theta": hist_dic = d3corrclass.hist_task_dic_theta
-        elif v_n == "Ye":    hist_dic = d3corrclass.hist_task_dic_ye
-        elif v_n == "velz":  hist_dic = d3corrclass.hist_task_dic_velz
-        elif v_n == "temp":  hist_dic = d3corrclass.hist_task_dic_temp
-        elif v_n == "rho":   hist_dic = d3corrclass.hist_task_dic_rho
-        elif v_n == "dens_unb_bern": hist_dic = d3corrclass.hist_task_dens_unb_bern
-        elif v_n == "press": hist_dic = d3corrclass.hist_task_pressure
-        elif v_n == "entr": hist_dic = d3corrclass.hist_task_dic_entropy
-        else:raise NameError("hist v_n:{} is not recognized".format(v_n))
-        #             pressure = d3corrclass.get_prof_arr(it, 3, v_n)
-        #             print(pressure)
-        #             print(pressure.min(), pressure.max())
-        #             exit(1)
-        fpath = outdir + "hist_{}.dat".format(v_n)
-        #
-        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-            if os.path.isfile(fpath): os.remove(fpath)
-            print_colored_string(["task:", "hist", "it:", "{}".format(it), "v_n:", v_n, ":", "computing"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-            try:
-                edges_weights = d3corrclass.get_histogram(it, hist_dic, multiplier=2.)
-                np.savetxt(fname=fpath, X=edges_weights, header="# {}   mass".format(v_n))
-            except KeyboardInterrupt:
-                exit(1)
-            except IOError:
-                print_colored_string(["task:", "hist", "it:", "{}".format(it), "v_n:", v_n, ":", "IOError"],
-                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-            except:
-                print_colored_string(["task:", "hist", "it:", "{}".format(it), "v_n:", v_n, ":", "Error"],
-                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        else:
-            print_colored_string(["task:", "hist", "it:", "{}".format(it), "v_n:", v_n, ":", "skipping"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+    for mask in glob_masks:
+        outdir_ = outdir + mask + '/'
+        if not os.path.isdir(outdir_):
+            os.mkdir(outdir_)
+        for v_n in selected_vn1vn2s:
+
+            # chose a dic
+            if v_n == "r":       hist_dic = d3corrclass.hist_task_dic_r
+            elif v_n == "theta": hist_dic = d3corrclass.hist_task_dic_theta
+            elif v_n == "Ye":    hist_dic = d3corrclass.hist_task_dic_ye
+            elif v_n == "velz":  hist_dic = d3corrclass.hist_task_dic_velz
+            elif v_n == "temp":  hist_dic = d3corrclass.hist_task_dic_temp
+            elif v_n == "rho" and mask == "disk": hist_dic = d3corrclass.hist_task_dic_rho_d
+            elif v_n == "rho" and mask == "remnant": hist_dic = d3corrclass.hist_task_dic_rho_r
+            elif v_n == "dens_unb_bern": hist_dic = d3corrclass.hist_task_dens_unb_bern
+            elif v_n == "press": hist_dic = d3corrclass.hist_task_pressure
+            elif v_n == "entr" and mask == "disk": hist_dic = d3corrclass.hist_task_dic_entropy_d
+            elif v_n == "entr" and mask == "remnant": hist_dic = d3corrclass.hist_task_dic_entropy_r
+            else:raise NameError("hist v_n:{} is not recognized".format(v_n))
+            #             pressure = d3corrclass.get_prof_arr(it, 3, v_n)
+            #             print(pressure)
+            #             print(pressure.min(), pressure.max())
+            #             exit(1)
+            fpath = outdir_ + "hist_{}.dat".format(v_n)
+            #
+            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                if os.path.isfile(fpath): os.remove(fpath)
+                print_colored_string(["task:", "hist", "it:", "{}".format(it), "mask", mask, "v_n:", v_n, ":", "computing"],
+                                     ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "green"])
+                if True:#try:
+                    edges_weights = d3corrclass.get_histogram(it, hist_dic, mask=mask, multiplier=2.)
+                    np.savetxt(fname=fpath, X=edges_weights, header="# {}   mass".format(v_n))
+                # except KeyboardInterrupt:
+                #     exit(1)
+                # except IOError:
+                #     print_colored_string(["task:", "hist", "it:", "{}".format(it),"mask", mask, "v_n:", v_n, ":", "IOError"],
+                #                          ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+                # except:
+                #     print_colored_string(["task:", "hist", "it:", "{}".format(it),"mask", mask, "v_n:", v_n, ":", "Error"],
+                #                          ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+            else:
+                print_colored_string(["task:", "hist", "it:", "{}".format(it),"mask", mask, "v_n:", v_n, ":", "skipping"],
+                                     ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "blue"])
 
 def d3_corr_for_it(it, d3corrclass, outdir, rewrite=False):
 
@@ -3581,10 +4004,19 @@ def d3_corr_for_it(it, d3corrclass, outdir, rewrite=False):
             corr_task_dic = d3corrclass.corr_task_dic_ang_mom_flux_dens_unb_bern
         elif v_ns == "inv_ang_mom_flux_dens_unb_bern":
             corr_task_dic = d3corrclass.corr_task_dic_inv_ang_mom_flux_dens_unb_bern
+        elif v_ns == "hu_0_ang_mom":
+            corr_task_dic = d3corrclass.corr_task_dic_hu_0_ang_mom
+        elif v_ns == "hu_0_ang_mom_flux":
+            corr_task_dic = d3corrclass.corr_task_dic_hu_0_ang_mom_flux
+        elif v_ns == "hu_0_Ye":
+            corr_task_dic = d3corrclass.corr_task_dic_hu_0_ye
+        elif v_ns == "hu_0_temp":
+            corr_task_dic = d3corrclass.corr_task_dic_hu_0_temp
+        elif v_ns == "hu_0_entr":
+            corr_task_dic = d3corrclass.corr_task_dic_hu_0_entr
         else:
             raise NameError("unknown task for correlation computation: {}"
                             .format(v_ns))
-
 
         fpath = outdir + "corr_{}.h5".format(v_ns)
 
@@ -3613,11 +4045,11 @@ def d3_corr_for_it(it, d3corrclass, outdir, rewrite=False):
 
 def d3_to_d2_slice_for_it(it, d3corrclass, outdir, rewrite=False):
 
-    selected_planes = select_string(glob_v_ns, __d3slicesplanes__)
+    selected_planes = select_string(glob_planes, __d3slicesplanes__)
 
     for plane in selected_planes:
         fpath = outdir + "profile" + '.' + plane + ".h5"
-        if True: #try:
+        try:#if True: #try:
             if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                 if os.path.isfile(fpath): os.remove(fpath)
                 print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "computing"],
@@ -3626,9 +4058,73 @@ def d3_to_d2_slice_for_it(it, d3corrclass, outdir, rewrite=False):
             else:
                 print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "skipping"],
                                      ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        # except:
-        #     print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "failed"],
-        #                          ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+        except ValueError:
+            print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "ValueError"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+        except IOError:
+            print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "IOError"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+        except:
+            print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "failed"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+
+def d2_slice_corr_for_it(it, d3slice, outdir, rewrite):
+
+    selected_vn1vn2s = select_string(glob_v_ns, __d2corrs__)
+
+    for mask in glob_masks:
+        if not os.path.isdir(outdir + mask + '/'):
+            os.mkdir(outdir + mask + '/')
+        outdir_ = outdir + mask + '/'
+        #
+        for plane in glob_planes:
+            for v_ns in selected_vn1vn2s:
+                #
+                if v_ns == "Q_eff_nua_dens_unb_bern":
+                    corr_task_dic = d3slice.corr_task_dic_q_eff_nua_dens_unb_bern
+                elif v_ns == "Q_eff_nua_over_density_hu_0":
+                    corr_task_dic = d3slice.corr_task_dic_q_eff_nua_over_D_hu_0
+                elif v_ns == "Q_eff_nua_over_density_theta":
+                    corr_task_dic = d3slice.corr_task_dic_q_eff_nua_over_D_theta
+                elif v_ns == "Q_eff_nua_over_density_Ye":
+                    corr_task_dic = d3slice.corr_task_dic_q_eff_nua_over_D_Ye
+                elif v_ns == "Q_eff_nua_u_0":
+                    corr_task_dic = d3slice.corr_task_dic_q_eff_nua_u_0
+                elif v_ns == "Q_eff_nua_Ye":
+                    corr_task_dic = d3slice.corr_task_dic_q_eff_nua_ye
+                elif v_ns == "velz_Ye":
+                    corr_task_dic = d3slice.corr_task_dic_velz_ye
+                else:
+                    raise NameError("unknown task for correlation computation: {}"
+                                    .format(v_ns))
+
+                fpath = outdir_ + "{}_corr_{}.h5".format(plane, v_ns)
+
+                try:#if True:
+                    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                        if os.path.isfile(fpath): os.remove(fpath)
+                        print_colored_string(["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":", "computing"],
+                                             ["blue", "green", "blue", "green", "blue", "green","blue", "green","blue", "green", "", "green"])
+                        edges, mass = d3slice.get_correlation(it, plane, corr_task_dic, mask, multiplier=2.)
+                        dfile = h5py.File(fpath, "w")
+                        dfile.create_dataset("mass", data=mass, dtype=np.float32)
+                        for dic, edge in zip(corr_task_dic, edges):
+                            dfile.create_dataset("{}".format(dic["v_n"]), data=edge)
+                        dfile.close()
+                    else:
+                        print_colored_string(["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "v_ns:", v_ns, ":", "skipping"],
+                                             ["blue", "green", "blue", "green", "blue", "green" "blue", "green", "", "blue"])
+                except IOError:
+                    print_colored_string(["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":", "IOError"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+                except NameError:
+                    print_colored_string(["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":", "NameError"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+                except KeyboardInterrupt:
+                    exit(1)
+                except:
+                    print_colored_string(["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":", "failed"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
 
 def d3_dens_modes(d3corrclass, outdir, rewrite=False):
     fpath = outdir + "density_modes_lap15.h5"
@@ -3787,6 +4283,14 @@ def d3_int_data_to_vtk(d3intclass, outdir, rewrite=False):
         #     print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "skipping"],
         #                          ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
 
+# J = np.cumsum((j, rc, drc)[::-1])
+# where j = np.sum( j_rz * dz * dphi, axis=(1,2) )
+# where j_rz = (\rho(1+\eps)+p) * w * w * vol * vphi
+#
+# Jf = jf[-1] * rc[-1] * 2*pi * 512     # 512 - is the z hight
+# where jf = np.sum(jf_rz * dr * dz, axis=[1,2])
+# where jf_rz = j_rz * lapse * vr
+
 def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
     # getting cylindrical grid [same for any iteration)
     dphi_cyl = d3intclass.new_grid.get_int_grid("dphi_cyl")
@@ -3802,7 +4306,7 @@ def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
         #
         fpath = _outdir + __d3intmjfname__
         #
-        try:
+        if True:
             if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                 if os.path.isfile(fpath): os.remove(fpath)
                 print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "computing"],
@@ -3810,30 +4314,34 @@ def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
                 #
                 dens_cyl = d3intclass.get_int(it, "density")
                 ang_mom_cyl = d3intclass.get_int(it, "ang_mom")
+                ang_mom_flux_cyl = d3intclass.get_int(it, "ang_mom_flux")
                 #
                 I_rc = 2 * np.sum(dens_cyl * r_cyl ** 2 * dz_cyl * dphi_cyl, axis=(1, 2))
                 D_rc = 2 * np.sum(dens_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
                 J_rc = 2 * np.sum(ang_mom_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
+                Jf_rc= 2 * np.sum(ang_mom_flux_cyl * dz_cyl * dphi_cyl, axis=(1, 2))
                 #
                 ofile = open(fpath, "w")
-                ofile.write("# 1:rcyl 2:drcyl 3:M 4:J 5:I\n")
+                ofile.write("# 1:rcyl 2:drcyl 3:M 4:J 5:Jf 6:I\n")
                 for i in range(r_cyl.shape[0]):
-                    ofile.write("{} {} {} {} {}\n".format(r_cyl[i, 0, 0], dr_cyl[i, 0, 0], D_rc[i], J_rc[i], I_rc[i]))
+                    ofile.write("{} {} {} {} {} {}\n".format(r_cyl[i, 0, 0], dr_cyl[i, 0, 0],
+                                                             D_rc[i], J_rc[i], Jf_rc[i], I_rc[i]))
                 ofile.close()
                 #
-                d3intclass.delete_for_it(it, []) # clear up the memory
+                d3intclass.delete_for_it(it=it, except_v_ns=[], rm_masks=True, rm_comp=True, rm_prof=False)
+                sys.stdout.flush()
                 #
             else:
                 print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "skipping"],
                                      ["blue", "green", "blue", "green", "", "blue"])
-        except KeyboardInterrupt:
-            exit(1)
-        except IOError:
-            print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "IOError"],
-                                 ["blue", "green", "blue", "green", "", "red"])
-        except:
-            print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "failed"],
-                                 ["blue", "green", "blue", "green", "", "red"])
+        # except KeyboardInterrupt:
+        #     exit(1)
+        # except IOError:
+        #     print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "IOError"],
+        #                          ["blue", "green", "blue", "green", "", "red"])
+        # except:
+        #     print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "failed"],
+        #                          ["blue", "green", "blue", "green", "", "red"])
 
 """ ==============================================| D3 PLOTS |======================================================="""
 
@@ -4479,6 +4987,48 @@ def plot_d3_corr(d3histclass, rewrite=False):
                 default_dic['ymin'] = 1e-11
                 default_dic['ymax'] = 1e-7
                 # default_dic['v_n_x'] = 'inv_ang_mom_flux'
+            elif vn1vn2 == "hu_0_ang_mom":
+                v_n_x = 'hu_0'
+                v_n_y = 'ang_mom'
+                default_dic["xscale"] = None
+                default_dic['xmin'] = -1.2
+                default_dic['xmax'] = -0.8
+                default_dic['ymin'] = 1e-9
+                default_dic['ymax'] = 1e-3
+            elif vn1vn2 == "hu_0_ang_mom_flux":
+                v_n_x = 'hu_0'
+                v_n_y = 'ang_mom_flux'
+                default_dic["xscale"] = None
+                default_dic['xmin'] = -1.2
+                default_dic['xmax'] = -0.8
+                default_dic['ymin'] = 1e-11
+                default_dic['ymax'] = 1e-7
+            elif vn1vn2 == "hu_0_Ye":
+                v_n_x = 'hu_0'
+                v_n_y = 'Ye'
+                default_dic["xscale"] = None
+                default_dic['xmin'] = -1.2
+                default_dic['xmax'] = -0.8
+                default_dic['ymin'] = 0.01
+                default_dic['ymax'] = 0.5
+                default_dic['yscale'] = None
+            elif vn1vn2 == "hu_0_entr":
+                v_n_x = 'hu_0'
+                v_n_y = 'entr'
+                default_dic["xscale"] = None
+                default_dic['xmin'] = -1.2
+                default_dic['xmax'] = -0.8
+                default_dic['ymin'] = 0.
+                default_dic['ymax'] = 0.80
+                default_dic['yscale'] = None
+            elif vn1vn2 == "hu_0_temp":
+                v_n_x = 'hu_0'
+                v_n_y = 'temp'
+                default_dic["xscale"] = None
+                default_dic['xmin'] = -1.2
+                default_dic['xmax'] = -0.8
+                default_dic['ymin'] = 1e-1
+                default_dic['ymax'] = 1e2
             else:
                 raise NameError("vn1vn2:{} is not recognized"
                                 .format(vn1vn2))
@@ -4535,126 +5085,263 @@ def plot_d3_corr(d3histclass, rewrite=False):
                                      ["blue", "green", "blue", "green", "blue", "green", "", "red"])
             default_dic = {}
 
+def plot_d2_slice_corr(d3histclass, rewrite=False):
+
+
+    iterations = select_number(glob_its, d3histclass.list_iterations)
+    v_ns = select_string(glob_v_ns, __d2corrs__, for_all="all")
+    planes = select_string(glob_planes, __d3slicesplanes__, for_all="all")
+
+    for it in iterations:
+        for plane in planes:
+            #
+            d3histclass.set_corr_fname_intro = "{}_corr_".format(plane)
+            #
+            for vn1vn2 in v_ns:
+
+                default_dic = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
+                    'task': 'corr2d', 'ptype': 'cartesian',
+                    'data': d3histclass,
+                    'position': (1, 1),
+                    'v_n_x': 'ang_mom_flux', 'v_n_y': 'dens_unb_bern', 'v_n': Labels.labels("mass"), 'normalize': True,
+                    'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-7, 'vmax': 1e-3,
+                    'xscale': 'log', 'yscale': 'log',
+                    'mask_below': None, 'mask_above': None, 'cmap': 'inferno_r', 'norm': 'log', 'todo': None,
+                    'cbar': {'location': 'right .03 .0', 'label': r'mass',
+                             'labelsize': 14,
+                             'fontsize': 14},
+                    'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$'.format(0), 'fontsize': 14},
+                    'fontsize': 14,
+                    'labelsize': 14,
+                    'minorticks': True,
+                    'fancyticks': True,
+                    'sharey': False,
+                    'sharex': False,
+                }
+
+                if vn1vn2 == "Q_eff_nua_dens_unb_bern":
+                    v_n_x = 'Q_eff_nua'
+                    v_n_y = 'dens_unb_bern'
+                    default_dic['xmin'] = 1e-15
+                    default_dic['xmax'] = 1e-10
+                    default_dic['ymin'] = 1e-10
+                    default_dic['ymax'] = 1e-8
+                elif vn1vn2 == "Q_eff_nua_Ye":
+                    v_n_x = 'Q_eff_nua'
+                    v_n_y = 'Ye'
+                    default_dic['xmin'] = 1e-15
+                    default_dic['xmax'] = 1e-10
+                    default_dic['ymin'] = 0.01
+                    default_dic['ymax'] = 0.5
+                    default_dic['yscale'] = None
+                elif vn1vn2 == "velz_Ye":
+                    v_n_x = 'velz'
+                    v_n_y = 'Ye'
+                    default_dic['xmin'] = -.5
+                    default_dic['xmax'] = .5
+                    default_dic['ymin'] = 0.01
+                    default_dic['ymax'] = 0.5
+                    default_dic['yscale'] = None
+                    default_dic['xscale'] = None
+                else:
+                    raise NameError("vn1vn2:{} is not recognized"
+                                    .format(vn1vn2))
+                outfpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + "/corr_plots/"
+                if not os.path.isdir(outfpath):
+                    os.mkdir(outfpath)
+                fpath = outfpath + "{}_{}.png".format(plane, vn1vn2)
+                try:
+                    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                        if os.path.isfile(fpath): os.remove(fpath)
+                        print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it),"plane", plane, "v_ns:", vn1vn2, ":", "computing"],
+                                             ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+
+                        table = d3histclass.get_res_corr(it, v_n_x, v_n_y)
+                        default_dic["data"] = table
+                        default_dic["v_n_x"] = v_n_x
+                        default_dic["v_n_y"] = v_n_y
+                        default_dic["xlabel"] = Labels.labels(v_n_x)
+                        default_dic["ylabel"] = Labels.labels(v_n_y)
+
+
+                        o_plot = PLOT_MANY_TASKS()
+                        o_plot.gen_set["figdir"] = outfpath
+                        o_plot.gen_set["type"] = "cartesian"
+                        o_plot.gen_set["figsize"] = (4.2, 3.8)  # <->, |] # to match hists with (8.5, 2.7)
+                        o_plot.gen_set["figname"] = "{}.png".format(vn1vn2)
+                        o_plot.gen_set["sharex"] = False
+                        o_plot.gen_set["sharey"] = False
+                        o_plot.gen_set["subplots_adjust_h"] = 0.0
+                        o_plot.gen_set["subplots_adjust_w"] = 0.2
+                        o_plot.set_plot_dics = []
+
+                        #-------------------------------
+                        # tr = (t - tmerg) * 1e3  # ms
+                        t = d3histclass.get_time_for_it(it, output="profiles", d1d2d3prof="prof")
+                        default_dic["it"] = it
+                        default_dic["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t*1e3))
+                        o_plot.set_plot_dics.append(default_dic)
+
+                        o_plot.main()
+                        o_plot.set_plot_dics = []
+                        o_plot.figure.clear()
+                        #-------------------------------
+                    else:
+                        print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it), "plane", plane, "v_ns:", vn1vn2, ":", "skipping"],
+                                             ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+                except IOError:
+                    print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it), "plane", plane, "v_ns:", vn1vn2, ":", "missing file"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except KeyboardInterrupt:
+                    exit(1)
+                except:
+                    print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it), "plane", plane, "v_ns:", vn1vn2, ":", "failed"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                default_dic = {}
+
 def plot_d3_hist(d3histclass, rewrite=False):
 
     iterations = select_number(glob_its, d3histclass.list_iterations)
     v_ns = select_string(glob_v_ns, __d3histvns__, for_all="all")
 
-    for it in iterations:
-        for v_n in v_ns:
+    for mask in glob_masks:
+        for it in iterations:
+            for v_n in v_ns:
 
-            fpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + "/" + "hist_{}.dat".format(v_n)
-            # print(data)
-            default_dic = {
-                'task': 'hist1d', 'ptype': 'cartesian',
-                'position': (1, 1),
-                'data': None, 'normalize': False,
-                'v_n_x': 'var', 'v_n_y': 'mass',
-                'color': "black", 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha':1.0,
-                'ymin': 1e-4, 'ymax': 1e-1,
-                'xlabel': None,  'ylabel': "mass",
-                'label': None, 'yscale': 'log',
-                'fancyticks': True, 'minorticks': True,
-                'fontsize': 14,
-                'labelsize': 14,
-                'legend': {}#'loc': 'best', 'ncol': 2, 'fontsize': 18
-            }
+                fpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + '/' + mask + "/hist_{}.dat".format(v_n)
+                # print(data)
+                default_dic = {
+                    'task': 'hist1d', 'ptype': 'cartesian',
+                    'position': (1, 1),
+                    'data': None, 'normalize': False,
+                    'v_n_x': 'var', 'v_n_y': 'mass',
+                    'color': "black", 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha':1.0,
+                    'ymin': 1e-4, 'ymax': 1e-1,
+                    'xlabel': None,  'ylabel': "mass",
+                    'label': None, 'yscale': 'log',
+                    'fancyticks': True, 'minorticks': True,
+                    'fontsize': 14,
+                    'labelsize': 14,
+                    'legend': {}#'loc': 'best', 'ncol': 2, 'fontsize': 18
+                }
 
-            if v_n == "r":
-                default_dic['v_n_x'] = 'r'
-                default_dic['xlabel'] = 'cylindrical radius'
-                default_dic['xmin'] = 10.
-                default_dic['xmax'] = 50.
-            elif v_n == "theta":
-                default_dic['v_n_x'] = 'theta'
-                default_dic['xlabel'] = 'angle from binary plane'
-                default_dic['xmin'] = 0
-                default_dic['xmax'] = 90.
-            elif v_n == "entr":
-                default_dic['v_n_x'] = 'entropy'
-                default_dic['xlabel'] = 'entropy'
-                default_dic['xmin'] = 0
-                default_dic['xmax'] = 150.
-            elif v_n == "Ye":
-                default_dic['v_n_x'] = 'Ye'
-                default_dic['xlabel'] = 'Ye'
-                default_dic['xmin'] = 0.
-                default_dic['xmax'] = 0.5
-            elif v_n == "temp":
-                default_dic['v_n_x'] = "temp"
-                default_dic["xlabel"] = "temp"
-                default_dic['xmin'] = 1e-2
-                default_dic['xmax'] = 1e2
-                default_dic['xscale'] = "log"
-            elif v_n == "velz":
-                default_dic['v_n_x'] = "velz"
-                default_dic["xlabel"] = "velz"
-                default_dic['xmin'] = -0.7
-                default_dic['xmax'] = 0.7
-            elif v_n == "rho":
-                default_dic['v_n_x'] = "rho"
-                default_dic["xlabel"] = "rho"
-                default_dic['xmin'] = 1e-10
-                default_dic['xmax'] = 1e-6
-                default_dic['xscale'] = "log"
-            elif v_n == "dens_unb_bern":
-                default_dic['v_n_x'] = "temp"
-                default_dic["xlabel"] = "temp"
-                default_dic['xmin'] = 1e-10
-                default_dic['xmax'] = 1e-6
-                default_dic['xscale'] = "log"
-            elif v_n == "press":
-                default_dic['v_n_x'] = "press"
-                default_dic["xlabel"] = "press"
-                default_dic['xmin'] = 1e-13
-                default_dic['xmax'] = 1e-5
-                default_dic['xscale'] = "log"
-            else:
-                raise NameError("hist v_n:{} is not recognized".format(v_n))
-
-            outfpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + "/hist_plots/"
-            if not os.path.isdir(outfpath):
-                os.mkdir(outfpath)
-
-            o_plot = PLOT_MANY_TASKS()
-            o_plot.gen_set["figdir"] = outfpath
-            o_plot.gen_set["type"] = "cartesian"
-            o_plot.gen_set["figsize"] = (4.2, 3.8)  # <->, |] # to match hists with (8.5, 2.7)
-            o_plot.gen_set["figname"] = "{}.png".format(v_n)
-            o_plot.gen_set["sharex"] = False
-            o_plot.gen_set["sharey"] = False
-            o_plot.gen_set["subplots_adjust_h"] = 0.0
-            o_plot.gen_set["subplots_adjust_w"] = 0.2
-            o_plot.set_plot_dics = []
-
-            figpath = outfpath + "{}.png".format(v_n)
-
-            try:
-                if (os.path.isfile(figpath) and rewrite) or not os.path.isfile(figpath):
-                    if os.path.isfile(figpath): os.remove(figpath)
-                    print_colored_string(["task:", "plot hist", "it:", "{}".format(it), "v_ns:", v_n, ":", "computing"],
-                                         ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-                    #-------------------------------
-                    data = np.loadtxt(fpath, unpack=False)
-                    default_dic["it"] = it
-                    default_dic["data"] = data
-                    o_plot.set_plot_dics.append(default_dic)
-
-                    o_plot.main()
-                    o_plot.set_plot_dics = []
-                    o_plot.figure.clear()
-                    #-------------------------------
+                if v_n == "r" and mask == "disk":
+                    default_dic['v_n_x'] = 'r'
+                    default_dic['xlabel'] = 'cylindrical radius'
+                    default_dic['xmin'] = 10.
+                    default_dic['xmax'] = 50.
+                elif v_n == "r" and mask == "remnant":
+                    default_dic['v_n_x'] = 'r'
+                    default_dic['xlabel'] = 'cylindrical radius'
+                    default_dic['xmin'] = 0.
+                    default_dic['xmax'] = 25.
+                elif v_n == "theta":
+                    default_dic['v_n_x'] = 'theta'
+                    default_dic['xlabel'] = 'angle from binary plane'
+                    default_dic['xmin'] = 0
+                    default_dic['xmax'] = 90.
+                elif v_n == "entr" and mask == "disk":
+                    default_dic['v_n_x'] = 'entropy'
+                    default_dic['xlabel'] = 'entropy'
+                    default_dic['xmin'] = 0
+                    default_dic['xmax'] = 150.
+                elif v_n == "entr" and mask == "remnant":
+                    default_dic['v_n_x'] = 'entropy'
+                    default_dic['xlabel'] = 'entropy'
+                    default_dic['xmin'] = 0
+                    default_dic['xmax'] = 25.
+                elif v_n == "Ye":
+                    default_dic['v_n_x'] = 'Ye'
+                    default_dic['xlabel'] = 'Ye'
+                    default_dic['xmin'] = 0.
+                    default_dic['xmax'] = 0.5
+                elif v_n == "temp":
+                    default_dic['v_n_x'] = "temp"
+                    default_dic["xlabel"] = "temp"
+                    default_dic['xmin'] = 1e-2
+                    default_dic['xmax'] = 1e2
+                    default_dic['xscale'] = "log"
+                elif v_n == "velz":
+                    default_dic['v_n_x'] = "velz"
+                    default_dic["xlabel"] = "velz"
+                    default_dic['xmin'] = -0.7
+                    default_dic['xmax'] = 0.7
+                elif v_n == "rho" and mask == "disk":
+                    default_dic['v_n_x'] = "rho"
+                    default_dic["xlabel"] = "rho"
+                    default_dic['xmin'] = 1e-10
+                    default_dic['xmax'] = 1e-6
+                    default_dic['xscale'] = "log"
+                elif v_n == "rho" and mask == "remnant":
+                    default_dic['v_n_x'] = "rho"
+                    default_dic["xlabel"] = "rho"
+                    default_dic['xmin'] = 1e-6
+                    default_dic['xmax'] = 1e-2
+                    default_dic['xscale'] = "log"
+                elif v_n == "dens_unb_bern":
+                    default_dic['v_n_x'] = "temp"
+                    default_dic["xlabel"] = "temp"
+                    default_dic['xmin'] = 1e-10
+                    default_dic['xmax'] = 1e-6
+                    default_dic['xscale'] = "log"
+                elif v_n == "press" and mask == "disk":
+                    default_dic['v_n_x'] = "press"
+                    default_dic["xlabel"] = "press"
+                    default_dic['xmin'] = 1e-13
+                    default_dic['xmax'] = 1e-5
+                    default_dic['xscale'] = "log"
+                elif v_n == "press" and mask == "remnant":
+                    default_dic['v_n_x'] = "press"
+                    default_dic["xlabel"] = "press"
+                    default_dic['xmin'] = 1e-8
+                    default_dic['xmax'] = 1e-1
+                    default_dic['xscale'] = "log"
                 else:
-                    print_colored_string(["task:", "plot hist", "it:", "{}".format(it), "v_ns:", v_n, ":", "skipping"],
-                                         ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-            except IOError:
-                print_colored_string(["task:", "plot hist", "it:", "{}".format(it), "v_ns:", v_n, ":", "missing file"],
-                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-            except KeyboardInterrupt:
-                exit(1)
-            except:
-                print_colored_string(["task:", "plot hist", "it:", "{}".format(it), "v_ns:", v_n, ":", "failed"],
-                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    raise NameError("hist v_n:{} is not recognized".format(v_n))
+
+                outfpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + '/' + mask +  "/hist_plots/"
+                if not os.path.isdir(outfpath):
+                    os.mkdir(outfpath)
+
+                o_plot = PLOT_MANY_TASKS()
+                o_plot.gen_set["figdir"] = outfpath
+                o_plot.gen_set["type"] = "cartesian"
+                o_plot.gen_set["figsize"] = (4.2, 3.8)  # <->, |] # to match hists with (8.5, 2.7)
+                o_plot.gen_set["figname"] = "{}.png".format(v_n)
+                o_plot.gen_set["sharex"] = False
+                o_plot.gen_set["sharey"] = False
+                o_plot.gen_set["subplots_adjust_h"] = 0.0
+                o_plot.gen_set["subplots_adjust_w"] = 0.2
+                o_plot.set_plot_dics = []
+
+                figpath = outfpath + "{}.png".format(v_n)
+
+                try:
+                    if (os.path.isfile(figpath) and rewrite) or not os.path.isfile(figpath):
+                        if os.path.isfile(figpath): os.remove(figpath)
+                        print_colored_string(["task:", "plot hist", "it:", "{}".format(it), "mask", mask, "v_ns:", v_n, ":", "computing"],
+                                             ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "green"])
+                        #-------------------------------
+                        data = np.loadtxt(fpath, unpack=False)
+                        default_dic["it"] = it
+                        default_dic["data"] = data
+                        o_plot.set_plot_dics.append(default_dic)
+
+                        o_plot.main()
+                        o_plot.set_plot_dics = []
+                        o_plot.figure.clear()
+                        #-------------------------------
+                    else:
+                        print_colored_string(["task:", "plot hist", "it:", "{}".format(it),"mask", mask, "v_ns:", v_n, ":", "skipping"],
+                                             ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "blue"])
+                except IOError:
+                    print_colored_string(["task:", "plot hist", "it:", "{}".format(it),"mask", mask, "v_ns:", v_n, ":", "missing file"],
+                                         ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+                except KeyboardInterrupt:
+                    exit(1)
+                except:
+                    print_colored_string(["task:", "plot hist", "it:", "{}".format(it),"mask", mask, "v_ns:", v_n, ":", "failed"],
+                                         ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
 
 def plot_center_of_mass(dmclass, rewrite=False):
     plotfname = __center_of_mass_plotname__
@@ -5033,7 +5720,6 @@ def d3_main_computational_loop():
 
     # tasks for each iteration
     for it in glob_its:
-        sys.stdout.flush()
         _outdir = outdir + str(it) + '/'
         if not os.path.isdir(_outdir):
             os.mkdir(_outdir)
@@ -5047,8 +5733,8 @@ def d3_main_computational_loop():
                 d3_remnant_mass_for_it(it, d3corr_class, outdir=_outdir, rewrite=glob_overwrite)
             # else:
             #     raise NameError("d3 method is not recognized: {}".format(task))
-            sys.stdout.flush()
         d3corr_class.delete_for_it(it=it, except_v_ns=[], rm_masks=True, rm_comp=True, rm_prof=False)
+        sys.stdout.flush()
         print("\n")
 
     # methods that require all iterations loaded
@@ -5059,16 +5745,24 @@ def d3_main_computational_loop():
     if "plotmass" in glob_tasklist:
         plot_disk_mass(d3corr_class, rewrite=glob_overwrite)
 
-
-    # plotting tasks
-    d3_slices = LOAD_PROFILE_XYXZ(glob_sim)
+    #
+    d3_slices = MAINMETHODS_STORE_XYXZ(glob_sim)
     d3_corr = LOAD_RES_CORR(glob_sim)
     dm_class = LOAD_DENSITY_MODES(glob_sim)
 
+    # tasks that rely on the previos outputs
+    for it in glob_its:
+        _outdir = outdir + str(it) + '/'
+        for task in glob_tasklist:
+            if task == "slicecorr":
+                d2_slice_corr_for_it(it, d3_slices, _outdir, rewrite=glob_overwrite)
+                sys.stdout.flush()
+    # plotting tasks
     for task in glob_tasklist:
         if task.__contains__("plot"):
             # if task in ["all", "plotall", "densmode"]:  pass
             if task == "plotcorr":          plot_d3_corr(d3_corr, rewrite=glob_overwrite)
+            if task == "plotslicecorr":     plot_d2_slice_corr(d3_corr, rewrite=glob_overwrite)
             if task == "plotslice":         plot_d3_prof_slices(d3_slices, rewritefigs=glob_overwrite)
             if task == "plothist":          plot_d3_hist(d3_corr, rewrite=glob_overwrite)
             if task == "plotdensmode":      plot_density_modes(dm_class, rewrite=glob_overwrite)
@@ -5080,7 +5774,9 @@ def d3_main_computational_loop():
             #                     .format(task))
 
 
-
+# python profile.py -s LS220_M14691268_M0_LK_SR --it 1409024 --plane xz -t slice --overwrite yes
+# python slices.py -s LS220_M14691268_M0_LK_SR -t addm0 --it 1409024 --rl all --v_n all
+# python profile.py -s LS220_M14691268_M0_LK_SR --it 1409024 --plane xz -t slicecorr plotslicecorr --v_n Q_eff_nua_dens_unb_bern --overwrite yes
 if __name__ == '__main__':
     #
     parser = ArgumentParser(description="postprocessing pipeline")
@@ -5090,6 +5786,9 @@ if __name__ == '__main__':
     parser.add_argument("--rl", dest="reflevels", required=False, nargs='+', default=[], help="reflevels")
     parser.add_argument("--it", dest="iterations", required=False, nargs='+', default=[], help="iterations")
     parser.add_argument('--time', dest="times", required=False, nargs='+', default=[], help='Timesteps')
+    parser.add_argument('--plane', dest="plane", required=False, nargs='+', default=[], help='Plane: xy,xz,yz for slice analysis')
+    parser.add_argument('--mask', dest="mask", required=False, nargs='+', default=[],
+                        help="Mask data for specific analysis. 'disk' is default ")
     #
     parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
     parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to simulation dir")
@@ -5108,8 +5807,10 @@ if __name__ == '__main__':
     glob_rls = args.reflevels
     glob_its = args.iterations
     glob_times = args.times
+    glob_planes = args.plane
     glob_symmetry = args.symmetry
     glob_overwrite = args.overwrite
+    glob_masks = args.mask
     # simdir = Paths.gw170817 + glob_sim + '/'
     # resdir = Paths.ppr_sims + glob_sim + '/'
     glob_usemaxtime = args.usemaxtime
@@ -5134,6 +5835,29 @@ if __name__ == '__main__':
         glob_usemaxtime = True
     else: raise NameError("for '--usemaxtime' option use 'yes' or 'no' or float. Given: {}"
                           .format(glob_usemaxtime))
+
+    # check mask
+    if len(glob_masks) == 0:
+        glob_masks = ["disk"]
+    elif len(glob_masks) == 1 and "all" in glob_masks:
+        glob_masks = __masks__
+    else:
+        for mask in glob_masks:
+            if not mask in __masks__:
+                raise NameError("mask: {} is not recognized. Use: \n{}"
+                                .format(mask, __masks__))
+    # TODO Implement mask for every method, make clear that fr interpolation cases it is not used. See 'd2_slice_corr_for_it' for example
+
+    # check plane
+    if len(glob_planes) == 0:
+        pass
+    elif len(glob_planes) == 1 and "all" in glob_planes:
+        glob_planes = __d3slicesplanes__
+    elif len(glob_planes) > 1:
+        for plane in glob_planes:
+            if not plane in __d3slicesplanes__:
+                raise NameError("plane:{} is not in the list of the __d3slicesplanes__:{}"
+                                .format(plane, __d3slicesplanes__))
 
     # check if the simulations dir exists
     if not os.path.isdir(glob_simdir + glob_sim):
@@ -5203,7 +5927,7 @@ if __name__ == '__main__':
         for t in glob_times:
             idx = UTILS.find_nearest_index(tprof, t)
             _t =  tprof[idx]
-            _it = ittime.get_it_for_time(_t, "d1")
+            _it = ittime.get_it_for_time(_t, output="overall", d1d2d3="d1")
             _glob_its = np.append(_glob_its, _it)
             _glob_times = np.append(_glob_times, _t)
         glob_its = np.unique(_glob_its)
