@@ -695,7 +695,7 @@ class HISTOGRAM_EDGES:
 
     @staticmethod
     def get_edge(v_n):
-        if v_n == "Y_e": return np.linspace(0.035, 0.55, 50)
+        if v_n == "Y_e": return np.linspace(0.035, 0.55, 100)
         elif v_n == "theta": return np.linspace(0.031, 3.111, 50) # return np.linspace(0.0, np.pi, 50)
         elif v_n == "phi": return np.linspace(0.06, 6.29, 93)
         elif v_n == "vel_inf" or v_n == "vel_inf_bern": return np.linspace(0., 1., 200)
@@ -2133,7 +2133,7 @@ def outflowed_historgrams(o_outflow, detectors, masks, v_ns, rewrite=False):
             outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
             for v_n in v_ns:
                 fpath = outdir + "/hist_{}.dat".format(v_n)
-                try:
+                if True:
                     if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                         if os.path.isfile(fpath): os.remove(fpath)
                         Printcolor.print_colored_string(
@@ -2181,17 +2181,17 @@ def outflowed_historgrams(o_outflow, detectors, masks, v_ns, rewrite=False):
                         Printcolor.print_colored_string(
                             ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "skipping"],
                             ["blue",   "green", "blue", "green",          "blue", "green","blue","green","", "blue"])
-                except KeyboardInterrupt:
-                    Printcolor.red("Forced termination... done")
-                    exit(1)
-                except ValueError:
-                    Printcolor.print_colored_string(
-                        ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "ValueError"],
-                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-                except:
-                    Printcolor.print_colored_string(
-                        ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "failed"],
-                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                # except KeyboardInterrupt:
+                #     Printcolor.red("Forced termination... done")
+                #     exit(1)
+                # except ValueError:
+                #     Printcolor.print_colored_string(
+                #         ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "ValueError"],
+                #         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                # except:
+                #     Printcolor.print_colored_string(
+                #         ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "failed"],
+                #         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_correlations(o_outflow, detectors, masks, v_ns, rewrite=False):
 

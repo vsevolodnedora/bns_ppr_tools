@@ -893,7 +893,13 @@ class LOAD_PROFILE(LOAD_ITTIME):
             dfile = h5py.File(fpath, "r")
         except IOError:
             raise IOError("Cannot open file: {}".format(fpath))
-        self.list_nlevels[self.i_it(it)] = len(dfile.keys())
+        reflevels = 0
+        for key in dfile.keys():
+            if key.__contains__("reflevel="):
+                reflevels += 1
+        # print("it:{} len(dfile.keys():{} dfile.keys():{} | {}".format(it, len(dfile.keys()), dfile.keys(), reflevels))
+
+        self.list_nlevels[self.i_it(it)] = reflevels
         self.dfile_matrix[self.i_it(it)] = dfile
 
     def is_dfile_loaded(self, it):
@@ -949,7 +955,7 @@ class LOAD_PROFILE(LOAD_ITTIME):
         L = []
         dfile = self.get_profile_dfile(it)
 
-        nlevels = len(dfile.keys())
+        nlevels = self.get_nlevels(it)
         if self.enforce_xy_grid:
             for il in range(nlevels):
                 gname = "reflevel={}".format(il)
@@ -1757,7 +1763,7 @@ class MAINMETHODS_STORE(MASK_STORE):
         min_, max_ = [], []
         nlevels = self.get_nlevels(it)
         for rl in range(nlevels):
-
+            # print("rl:{}".format(rl))s
             if v_n == 'inv_ang_mom_flux':
                 v_n = 'ang_mom_flux'
                 data = -1. * self.get_masked_data(it, rl, v_n)
@@ -2231,9 +2237,10 @@ class MAINMETHODS_STORE(MASK_STORE):
         if rm_masks:
             for v_n in self.list_mask_names:
                 for rl in range(nlevels):
+                    # print("it:{} rl:{} v_n:{} [all len(rls):{}]".format(it, rl, v_n, nlevels))
                     self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(v_n)] = np.ones(0, dtype=bool)
         # clean up data
-        if rm_masks:
+        if rm_comp:
             for v_n in self.list_all_v_ns:
                 if v_n not in except_v_ns:
                     self.check_v_n(v_n)
@@ -2627,7 +2634,14 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
         except IOError:
             raise IOError("unable to open {}".format(fpath))
 
-        nlevels = len(dfile.keys())
+        nlevels = 0
+        for key in dfile.keys():
+            if key.__contains__("reflevel="):
+                nlevels+=1
+
+        # print("it:{} nlevels:{}".format(it, nlevels))
+
+        nlevels = nlevels
         self.list_nlevels[self.i_it(it)][self.i_plane(plane)] = nlevels
 
         for rl in np.arange(start=0, stop=nlevels, step=1):
@@ -2669,11 +2683,17 @@ class LOAD_PROFILE_XYXZ(LOAD_ITTIME):
 
         data = self.prof_data_matrix[self.i_it(it)][rl][self.i_plane(plane)][self.i_prof_v_n(v_n)]
         if len(data) == 0:
-            raise NameError("failed tp extract data. it:{} rl:{} plane:{} v_n:{}"
+            raise NameError("Failed to extract the data. it:{} rl:{} plane:{} v_n:{}"
                              .format(it, rl, plane, v_n))
 
+    def is_data_loaded(self, it, plane):
+        rl = int(self.list_nlevels[self.i_it(it)][self.i_plane(plane)])
+        if rl == 0:
+            self.loaded_extract(it, plane)
+        #
+
     def get_nlevels(self, it, plane):
-        self.is_data_loaded_extracted(it, plane)
+        self.is_data_loaded(it, plane)
         return int(self.list_nlevels[self.i_it(it)][self.i_plane(plane)])
 
     def get_data(self, it, rl, plane, v_n):
@@ -2780,10 +2800,14 @@ class ADD_MASK_XYXZ(COMPUTE_STORE_XYXZ):
 
         self.list_mask_v_ns = __masks__
 
+        self.disk_mask_setup = {'rm_rl': True,  # REMOVE previouse ref. level from the next
+                                'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
+                                'lapse': [0.15, 1.]}  # remove apparent horizon
+
         self.mask_matrix = [[[[np.zeros(0,)
                              for y in range(len(self.list_mask_v_ns))]
                              for p in range(len(self.list_planes))]
-                             for x in range(self.list_nlevels)]
+                             for x in range(self.set_max_nlevels)]
                              for i in range(len(self.list_iterations))]
 
     def check_mask_v_n(self, v_n):
@@ -2803,6 +2827,16 @@ class ADD_MASK_XYXZ(COMPUTE_STORE_XYXZ):
             arr = np.ones(rho.shape)
         elif mask_v_n == "rl":
             arr = self.get_comp_data(it, rl, plane, "rl_mask")
+        elif mask_v_n == "disk":
+            rl_arr = self.get_comp_data(it, rl, plane, "rl_mask")
+            disk_mask_setup = self.disk_mask_setup
+            for v_n in disk_mask_setup.keys()[1:]:
+                arr = self.get_comp_data(it, rl, plane, v_n)
+                val1, val2 = disk_mask_setup[v_n][0], disk_mask_setup[v_n][1]
+                tmp = np.ones(arr.shape)
+                tmp[(arr<val1)&(arr>val2)] = 0
+                rl_arr * tmp
+            arr = rl_arr
         elif mask_v_n == "rl_Ye04":
             rl_mask = self.get_mask(it, rl, plane, "rl")
             ye_mask = self.get_comp_data(it, rl, plane, "Ye")
@@ -2880,9 +2914,14 @@ class MAINMETHODS_STORE_XYXZ(ADD_MASK_XYXZ):
             {"v_n": "Ye", "edges": np.linspace(0., 0.5, 500)}
         ]
 
+        self.corr_task_dic_q_eff_nua_hu_0 = [
+            {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
+            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)}
+        ]
+
         self.corr_task_dic_q_eff_nua_u_0 = [
             {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
-            {"v_n": "u_0", "edges": np.linspace(-1.2, 1.2, 500)}
+            {"v_n": "u_0", "edges": np.linspace(-1.2, -0.8, 500)}
         ]
 
         self.corr_task_dic_q_eff_nua_over_D_hu_0 = [
@@ -2932,7 +2971,8 @@ class MAINMETHODS_STORE_XYXZ(ADD_MASK_XYXZ):
         #
         correlation = np.zeros([len(edge) - 1 for edge in edges])
         #
-        nlevels = self.get_nlevels(it)
+        nlevels = self.get_nlevels(it, plane)
+        assert nlevels > 0
         for rl in range(nlevels):
             data = []
             # ye_mask = self.get_comp_data(it, rl, plane, "Ye")
@@ -2980,7 +3020,9 @@ class MAINMETHODS_STORE_XYXZ(ADD_MASK_XYXZ):
                 Printcolor.red("ValueError it:{} rl:{} plane:{}".format(it, rl, plane))
             correlation += tmp
 
-        assert np.sum(correlation) > 0
+        if np.sum(correlation) == 0:
+            # print("\t")
+            raise ValueError("sum(corr) = 0")
 
         return edges, correlation
 
@@ -4037,6 +4079,9 @@ def d3_corr_for_it(it, d3corrclass, outdir, rewrite=False):
         except IOError:
             print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "IOError"],
                                  ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+        except ValueError:
+            print_colored_string(["task:", "corr", "it:", "{}".format(it), "v_ns:", v_ns, ":", "ValueError"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
         except KeyboardInterrupt:
             exit(1)
         except:
@@ -4094,13 +4139,15 @@ def d2_slice_corr_for_it(it, d3slice, outdir, rewrite):
                     corr_task_dic = d3slice.corr_task_dic_q_eff_nua_ye
                 elif v_ns == "velz_Ye":
                     corr_task_dic = d3slice.corr_task_dic_velz_ye
+                elif v_ns == "Q_eff_nua_hu_0":
+                    corr_task_dic = d3slice.corr_task_dic_q_eff_nua_hu_0
                 else:
                     raise NameError("unknown task for correlation computation: {}"
                                     .format(v_ns))
 
                 fpath = outdir_ + "{}_corr_{}.h5".format(plane, v_ns)
 
-                try:#if True:
+                try:
                     if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                         if os.path.isfile(fpath): os.remove(fpath)
                         print_colored_string(["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":", "computing"],
@@ -4119,6 +4166,9 @@ def d2_slice_corr_for_it(it, d3slice, outdir, rewrite):
                                          ["blue", "green", "blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
                 except NameError:
                     print_colored_string(["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":", "NameError"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+                except ValueError:
+                    print_colored_string(["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":", "ValueError"],
                                          ["blue", "green", "blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
                 except KeyboardInterrupt:
                     exit(1)
@@ -4356,8 +4406,7 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
     for it in iterations:
         for rl in __d3sliceplotrls__:
             for v_n in v_ns:
-                #
-                # print("v_n:{}".format(v_n))
+                # --- Getting XZ data ---
                 try:
                     data_arr = d3class.get_data(it, rl, "xz", v_n)
                     x_arr = d3class.get_data(it, rl, "xz", "x")
@@ -4390,6 +4439,7 @@ def plot_d3_prof_slices(d3class, figdir='slices/', rewritefigs=False):
                          ":", "NameError in getting xz {}".format(v_n)],
                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
                     continue
+                # --- Getting XY data ---
                 try:
                     data_arr = d3class.get_data(it, rl, "xy", v_n)
                     x_arr = d3class.get_data(it, rl, "xy", "x")
@@ -5094,110 +5144,156 @@ def plot_d2_slice_corr(d3histclass, rewrite=False):
 
     for it in iterations:
         for plane in planes:
+            for mask in glob_masks:
             #
-            d3histclass.set_corr_fname_intro = "{}_corr_".format(plane)
-            #
-            for vn1vn2 in v_ns:
-
-                default_dic = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
-                    'task': 'corr2d', 'ptype': 'cartesian',
-                    'data': d3histclass,
-                    'position': (1, 1),
-                    'v_n_x': 'ang_mom_flux', 'v_n_y': 'dens_unb_bern', 'v_n': Labels.labels("mass"), 'normalize': True,
-                    'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-7, 'vmax': 1e-3,
-                    'xscale': 'log', 'yscale': 'log',
-                    'mask_below': None, 'mask_above': None, 'cmap': 'inferno_r', 'norm': 'log', 'todo': None,
-                    'cbar': {'location': 'right .03 .0', 'label': r'mass',
-                             'labelsize': 14,
-                             'fontsize': 14},
-                    'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$'.format(0), 'fontsize': 14},
-                    'fontsize': 14,
-                    'labelsize': 14,
-                    'minorticks': True,
-                    'fancyticks': True,
-                    'sharey': False,
-                    'sharex': False,
-                }
-
-                if vn1vn2 == "Q_eff_nua_dens_unb_bern":
-                    v_n_x = 'Q_eff_nua'
-                    v_n_y = 'dens_unb_bern'
-                    default_dic['xmin'] = 1e-15
-                    default_dic['xmax'] = 1e-10
-                    default_dic['ymin'] = 1e-10
-                    default_dic['ymax'] = 1e-8
-                elif vn1vn2 == "Q_eff_nua_Ye":
-                    v_n_x = 'Q_eff_nua'
-                    v_n_y = 'Ye'
-                    default_dic['xmin'] = 1e-15
-                    default_dic['xmax'] = 1e-10
-                    default_dic['ymin'] = 0.01
-                    default_dic['ymax'] = 0.5
-                    default_dic['yscale'] = None
-                elif vn1vn2 == "velz_Ye":
-                    v_n_x = 'velz'
-                    v_n_y = 'Ye'
-                    default_dic['xmin'] = -.5
-                    default_dic['xmax'] = .5
-                    default_dic['ymin'] = 0.01
-                    default_dic['ymax'] = 0.5
-                    default_dic['yscale'] = None
-                    default_dic['xscale'] = None
+                if mask == "None" or mask == None or mask == "":
+                    d3histclass.set_corr_fname_intro = "{}_corr_".format(plane)
+                    outfpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + "/corr_plots/"
                 else:
-                    raise NameError("vn1vn2:{} is not recognized"
-                                    .format(vn1vn2))
-                outfpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + "/corr_plots/"
-                if not os.path.isdir(outfpath):
-                    os.mkdir(outfpath)
-                fpath = outfpath + "{}_{}.png".format(plane, vn1vn2)
-                try:
-                    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                        if os.path.isfile(fpath): os.remove(fpath)
-                        print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it),"plane", plane, "v_ns:", vn1vn2, ":", "computing"],
-                                             ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+                    d3histclass.set_corr_fname_intro = "{}/{}_corr_".format(mask, plane)
+                    outfpath = glob_outdir + glob_sim + '/' + __rootoutdir__ + str(it) + '/' + mask + "/corr_plots/"
+                #
+                for vn1vn2 in v_ns:
 
-                        table = d3histclass.get_res_corr(it, v_n_x, v_n_y)
-                        default_dic["data"] = table
-                        default_dic["v_n_x"] = v_n_x
-                        default_dic["v_n_y"] = v_n_y
-                        default_dic["xlabel"] = Labels.labels(v_n_x)
-                        default_dic["ylabel"] = Labels.labels(v_n_y)
+                    default_dic = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
+                        'task': 'corr2d', 'ptype': 'cartesian',
+                        'data': d3histclass,
+                        'position': (1, 1),
+                        'v_n_x': 'ang_mom_flux', 'v_n_y': 'dens_unb_bern', 'v_n': Labels.labels("mass"), 'normalize': True,
+                        'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-7, 'vmax': 1e-3,
+                        'xscale': 'log', 'yscale': 'log',
+                        'mask_below': None, 'mask_above': None, 'cmap': 'inferno_r', 'norm': 'log', 'todo': None,
+                        'cbar': {'location': 'right .03 .0', 'label': r'mass',
+                                 'labelsize': 14,
+                                 'fontsize': 14},
+                        'title': {"text": r'$t-t_{merg}:$' + r'${:.1f}$'.format(0), 'fontsize': 14},
+                        'fontsize': 14,
+                        'labelsize': 14,
+                        'minorticks': True,
+                        'fancyticks': True,
+                        'sharey': False,
+                        'sharex': False,
+                    }
 
-
-                        o_plot = PLOT_MANY_TASKS()
-                        o_plot.gen_set["figdir"] = outfpath
-                        o_plot.gen_set["type"] = "cartesian"
-                        o_plot.gen_set["figsize"] = (4.2, 3.8)  # <->, |] # to match hists with (8.5, 2.7)
-                        o_plot.gen_set["figname"] = "{}.png".format(vn1vn2)
-                        o_plot.gen_set["sharex"] = False
-                        o_plot.gen_set["sharey"] = False
-                        o_plot.gen_set["subplots_adjust_h"] = 0.0
-                        o_plot.gen_set["subplots_adjust_w"] = 0.2
-                        o_plot.set_plot_dics = []
-
-                        #-------------------------------
-                        # tr = (t - tmerg) * 1e3  # ms
-                        t = d3histclass.get_time_for_it(it, output="profiles", d1d2d3prof="prof")
-                        default_dic["it"] = it
-                        default_dic["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t*1e3))
-                        o_plot.set_plot_dics.append(default_dic)
-
-                        o_plot.main()
-                        o_plot.set_plot_dics = []
-                        o_plot.figure.clear()
-                        #-------------------------------
+                    if vn1vn2 == "Q_eff_nua_dens_unb_bern":
+                        v_n_x = 'Q_eff_nua'
+                        v_n_y = 'dens_unb_bern'
+                        default_dic['xmin'] = 1e-15
+                        default_dic['xmax'] = 1e-10
+                        default_dic['ymin'] = 1e-10
+                        default_dic['ymax'] = 1e-8
+                    elif vn1vn2 == "Q_eff_nua_Ye":
+                        v_n_x = 'Q_eff_nua'
+                        v_n_y = 'Ye'
+                        default_dic['xmin'] = 1e-15
+                        default_dic['xmax'] = 1e-10
+                        default_dic['ymin'] = 0.01
+                        default_dic['ymax'] = 0.5
+                        default_dic['yscale'] = None
+                    elif vn1vn2 == "velz_Ye":
+                        v_n_x = 'velz'
+                        v_n_y = 'Ye'
+                        default_dic['xmin'] = -.5
+                        default_dic['xmax'] = .5
+                        default_dic['ymin'] = 0.01
+                        default_dic['ymax'] = 0.5
+                        default_dic['yscale'] = None
+                        default_dic['xscale'] = None
+                    elif vn1vn2 == "Q_eff_nua_u_0": # Q_eff_nua_hu_0
+                        v_n_x = 'Q_eff_nua'
+                        v_n_y = 'u_0'
+                        default_dic['xmin'] = 1e-15
+                        default_dic['xmax'] = 1e-10
+                        default_dic['ymin'] = -0.95
+                        default_dic['ymax'] = 1.05
+                        default_dic['yscale'] = None #
+                    elif vn1vn2 == "Q_eff_nua_hu_0":
+                        v_n_x = 'Q_eff_nua'
+                        v_n_y = 'hu_0'
+                        default_dic['xmin'] = 1e-15
+                        default_dic['xmax'] = 1e-10
+                        default_dic['ymin'] = -0.95
+                        default_dic['ymax'] = 1.05
+                        default_dic['yscale'] = None
+                    elif vn1vn2 == "Q_eff_nua_over_density_hu_0":
+                        v_n_x = 'Q_eff_nua_over_density'
+                        v_n_y = 'hu_0'
+                        default_dic['xmin'] = 1e-4
+                        default_dic['xmax'] = 1e-8
+                        default_dic['ymin'] = -0.95
+                        default_dic['ymax'] = 1.05
+                        default_dic['yscale'] = None
+                    elif vn1vn2 == "Q_eff_nua_over_density_theta":
+                        v_n_x = 'Q_eff_nua_over_density'
+                        v_n_y = 'theta'
+                        default_dic['xmin'] = 1e-4
+                        default_dic['xmax'] = 1e-8
+                        default_dic['ymin'] = 0
+                        default_dic['ymax'] = np.pi
+                        default_dic['yscale'] = None
+                    elif vn1vn2 == "Q_eff_nua_over_density_Ye":
+                        v_n_x = 'Q_eff_nua_over_density'
+                        v_n_y = 'Ye'
+                        default_dic['xmin'] = 1e-4
+                        default_dic['xmax'] = 1e-8
+                        default_dic['ymin'] = 0
+                        default_dic['ymax'] = 0.5
+                        default_dic['yscale'] = None
                     else:
-                        print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it), "plane", plane, "v_ns:", vn1vn2, ":", "skipping"],
-                                             ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-                except IOError:
-                    print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it), "plane", plane, "v_ns:", vn1vn2, ":", "missing file"],
-                                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-                except KeyboardInterrupt:
-                    exit(1)
-                except:
-                    print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it), "plane", plane, "v_ns:", vn1vn2, ":", "failed"],
-                                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-                default_dic = {}
+                        raise NameError("vn1vn2:{} is not recognized"
+                                        .format(vn1vn2))
+
+                    if not os.path.isdir(outfpath):
+                        os.mkdir(outfpath)
+                    fpath = outfpath + "{}_{}.png".format(plane, vn1vn2)
+                    try:
+                        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                            if os.path.isfile(fpath): os.remove(fpath)
+                            print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it),"plane", plane, "mask", mask, "v_ns:", vn1vn2, ":", "computing"],
+                                                 ["blue", "green", "blue", "green", "blue", "green", "blue", "green","blue", "green", "", "green"])
+
+                            table = d3histclass.get_res_corr(it, v_n_x, v_n_y)
+                            default_dic["data"] = table
+                            default_dic["v_n_x"] = v_n_x
+                            default_dic["v_n_y"] = v_n_y
+                            default_dic["xlabel"] = Labels.labels(v_n_x)
+                            default_dic["ylabel"] = Labels.labels(v_n_y)
+
+
+                            o_plot = PLOT_MANY_TASKS()
+                            o_plot.gen_set["figdir"] = outfpath
+                            o_plot.gen_set["type"] = "cartesian"
+                            o_plot.gen_set["figsize"] = (4.2, 3.8)  # <->, |] # to match hists with (8.5, 2.7)
+                            o_plot.gen_set["figname"] = "{}.png".format(vn1vn2)
+                            o_plot.gen_set["sharex"] = False
+                            o_plot.gen_set["sharey"] = False
+                            o_plot.gen_set["subplots_adjust_h"] = 0.0
+                            o_plot.gen_set["subplots_adjust_w"] = 0.2
+                            o_plot.set_plot_dics = []
+
+                            #-------------------------------
+                            # tr = (t - tmerg) * 1e3  # ms
+                            t = d3histclass.get_time_for_it(it, output="profiles", d1d2d3prof="prof")
+                            default_dic["it"] = it
+                            default_dic["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t*1e3))
+                            o_plot.set_plot_dics.append(default_dic)
+
+                            o_plot.main()
+                            o_plot.set_plot_dics = []
+                            o_plot.figure.clear()
+                            #-------------------------------
+                        else:
+                            print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it), "plane", plane,"mask", mask, "v_ns:", vn1vn2, ":", "skipping"],
+                                                 ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "blue"])
+                    except IOError:
+                        print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it), "plane", plane,"mask", mask, "v_ns:", vn1vn2, ":", "missing file"],
+                                             ["blue", "green", "blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+                    except KeyboardInterrupt:
+                        exit(1)
+                    except:
+                        print_colored_string(["task:", "plot slice corr", "it:", "{}".format(it), "plane", plane,"mask", mask, "v_ns:", vn1vn2, ":", "failed"],
+                                             ["blue", "green", "blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+                    default_dic = {}
 
 def plot_d3_hist(d3histclass, rewrite=False):
 
