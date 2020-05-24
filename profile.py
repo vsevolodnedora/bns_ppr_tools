@@ -48,7 +48,7 @@ __masks__ = ["disk", "remnant"]#, "rl" ,"rl_Ye04", "rl_theta60", "rl_hu0"]
 __d3slicesvns__ = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "entr", "eps", "lapse", "velx", "vely", "velz",
                     "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye'] + \
                     ["u_0", "density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
-                    "ang_mom", "ang_mom_flux", "theta", "r", "phi" ]
+                    "ang_mom", "ang_mom_flux", "theta", "r", "phi", "hu_0"]
 __d3corrs__ = ["rho_r", "rho_Ye", "r_Ye", "temp_Ye", "rho_temp", "rho_theta", "velz_theta", "rho_ang_mom", "velz_Ye",
                "rho_ang_mom_flux", "rho_dens_unb_bern", "ang_mom_flux_theta",
                "ang_mom_flux_dens_unb_bern", "inv_ang_mom_flux_dens_unb_bern",
@@ -4532,8 +4532,14 @@ def d3_int_data_to_vtk(d3intclass, outdir, rewrite=False):
     try:
         from evtk.hl import gridToVTK
     except ImportError:
-        raise ImportError("Error importing gridToVTK. Is evtk installed? \n"
-                          "If not, do: hg clone https://bitbucket.org/pauloh/pyevtk PyEVTK ")
+        print("Failed: 'from evtk.hl import gridToVTK' ")
+        try:
+            import pyevtk
+            from pyevtk.hl import gridToVTK
+        except:
+            print("Failed: 'import pyevtk' or 'from pyevtk.hl import gridToVTK' ")
+            raise ImportError("Error importing gridToVTK. Is evtk installed? \n"
+                              "If not, do: hg clone https://bitbucket.org/pauloh/pyevtk PyEVTK ")
 
     for it in glob_its:
         # assert that path exists
