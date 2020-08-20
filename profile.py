@@ -1593,6 +1593,10 @@ class COMPUTE_STORE(LOAD_PROFILE):
 
 class MASK_STORE(COMPUTE_STORE):
 
+    disk_mask_setup = {'rm_rl': True,  # REMOVE previouse ref. level from the next
+                       'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
+                       'lapse': [0.15, 1.]}  # remove apparent horizon
+
     def __init__(self, sim, symmetry=None):
         COMPUTE_STORE.__init__(self, sim, symmetry)
 
@@ -1600,9 +1604,9 @@ class MASK_STORE(COMPUTE_STORE):
         #                    'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
         #                    'lapse': [0.15, 1.]} # remove apparent horizon
 
-        self.disk_mask_setup = {'rm_rl': True,  # REMOVE previouse ref. level from the next
-                           'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
-                           'lapse': [0.15, 1.]} # remove apparent horizon
+        # self.disk_mask_setup = {'rm_rl': True,  # REMOVE previouse ref. level from the next
+        #                    'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
+        #                    'lapse': [0.15, 1.]} # remove apparent horizon
 
         self.remnant_mask_setup = {'rm_rl': True,
                                    'rho':[1.e13 / 6.176e+17, 1.e30],
@@ -4620,7 +4624,7 @@ def d3_int_data_to_vtk(d3intclass, outdir, rewrite=False):
 # where jf = np.sum(jf_rz * dr * dz, axis=[1,2])
 # where jf_rz = j_rz * lapse * vr
 
-def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
+def OLD_d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
     # getting cylindrical grid [same for any iteration)
     dphi_cyl = d3intclass.new_grid.get_int_grid("dphi_cyl")
     dr_cyl = d3intclass.new_grid.get_int_grid("dr_cyl")
@@ -4663,6 +4667,89 @@ def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
             else:
                 print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "skipping"],
                                      ["blue", "green", "blue", "green", "", "blue"])
+        # except KeyboardInterrupt:
+        #     exit(1)
+        # except IOError:
+        #     print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "IOError"],
+        #                          ["blue", "green", "blue", "green", "", "red"])
+        # except:
+        #     print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), ":", "failed"],
+        #                          ["blue", "green", "blue", "green", "", "red"])
+
+def d3_interpolate_mjenclosed(d3intclass, outdir, rewrite=False):
+    # getting cylindrical grid [same for any iteration)
+    dphi_cyl = d3intclass.new_grid.get_int_grid("dphi_cyl")
+    dr_cyl = d3intclass.new_grid.get_int_grid("dr_cyl")
+    dz_cyl = d3intclass.new_grid.get_int_grid("dz_cyl")
+    r_cyl = d3intclass.new_grid.get_int_grid("r_cyl")
+    #
+    for it in glob_its:
+        sys.stdout.flush()
+        _outdir = outdir + str(it) + '/'
+        if not os.path.isdir(_outdir):
+            os.mkdir(_outdir)
+        #
+        for mask in glob_masks:
+            __outdir = _outdir + mask + '/'
+            if not os.path.isdir(__outdir):
+                os.mkdir(__outdir)
+            #
+            fpath = __outdir + __d3intmjfname__
+            #
+            if True:
+                #
+                rho = d3intclass.get_int(it, "rho")     # [rho_NS, rho_ATM]
+                lapse = d3intclass.get_int(it, "lapse") # [lapse_BH, dummy1]
+                if mask == "disk":
+                    rho_lims = MASK_STORE.disk_mask_setup["rho"]
+                    lapse_lims = MASK_STORE.disk_mask_setup["lapse"]
+                    rho_mask = (rho > rho_lims[0]) & (rho < rho_lims[1])
+                    lapse_mask = lapse > lapse_lims[0] # > BH
+                elif mask == "remnant":
+                    rho_lims = MASK_STORE.disk_mask_setup["rho"]
+                    lapse_lims = MASK_STORE.disk_mask_setup["lapse"]
+                    rho_mask = rho > rho_lims[1]
+                    lapse_mask = lapse > lapse_lims[0] # > BH
+                else:
+                    raise NameError("No method for mask: {}".format(mask))
+                #
+                tot_mask = rho_mask & lapse_mask
+                #
+                if np.sum(tot_mask.astype(int)) ==0 :
+                    print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), "mask:", mask, ":", "Mask=0"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+
+                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                    if os.path.isfile(fpath): os.remove(fpath)
+                    print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), "mask:", mask, ":", "computing"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                    #
+                    dens_cyl = d3intclass.get_int(it, "density")
+                    ang_mom_cyl = d3intclass.get_int(it, "ang_mom")
+                    ang_mom_flux_cyl = d3intclass.get_int(it, "ang_mom_flux")
+                    #
+                    dens_cyl[~tot_mask] = 0.
+                    ang_mom_cyl[~tot_mask] = 0.
+                    ang_mom_flux_cyl[~tot_mask] = 0.
+                    #
+                    I_rc = 2 * np.sum(dens_cyl * r_cyl ** 2 * dz_cyl * dphi_cyl, axis=(1, 2))
+                    D_rc = 2 * np.sum(dens_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
+                    J_rc = 2 * np.sum(ang_mom_cyl * dz_cyl * dphi_cyl, axis=(1, 2)) # integrate over phi,z
+                    Jf_rc= 2 * np.sum(ang_mom_flux_cyl * dz_cyl * dphi_cyl, axis=(1, 2))
+                    #
+                    ofile = open(fpath, "w")
+                    ofile.write("# 1:rcyl 2:drcyl 3:M 4:J 5:Jf 6:I\n")
+                    for i in range(r_cyl.shape[0]):
+                        ofile.write("{} {} {} {} {} {}\n".format(r_cyl[i, 0, 0], dr_cyl[i, 0, 0],
+                                                                 D_rc[i], J_rc[i], Jf_rc[i], I_rc[i]))
+                    ofile.close()
+                    #
+                    d3intclass.delete_for_it(it=it, except_v_ns=[], rm_masks=True, rm_comp=True, rm_prof=False)
+                    sys.stdout.flush()
+                    #
+                else:
+                    print_colored_string(["task:", "MJ_encl", "it:", "{}".format(it), "mask:", mask, ":", "skipping"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
         # except KeyboardInterrupt:
         #     exit(1)
         # except IOError:

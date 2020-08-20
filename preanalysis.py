@@ -1531,6 +1531,21 @@ class INIT_DATA:
         assert os.path.isfile(fpath)
         lines = open(fpath).readlines()
         # data_dic = {}
+        grav_masses = []
+        for line in lines:
+            if line.__contains__("Gravitational mass :"):
+                strval = ''.join(line.split("Gravitational mass :")[-1])
+                val = float(strval.split()[-2])
+                grav_masses.append(val)
+        if len(grav_masses) != 2:
+            print("Error! len(gravmasses)!=2")
+            raise ValueError("Error! len(gravmasses)!=2")
+
+        # self.par_dic["Mg1"] = np.min(np.array(grav_masses))
+        # self.par_dic["Mg2"] = np.max(np.array(grav_masses))
+
+        # baryonic masses
+        bar_masses = [0, 0]
         for line in lines:
 
             # if not self.clean:
@@ -1538,16 +1553,16 @@ class INIT_DATA:
 
             if line.__contains__("Baryon mass required for star 1"):
                 try:
-                    self.par_dic["Mb1"] = float(line.split()[0])  # Msun
+                    bar_masses[0] = float(line.split()[0])  # Msun
                 except ValueError:
                     try:
-                        self.par_dic["Mb1"] = float(line.split()[0][:5])
+                        bar_masses[0] = float(line.split()[0][:5])
                     except ValueError:
                         try:
-                            self.par_dic["Mb1"] = float(line.split()[0][:4])
+                            bar_masses[0] = float(line.split()[0][:4])
                         except ValueError:
                             try:
-                                self.par_dic["Mb1"] = float(line.split()[0][:3])
+                                bar_masses[0] = float(line.split()[0][:3])
                             except:
                                 raise ValueError("failed to extract Mb2")
 
@@ -1555,16 +1570,16 @@ class INIT_DATA:
 
             if line.__contains__("Baryon mass required for star 2"):
                 try:
-                    self.par_dic["Mb2"] = float(line.split()[0])  # Msun
+                    bar_masses[1] = float(line.split()[0])  # Msun
                 except ValueError:
                     try:
-                        self.par_dic["Mb2"] = float(line.split()[0][:5])
+                        bar_masses[1] = float(line.split()[0][:5])
                     except ValueError:
                         try:
-                            self.par_dic["Mb2"] = float(line.split()[0][:4])
+                            bar_masses[1] = float(line.split()[0][:4])
                         except ValueError:
                             try:
-                                self.par_dic["Mb2"] = float(line.split()[0][:3])
+                                bar_masses[1] = float(line.split()[0][:3])
                             except:
                                 raise ValueError("failed to extract Mb2")
 
@@ -1584,12 +1599,16 @@ class INIT_DATA:
                 self.par_dic["JADM"] = float(line.split()[4])  # [GMsun^2/c]
 
         #
+        self.par_dic["Mb1"] = np.max(np.array(bar_masses))
+        self.par_dic["Mb2"] = np.min(np.array(bar_masses))
 
-        if float(self.par_dic["Mb1"]) < float(self.par_dic["Mb2"]):
-            _m1 = self.par_dic["Mb1"]
-            _m2 = self.par_dic["Mb2"]
-            self.par_dic["Mb1"] = _m2
-            self.par_dic["Mb2"] = _m1
+        # if float(self.par_dic["Mb1"]) < float(self.par_dic["Mb2"]):
+        #     _m1 = self.par_dic["Mb1"]
+        #     _m2 = self.par_dic["Mb2"]
+        #     self.par_dic["Mb1"] = _m2
+        #     self.par_dic["Mb2"] = _m1
+
+
 
         # print(data_dic)
         self.par_dic["Mb"] = float(self.par_dic["Mb1"]) + float(self.par_dic["Mb2"])
@@ -1620,15 +1639,15 @@ class INIT_DATA:
         kl = kl[:idx]
         lamb = lamb[:idx]
 
-        interp_grav_bary = interpolate.interp1d(m_bary, m_grav, kind='cubic')
-        interp_lamb_bary = interpolate.interp1d(m_bary, lamb, kind='cubic')
-        interp_comp_bary = interpolate.interp1d(m_bary, comp, kind='cubic')
-        interp_k_bary = interpolate.interp1d(m_bary, kl, kind='cubic')
-        interp_r_bary = interpolate.interp1d(m_bary, r, kind='cubic')
+        interp_grav_bary = interpolate.interp1d(m_bary, m_grav, kind='linear')
+        interp_lamb_bary = interpolate.interp1d(m_bary, lamb, kind='linear')
+        interp_comp_bary = interpolate.interp1d(m_bary, comp, kind='linear')
+        interp_k_bary = interpolate.interp1d(m_bary, kl, kind='linear')
+        interp_r_bary = interpolate.interp1d(m_bary, r, kind='linear')
 
         if self.par_dic["Mb1"] != '':
             self.par_dic["lam21"] = float(interp_lamb_bary(float(self.par_dic["Mb1"])))  # lam21
-            self.par_dic["Mg1"] = float(interp_grav_bary(float(self.par_dic["Mb1"])))
+            self.par_dic["Mg1"] = float(interp_grav_bary(float(self.par_dic["Mb1"]))) # -> from lorene
             self.par_dic["C1"] = float(interp_comp_bary(float(self.par_dic["Mb1"])))  # C1
             self.par_dic["k21"] = float(interp_k_bary(float(self.par_dic["Mb1"])))
             self.par_dic["R1"] = float(interp_r_bary(float(self.par_dic["Mb1"])))
@@ -1636,7 +1655,7 @@ class INIT_DATA:
 
         if self.par_dic["Mb2"] != '':
             self.par_dic["lam22"] = float(interp_lamb_bary(float(self.par_dic["Mb2"])))  # lam22
-            self.par_dic["Mg2"] = float(interp_grav_bary(float(self.par_dic["Mb2"])))
+            self.par_dic["Mg2"] = float(interp_grav_bary(float(self.par_dic["Mb2"]))) # -> from lorene
             self.par_dic["C2"] = float(interp_comp_bary(float(self.par_dic["Mb2"])))  # C2
             self.par_dic["k22"] = float(interp_k_bary(float(self.par_dic["Mb2"])))
             self.par_dic["R2"] = float(interp_r_bary(float(self.par_dic["Mb2"])))
