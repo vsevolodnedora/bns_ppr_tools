@@ -541,7 +541,7 @@ class LOAD_RESHAPE_SAVE_PARALLEL(LOAD_ITTIME):
                 maxtime = d1it.max()
             else:
                 maxtime = glob_maxtime
-            maxit = self.get_it_for_time(maxtime, "d1")
+            maxit = self.get_it_for_time(maxtime, "overall", "d1")
             Printcolor.print_colored_string(["Max. it set:", "{}".format(maxit), "out of", "{}".format(d1it[-1])],
                                             ["yellow", "green", "yellow", "green"])
         else:
