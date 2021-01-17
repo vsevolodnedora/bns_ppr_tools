@@ -58,9 +58,9 @@ from functools import partial
 
 
 
-from utils import *
+from uutils import *
 
-from preanalysis import LOAD_ITTIME
+from module_preanalysis import LOAD_ITTIME
 
 from plotting_methods import PLOT_MANY_TASKS
 
@@ -426,7 +426,7 @@ class COMPUTE_OUTFLOW_SURFACE(EXTRACT_OUTFLOW_SURFACE):
             # flux = np.sum(data * dA)
             # int_flux += flux*dt
             total_flux[:] += data * dt
-        print("Total ejecta mass = {} Msun".format(np.sum(total_flux*dA)))
+        print("Total module_ejecta mass = {} Msun".format(np.sum(total_flux*dA)))
 
 
         return(total_flux)
@@ -1079,7 +1079,7 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
                 raise ValueError("tmax:{} for the mask is < t[0]:{}".format(tmax * Constants.time_constant * 1e-3,
                                                                              t[0] * Constants.time_constant * 1e-3))
             fluxdens = self.get_full_arr(det, "fluxdens")
-            i_mask = t < t[UTILS.find_nearest_index(t, tmax)]
+            i_mask = t < t[Tools.find_nearest_index(t, tmax)]
             newmask = np.zeros(fluxdens.shape)
             for i in range(len(newmask[:, 0, 0])):
                 newmask[i, :, :].fill(i_mask[i])
@@ -1172,7 +1172,7 @@ class EJECTA(ADD_MASK):
 
     def check_ej_v_n(self, v_n):
         if not v_n in self.list_ejecta_v_ns:
-            raise NameError("ejecta v_n: {} is not in the list of ejecta v_ns {}"
+            raise NameError("module_ejecta v_n: {} is not in the list of module_ejecta v_ns {}"
                             .format(v_n, self.list_ejecta_v_ns))
 
     def i_ejv_n(self, v_n):
@@ -1546,7 +1546,7 @@ class EJECTA(ADD_MASK):
             arr = self.get_mass_averaged(det, mask, v_n)
 
         else:
-            raise NameError("no method found for computing ejecta arr for det:{} mask:{} v_n:{}"
+            raise NameError("no method found for computing module_ejecta arr for det:{} mask:{} v_n:{}"
                             .format(det, mask, v_n))
 
 
@@ -1562,7 +1562,7 @@ class EJECTA(ADD_MASK):
 
         data = self.matrix_ejecta[self.i_det(det)][self.i_mask(mask)][self.i_ejv_n(v_n)]
         if len(data) == 0:
-            raise ValueError("Failed to compute ejecta array for "
+            raise ValueError("Failed to compute module_ejecta array for "
                              "det:{} mask:{} v_n:{}"
                              .format(det, mask, v_n))
 
@@ -2043,7 +2043,7 @@ class EJECTA_PARS(EJECTA_NORMED_NUCLEO):
             value = np.float(theta_rms)
 
         else:
-            raise NameError("ejecta par v_n: {} (det:{}, mask:{}) does not have a"
+            raise NameError("module_ejecta par v_n: {} (det:{}, mask:{}) does not have a"
                             " method for computing".format(v_n, det, mask))
         return value
 
@@ -2058,7 +2058,7 @@ class EJECTA_PARS(EJECTA_NORMED_NUCLEO):
 
         data = self.matrix_ejecta_pars[self.i_det(det)][self.i_mask(mask)][self.i_ej_par(v_n)]
         if data == 123456789.1:
-            raise ValueError("failed to compute ejecta par v_n:{} det:{} mask:{}"
+            raise ValueError("failed to compute module_ejecta par v_n:{} det:{} mask:{}"
                              .format(v_n, det, mask))
 
     def get_ejecta_par(self, det, mask, v_n):
@@ -2562,12 +2562,12 @@ def outflowed_ejectatau(o_outflow, detectors, masks, rewrite=False):
     for det in detectors:
         for mask in masks:
             outdir = Paths.ppr_sims+o_outflow.sim+'/' + "outflow_{}/".format(det) + mask + '/'
-            fpath = outdir + "ejecta.h5"
+            fpath = outdir + "module_ejecta.h5"
             try:
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
                     Printcolor.print_colored_string(
-                        ["task:", "ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
+                        ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
                         ["blue", "green", "blue", "green", "blue", "green",  "", "green"])
                     # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
@@ -2588,18 +2588,18 @@ def outflowed_ejectatau(o_outflow, detectors, masks, rewrite=False):
                     # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
                 else:
                     Printcolor.print_colored_string(
-                        ["task:", "ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
+                        ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
                         ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
             except KeyboardInterrupt:
                 Printcolor.red("Forced termination... done")
                 exit(1)
             except ValueError:
                 Printcolor.print_colored_string(
-                    ["task:", "ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
+                    ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
             except:
                 Printcolor.print_colored_string(
-                    ["task:", "ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_yields(o_outflow, detectors, masks, rewrite=False):
@@ -2612,7 +2612,7 @@ def outflowed_yields(o_outflow, detectors, masks, rewrite=False):
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
                     Printcolor.print_colored_string(
-                        ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
+                        ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
                         ["blue", "green", "blue", "green", "blue", "green",  "", "green"])
                     # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
@@ -2674,18 +2674,18 @@ def outflowed_yields(o_outflow, detectors, masks, rewrite=False):
                     # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
                 else:
                     Printcolor.print_colored_string(
-                        ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
+                        ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
                         ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
             except KeyboardInterrupt:
                 Printcolor.red("Forced termination... done")
                 exit(1)
             except ValueError:
                 Printcolor.print_colored_string(
-                    ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
             except:
                 Printcolor.print_colored_string(
-                    ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_mkn_profile(o_outflow, detectors, masks, rewrite=False):
@@ -2698,7 +2698,7 @@ def outflowed_mkn_profile(o_outflow, detectors, masks, rewrite=False):
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
                     Printcolor.print_colored_string(
-                        ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
+                        ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
                         ["blue", "green", "blue", "green", "blue", "green",  "", "green"])
                     # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
@@ -2791,18 +2791,18 @@ def outflowed_mkn_profile(o_outflow, detectors, masks, rewrite=False):
                     # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
                 else:
                     Printcolor.print_colored_string(
-                        ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
+                        ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
                         ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
             except KeyboardInterrupt:
                 Printcolor.red("Forced termination... done")
                 exit(1)
             except ValueError:
                 Printcolor.print_colored_string(
-                    ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
             except:
                 Printcolor.print_colored_string(
-                    ["task:", "ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_summary(o_outflow, detectors, masks, rewrite=False):
@@ -2877,13 +2877,13 @@ def outflowed_summary(o_outflow, detectors, masks, rewrite=False):
                         Printcolor.red("Missing: {}".format(fpath))
                     # writing the result
                     with open(outfpath, 'w') as f1:
-                        f1.write("# ejecta properties for det:{} mask:{} \n".format(det, mask))
+                        f1.write("# module_ejecta properties for det:{} mask:{} \n".format(det, mask))
                         f1.write("m_ej      {:.5f} [M_sun]  total ejected mass \n".format(total_ej_mass))
                         f1.write("<Y_e>     {:.3f}            mass-averaged electron fraction \n".format(ye_ave))
                         f1.write("<s>       {:.3f} [k_b]      mass-averaged entropy \n".format(s_ave))
                         f1.write("<v_inf>   {:.3f} [c]        mass-averaged terminal velocity \n".format(vel_inf_ave))
                         f1.write("<E_kin>   {:.3f} [c^2]      mass-averaged terminal kinetical energy \n".format(e_kin_ave))
-                        f1.write("theta_rms {:.2f} [degrees]  root mean squared angle of the ejecta (2 planes) \n".format(2. * theta_rms))
+                        f1.write("theta_rms {:.2f} [degrees]  root mean squared angle of the module_ejecta (2 planes) \n".format(2. * theta_rms))
                         f1.write("time_end  {:.3f} [s]        end data time \n".format(time_end))
                 else:
                     Printcolor.print_colored_string(

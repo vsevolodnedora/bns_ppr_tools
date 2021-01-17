@@ -29,7 +29,7 @@ call python outflowed.py -s $sim -i $2 -o $3 -t reshape -d 0 -p 8 --overwrite ye
 # do outflwoed analysis for detector -d 0  and for mask -m  geo (geodesic)
 call python outflowed.py -s $sim -i $2 -o $3 -t all -m geo bern_geoend geo_entropy_above_10 geo_entropy_below_10 theta60_geoend Y_e04_geoend -d 0 --overwrite yes || exit 1
 
-# do profile analusis. Warning! If there are many profiles. i will take long
+# do module_profile analusis. Warning! If there are many profiles. i will take long
 call python profile.py -s $sim -i $2 -o $3 -t all --it all --overwrite no --usemaxtime auto --plane all|| exit 1
 
 #call touch postrocessing.done

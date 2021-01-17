@@ -24,14 +24,14 @@ class Paths:
     # lorene =    '/data01/numrel/vsevolod.nedora/Data/Lorene/'
     rns =       '/data01/numrel/vsevolod.nedora/Data/RNS/'
     TOVs =      '/data01/numrel/vsevolod.nedora/Data/TOVs/'
-    gw170817 =   '/data1/numrel/WhiskyTHC/Backup/2018/GW170817/' # "/data01/numrel/vsevolod.nedora/tmp/" # '/data1/numrel/WhiskyTHC/Backup/2018/SLy4_M130130_SR_physics/'
+    gw170817 =  '/data1/numrel/WhiskyTHC/Backup/2018/GW170817/' # "/data01/numrel/vsevolod.nedora/tmp/" # '/data1/numrel/WhiskyTHC/Backup/2018/SLy4_M130130_SR_physics/'
     skynet =    '/data01/numrel/vsevolod.nedora/Data/skynet/'
     output =    '/data01/numrel/vsevolod.nedora/output/'
     plots =     '/data01/numrel/vsevolod.nedora/figs/'
     mkn =       '/data01/numrel/vsevolod.nedora/macrokilonova_bayes_new/source/'
     home =      '/data01/numrel/vsevolod.nedora/bns_ppr_tools/'
     SLy4_hydo=  '/data01/numrel/vsevolod.nedora/Data/EOS/SLy4/SLy4_hydro_14-Dec-2017.h5'
-    # skynet =   '/data01/numrel/vsevolod.nedora/scripts_server/ejecta/skynet/'
+    # skynet =   '/data01/numrel/vsevolod.nedora/scripts_server/module_ejecta/skynet/'
 
     @staticmethod
     def get_eos_fname_from_curr_dir(sim):
@@ -54,18 +54,20 @@ class Paths:
         return fname
 
     @staticmethod
-    def get_list_iterations_from_res_3d(sim, outdir="profiles/"):
+    def get_list_iterations_from_res_3d(prodfir):
         """
         Checks the /res_3d/ for 12345 folders, (iterations) retunrs their sorted list
         :param sim:
         :return:
         """
 
-        if not os.path.isdir(Paths.ppr_sims + sim + '/' + outdir):
-            raise IOError("no {} directory found".format(Paths.ppr_sims + sim + '/' + outdir))
-        itdirs = os.listdir(Paths.ppr_sims + sim + '/' + outdir)
+        if not os.path.isdir(prodfir):
+            raise IOError("no {} directory found".format(prodfir))
+
+        itdirs = os.listdir(prodfir)
+
         if len(itdirs) == 0:
-            raise NameError("No iteration-folders found in the {}".format(Paths.ppr_sims + sim + '/' + outdir))
+            raise NameError("No iteration-folders found in the {}".format(prodfir))
 
         # this is a f*cking masterpiece of programming)))
         list_iterations = np.array(
@@ -116,7 +118,7 @@ class Files:
     dens_unb_bern = 'dens_unbnd_bernoulli.norm1.asc'
     dens        = 'dens.norm1.asc'
 
-    # ejecta
+    # module_ejecta
     total_flux  = 'total_flux.dat'
     hist_theta  = 'hist_theta.dat'
     hist_ye     = 'hist_ye.dat'
@@ -131,7 +133,7 @@ class Files:
     l2_m2       = 'waveform_l2_m2.dat'
     tmerg       = 'tmerger.dat'
 
-    # ejecta profile:
+    # module_ejecta module_profile:
     ejecta_profile="ejecta_profile.dat"
     ejecta_profile_bern= "ejecta_profile_bern.dat"
 
@@ -165,7 +167,7 @@ class Lists:
                   "LS220_M14001330_M0_HR", # not in sim2
                   "LS220_M14351298_M0_HR", # in sim2
                   "SLy4_M13641364_M0_HR", # not in sim2
-                  "SLy4_M13641364_M0_LR", # in sim2 BUT problem with rocketing dynimical ejecta
+                  "SLy4_M13641364_M0_LR", # in sim2 BUT problem with rocketing dynimical module_ejecta
                   ]
 
     bern_pass=[
@@ -289,7 +291,7 @@ class Lists:
         "corr_ye_entropy.h5",
         "corr_ye_entropy.png",
         "corr_ye_theta.h5",
-        "ejecta.h5",
+        "module_ejecta.h5",
         "ejecta_profile_bern.dat", #
         "ejecta_profile.dat",
         "hist_entropy.dat",
@@ -836,7 +838,7 @@ class FORMULAS:
         return tau_b # ms
 
 
-class UTILS:
+class Tools:
 
     @staticmethod
     def combine(x, y, xy, corner_val=None):

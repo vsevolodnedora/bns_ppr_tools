@@ -1,5 +1,27 @@
 #!/usr/bin/env python
 
+"""
+    Converts the 3D simulation data from carpet output (for every Node, that for every
+    variable name creates a list of .h5 files) into a single profile.h5 for a given iteration using `scidata`.
+
+    options:
+        -i : str : path to the simulation dir that contains `output-xxxx` directories with /data/files structure
+        -o : str : path to where to dump the output
+        --eos : str : file of the Hydro eos to compute additiona quantity, .e.g. enthalpy
+        -t : str : either `prof` or `nuprof` -- what type of data to collect, hydro and GR data or neutrino M0 data.
+        -m : str : if `times` then the code expect to bi given for what timesteps to extract profiles,
+                   if `iterations` then code expects a list of iterations for which to extract profiles
+        -it : list of ints : is expected if chosen `-m iterations`. Proivde the list of iteration
+        -time : list of floats : is expected if chosen `-m times`. Provide list of timesteps
+
+    NOTE:
+        In order to know what timestep corresponds to what output in the simulation, i.e., what data to
+        process for user required iteration or a timestep, the code loads additional files where
+        there is mapping between iteration and timesteps.
+        This file is `"dens.norm1.asc"` that is usually present in simulation.
+
+"""
+
 from __future__ import division
 from glob import glob
 import numpy as np
@@ -18,7 +40,7 @@ import os
 import click
 import time
 
-from utils import Paths
+from uutils import Paths
 
 
 class Names(object):
@@ -75,7 +97,7 @@ class Names(object):
         'press':   "pressure",
         'entropy': "entropy"
     }
-    # naming conventions, -- change for the output profile
+    # naming conventions, -- change for the output module_profile
     out = {
         'alp':          'lapse',
         'vel[0]':       'velx',
@@ -254,7 +276,7 @@ class ExtractProfile:
             print("Processing EOS data...")
             self.default_data = self.inter_save_eos_vars()
 
-            # load all variables iteration_v_n.h5 and combine them into the profile.h5
+            # load all variables iteration_v_n.h5 and combine them into the module_profile.h5
             print("Saving the result as a single file")
             self.load_combine_save()
 
@@ -455,7 +477,7 @@ class ExtractProfile:
 
         all_in_names = self.merge_two_dicts(Names.dattar, Names.eos)
 
-        print("\t Combining data into the profile {}.h5...".format(self.it)),
+        print("\t Combining data into the module_profile {}.h5...".format(self.it)),
         start_t = time.time()
 
         dfile = h5py.File(self.outpath + str(self.it) + ".h5", "w")
@@ -692,13 +714,13 @@ def set_it_output_map(inpath, outpath, it_time_fname = "dens.norm1.asc"):
 
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", dest="input", default='./', required=False, help="path/to/input/data/")
     parser.add_argument("-o", "--output", dest="output", default='same', required=False, help="path/to/output/dir")
     parser.add_argument("-t", "--tasklist", nargs='+', dest="tasklist", default=[], required=True, help="tasklist to perform")
     parser.add_argument("-m", "--mode", dest="mode", default="times", required=True, help="times or iterations")
-    parser.add_argument("--it", dest="iterations", nargs='+', default=[], required=False,
-                        help="iterations to postprocess")
+    parser.add_argument("--it", dest="iterations", nargs='+', default=[], required=False, help="iterations to postprocess")
     parser.add_argument("--time", dest="times", nargs='+', default=[], required=False, help="times to postprocess [ms]")
     parser.add_argument("--eos", dest="eos", required=False, default="auto", help="Hydro EOS file to use")
     args = parser.parse_args()

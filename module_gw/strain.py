@@ -1,9 +1,13 @@
-#!/usr/bin/env python
-#!/usr/bin/python
+"""
+
+"""
+
 from __future__ import division
 from sys import path
+import numpy as np
 path.append('modules/')
 from math import pi
+import os
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -14,12 +18,10 @@ from scidata.utils import diff, fixed_freq_int_1, fixed_freq_int_2, integrate
 from scidata.windows import exponential as window
 from scipy.signal import detrend
 
-from utils import *
+from uutils import Printcolor, Constants
 
-# relies on collated data (time limited or not)
-__gw__ = {"tasklist":['strain', "tmergtcoll"]}
+# from uutils import
 
-# adopted from David's Radice strain.py script
 class STRAIN:
     def __init__(self, indir, outdir):
 
@@ -39,6 +41,7 @@ class STRAIN:
     def load_data(self):
 
         dset = multipole.dataset(basedir=self.indata_path, ignore_negative_m=True)
+
         Psi4 = {}
         dic_t = {}
         list_t = []
@@ -305,7 +308,8 @@ class STRAIN:
                                                     J_GW_dot_all[i], J_GW_all[i]))
         outfile.close()
 
-def tmerg_tcoll(dens_drop=5., fraction=0.01):
+
+def tmerg_tcoll(dens_drop=5., fraction=0.01, indir=None, outdir=None):
     """
 
     :param sim:
@@ -319,8 +323,8 @@ def tmerg_tcoll(dens_drop=5., fraction=0.01):
                                      "{}".format(fraction), "of the maximum"],
                                     ["blue", "green", "blue", "green", "blue", "green", "blue"])
 
-    c_dir = glob_indir
-    w_dir = glob_outdir
+    c_dir = indir
+    w_dir = outdir
 
     # simdir = Paths.gw170817 + sim + '/'
 
@@ -497,77 +501,3 @@ def tmerg_tcoll(dens_drop=5., fraction=0.01):
 
     Printcolor.yellow("Please note, that {} and {} might be inacurate. Check the plot."
                       .format(outfile_tmerg, outfile_tcoll))
-
-if __name__ == '__main__':
-    parser = ArgumentParser(description="postprocessing pipeline")
-    parser.add_argument("-s", dest="sim", required=False, default='', help="task to perform")
-    parser.add_argument("-t", dest="tasklist", required=False, nargs='+', default=[], help="tasks to perform")
-    #
-    parser.add_argument("-o", dest="outdir", required=False, default=Paths.ppr_sims, help="path for output dir")
-    parser.add_argument("-i", dest="simdir", required=False, default=Paths.gw170817, help="path to collated data for sim")
-    parser.add_argument("--overwrite", dest="overwrite", required=False, default="no", help="overwrite if exists")
-
-    #
-    args = parser.parse_args()
-    #
-    glob_tasklist = args.tasklist
-    glob_sim = args.sim
-    glob_simdir = args.simdir
-    glob_outdir = args.outdir
-    glob_overwrite = args.overwrite
-    simdir = Paths.gw170817 + glob_sim + '/'
-    resdir = Paths.ppr_sims + glob_sim + '/'
-    #
-    if glob_overwrite == "no":  glob_overwrite = False
-    elif glob_overwrite == "yes": glob_overwrite = True
-    #
-    if glob_sim != '' and glob_simdir == Paths.gw170817:
-        assert os.path.isdir(Paths.ppr_sims)
-        if not os.path.isdir(Paths.ppr_sims+glob_sim+'/collated/'):
-            raise IOError("Dir not found. {} \n Run preanalysis.py with -t collate "
-                          .format(Paths.ppr_sims+glob_sim+'/collated/'))
-        glob_indir = Paths.ppr_sims+glob_sim+'/collated/'
-    elif glob_sim == '' and glob_simdir != Paths.gw170817:
-        if not os.path.isdir(glob_simdir): raise IOError("simdir does not exist: {}".format(glob_simdir))
-        assert os.path.isdir(glob_simdir)
-        glob_indir = glob_simdir
-    else:
-        raise IOError("Please either provide -s option for simulation, assuming the collated data would be in "
-                      "{} or provide -i path to inside of the collated data for your simulation. "
-                      .format(Paths.ppr_sims+'this_simulation/collated/'))
-    #
-    if glob_outdir == Paths.ppr_sims:
-        assert glob_sim != ''
-        glob_outdir = Paths.ppr_sims+glob_sim+'/waveforms/'
-        if not os.path.isdir(glob_outdir):
-            os.mkdir(glob_outdir)
-    else:
-        # assert glob_sim != ''
-        glob_outdir = glob_outdir
-        if not os.path.isdir(glob_outdir):
-            os.mkdir(glob_outdir)
-
-    assert os.path.isdir(glob_outdir)
-    #
-    if len(glob_tasklist) == 1 and "all" in glob_tasklist:
-        glob_tasklist = __gw__["tasklist"]
-    elif len(glob_tasklist) == 1 and not "all" in glob_tasklist:
-        for task in glob_tasklist:
-            if not task in __gw__["tasklist"]:
-                raise NameError("task: {} is not recognized. Available:{}"
-                                .format(task, __gw__["tasklist"]))
-    elif len(glob_tasklist) > 1 and not "all" in glob_tasklist:
-        pass
-    else:
-        raise IOError("Please provide task to perform in -t option. ")
-    #
-    print(glob_indir)
-    for task in glob_tasklist:
-        print(task)
-        if task == "strain":
-            strain = STRAIN(glob_indir, glob_outdir)
-            strain.main()
-        if task == "tmergtcoll":
-            tmerg_tcoll()
-
-

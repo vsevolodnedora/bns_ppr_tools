@@ -1,7 +1,7 @@
 from __future__ import division
 
-from itertools import ifilterfalse
-from sys import path
+# from itertools import ifilterfalse
+# from sys import path
 # path.append('modules/')
 # import matplotlib.pyplot as plt
 # plt.rc('text', usetex=True)
@@ -16,10 +16,10 @@ import os
 import re
 from scipy import interpolate
 from argparse import ArgumentParser
-from utils import Paths, Printcolor, Lists, Constants, UTILS
+from uutils import Paths, Printcolor, Lists, Constants, Tools
 
 
-""" ==============================================| SETTINGS |======================================================="""
+# """ ==============================================| SETTINGS |======================================================="""
 
 __preanalysis__ = {
     "name": "preanalysis",
@@ -27,7 +27,7 @@ __preanalysis__ = {
     "files": ["ittime.h5", "ittime.txt", "init_data.csv", "parfile.par"]
 }
 
-""" ================================================================================================================="""
+# """ ================================================================================================================="""
 
 # produce ititme.h5
 class SIM_STATUS:
@@ -509,18 +509,18 @@ class LOAD_ITTIME:
         #
         if time__ in alltimes: return time__
         #
-        return alltimes[UTILS.find_nearest_index(alltimes, time__)]
+        return alltimes[Tools.find_nearest_index(alltimes, time__)]
 
     def get_it_for_time(self, time__, output="overall", d1d2d3='d1'):
 
         _, allit, alltime = self.get_ittime(output=output, d1d2d3prof=d1d2d3)
         #
         if time__ in alltime:
-            return int(allit[UTILS.find_nearest_index(alltime, time__)])
+            return int(allit[Tools.find_nearest_index(alltime, time__)])
         #
         time_ = self.get_nearest_time(time__,output=output, d1d2d3=d1d2d3)
         if not np.isnan(time_):
-            return int(allit[UTILS.find_nearest_index(alltime, time_)])
+            return int(allit[Tools.find_nearest_index(alltime, time_)])
         else:
             return np.nan
 
@@ -543,7 +543,7 @@ class LOAD_ITTIME:
             if nan_if_out_of_bound: return np.nan
         #
         if it in allit:
-            return alltime[UTILS.find_nearest_index(allit, it)]
+            return alltime[Tools.find_nearest_index(allit, it)]
         #
         f = interpolate.interp1d(allit, alltime, kind="linear", fill_value="extrapolate")
         t = f(it)
@@ -1004,7 +1004,7 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
             trange = np.arange(start=start, stop=stop, step=tstep)
             print('['),
             for t in trange:
-                tnear = tend[UTILS.find_nearest_index(tend, t)]
+                tnear = tend[Tools.find_nearest_index(tend, t)]
                 if abs(tnear - t) < precision:  # (tnear - t) >= 0
                     output = dic_outend["%.3f" % tnear]
                     numbers = []
@@ -1053,7 +1053,7 @@ class PRINT_SIM_STATUS(LOAD_ITTIME):
             Printcolor.blue("\tTime {} [{}ms]".format(_name_, tstep), comma=True)
             print('['),
             for t in trange:
-                tnear = td[UTILS.find_nearest_index(td, t)]
+                tnear = td[Tools.find_nearest_index(td, t)]
                 if abs(tnear - t) < precision:  # (tnear - t) >= 0
                     if not np.isnan(self.maxtime) and tnear > self.maxtime*1.e3: Printcolor.yellow('x', comma=True)
                     else: Printcolor.green('.', comma=True)
@@ -1834,7 +1834,7 @@ class COLLATE_DATA(LOAD_ITTIME):
                     ["blue", "green", "blue", "green", "", "red"])
 
 
-""" ================================================================================================================="""
+# """ ================================================================================================================="""
 
 # to be deleted
 
@@ -2765,7 +2765,7 @@ class LOAD_ITTIME_OLD:
         if it < allit[0] or it > allit[-1]:
             print("it:{} is below min:{} or above max:{} in d1d2d3:{} [{}] Using polynomial fit"
                              .format(it, allit[0], allit[-1], d1d2d3prof, self.sim))
-            _, t = UTILS.fit_polynomial(allit, alltimes, order=1, depth=1, new_x=np.array([it]), print_formula=False)
+            _, t = Tools.fit_polynomial(allit, alltimes, order=1, depth=1, new_x=np.array([it]), print_formula=False)
             return float(t)
 
         if not it in allit:
@@ -3269,7 +3269,7 @@ class PRINT_SIM_STATUS_OLD(LOAD_ITTIME):
             Printcolor.blue("\tTime {} [{}ms]".format(_name_, tstep), comma=True)
             print('['),
             for t in trange:
-                tnear = td[UTILS.find_nearest_index(td, t)]
+                tnear = td[Tools.find_nearest_index(td, t)]
                 if abs(tnear - t) < precision:  # (tnear - t) >= 0
                     Printcolor.green('.', comma=True)
                     # print("%.2f"%tnear, t)
