@@ -40,8 +40,8 @@ import os
 import click
 import time
 
-from uutils import Paths
-
+# from uutils import Paths
+import paths as Paths
 
 class Names(object):
 

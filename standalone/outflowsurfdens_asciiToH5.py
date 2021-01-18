@@ -396,6 +396,7 @@ def do_reshape(
     glob_outdir,
     glob_indir,
     glob_eos,
+    glob_overwrite
 ):
 
     assert len(glob_detectors) > 0
@@ -512,4 +513,5 @@ if __name__ == '__main__':
             glob_outdir,
             glob_indir,
             glob_eos,
+            glob_overwrite
         )

@@ -16,7 +16,9 @@ from glob import glob
 
 from plotting.plotting_methods import PLOT_MANY_TASKS
 
-from uutils import Paths, Printcolor, REFLEVEL_LIMITS
+from uutils import Printcolor, REFLEVEL_LIMITS
+
+import paths as Paths
 
 from module_slices.slices_methods import COMPUTE_STORE
 
@@ -520,7 +522,7 @@ def do_tasks(glob_v_ns):
             )
 
         if task == "dm":
-            outdir = Paths.ppr_sims + glob_sim + '/' + __outdirname__ + '/'
+            outdir = Paths.default_ppr_dir + glob_sim + '/' + __outdirname__ + '/'
 
             compute_density_modes(o_slice, glob_reflevels, outdir, rewrite=glob_overwrite)
 
@@ -557,14 +559,14 @@ if __name__ == '__main__':
     glob_profxyxz_path = args.path_to_profs#Paths.ppr_sims+glob_sim+'/profiles/'
     #
     if glob_indir is None:
-        glob_indir = Paths.gw170817 + glob_sim + '/'
+        glob_indir = Paths.default_data_dir + glob_sim + '/'
         if not os.path.isdir(glob_indir):
             raise IOError("Default path to simulation data is not valid: {}".format(glob_indir))
     if not os.path.isdir(glob_indir):
         raise IOError("Path to simulation data is not valid: {}".format(glob_indir))
 
     if glob_outdir is None:
-        glob_outdir = Paths.ppr_sims + glob_sim + '/'
+        glob_outdir = Paths.default_ppr_dir + glob_sim + '/'
         if not os.path.isdir(glob_indir):
             raise IOError("Default path to postprocessed data is not valid: {}".format(glob_outdir))
     if not os.path.isdir(glob_indir):

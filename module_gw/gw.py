@@ -6,7 +6,8 @@ from argparse import ArgumentParser
 import numpy as np
 import os
 
-from uutils import Paths
+# from uutils import Paths
+import paths as Paths
 
 from strain import STRAIN, tmerg_tcoll
 
@@ -45,7 +46,7 @@ if __name__ == '__main__':
     elif glob_overwrite == "yes": glob_overwrite = True
     #
     if glob_indir is None:
-        glob_indir = Paths.ppr_sims + glob_sim + '/'
+        glob_indir = Paths.default_ppr_dir + glob_sim + '/'
         if not os.path.isdir(glob_indir):
             raise IOError("Input directory not found {}".format(glob_indir))
         if not os.path.isdir(glob_indir+'collated/'):

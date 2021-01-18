@@ -18,7 +18,9 @@ from argparse import ArgumentParser
 import time
 from scidata.carpet.interp import Interpolator
 
-from uutils import Printcolor, Paths
+from uutils import Printcolor
+
+import paths as Paths
 
 from module_preanalysis.it_time import LOAD_ITTIME
 
@@ -2034,7 +2036,7 @@ def plot_mass(d3class, masks, resdir, rewrite=False):
                 print_colored_string(["task:", "plotmass", ":", "saving/plotting"],
                                      ["blue", "green", "", "green"])
                 #
-                list_iterations = Paths.get_list_iterations_from_res_3d(resdir)
+                list_iterations = get_list_iterations_from_res_3d(resdir)
                 #
                 it_arr =   []
                 time_arr = []
@@ -2420,13 +2422,13 @@ if __name__ == '__main__':
 
     # assert that paths to data and to output are valid
     if glob_indir is None:
-        glob_indir = Paths.gw170817 + glob_sim + '/' + "profiles/3d/"
+        glob_indir = Paths.default_data_dir + glob_sim + '/' + "profiles/3d/"
         if not os.path.isdir(glob_indir):
             raise IOError("Default path for profiles is not valid: {}".format(glob_indir))
     if not os.path.isdir(glob_indir):
         raise IOError("Path for profiles is not valid: {}".format(glob_indir))
     if glob_outdir is None:
-        glob_outdir = Paths.ppr_sims + glob_sim + '/'
+        glob_outdir = Paths.default_ppr_dir + glob_sim + '/'
         if not os.path.isdir(glob_outdir):
             raise IOError("Default output path is not valid: {}".format(glob_outdir))
     if not os.path.isdir(glob_outdir):

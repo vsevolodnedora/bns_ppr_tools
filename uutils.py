@@ -16,93 +16,93 @@ import re
 import os
 
 
-class Paths:
-
-    scripts  =  '/data01/numrel/vsevolod.nedora/scripts_server/'
-    ppr_sims =  '/data01/numrel/vsevolod.nedora/postprocessed4/'
-    lorene =    '/data/numrel/Lorene/Lorene_TABEOS/GW170817/'
-    # lorene =    '/data01/numrel/vsevolod.nedora/Data/Lorene/'
-    rns =       '/data01/numrel/vsevolod.nedora/Data/RNS/'
-    TOVs =      '/data01/numrel/vsevolod.nedora/Data/TOVs/'
-    gw170817 =  '/data1/numrel/WhiskyTHC/Backup/2018/GW170817/' # "/data01/numrel/vsevolod.nedora/tmp/" # '/data1/numrel/WhiskyTHC/Backup/2018/SLy4_M130130_SR_physics/'
-    skynet =    '/data01/numrel/vsevolod.nedora/Data/skynet/'
-    output =    '/data01/numrel/vsevolod.nedora/output/'
-    plots =     '/data01/numrel/vsevolod.nedora/figs/'
-    mkn =       '/data01/numrel/vsevolod.nedora/macrokilonova_bayes_new/source/'
-    home =      '/data01/numrel/vsevolod.nedora/bns_ppr_tools/'
-    SLy4_hydo=  '/data01/numrel/vsevolod.nedora/Data/EOS/SLy4/SLy4_hydro_14-Dec-2017.h5'
-    # skynet =   '/data01/numrel/vsevolod.nedora/scripts_server/module_ejecta/skynet/'
-
-    @staticmethod
-    def get_eos_fname_from_curr_dir(sim):
-
-        if sim.__contains__("SLy4"):
-            fname = "/data01/numrel/vsevolod.nedora/Data/EOS/SLy4/SLy4_hydro_14-Dec-2017.h5"
-        elif sim.__contains__("LS220"):
-            fname = "/data01/numrel/vsevolod.nedora/Data/EOS/LS220/LS_220_hydro_27-Sep-2014.h5"
-        elif sim.__contains__("DD2"):
-            fname = "/data01/numrel/vsevolod.nedora/Data/EOS/DD2/DD2_DD2_hydro_30-Mar-2015.h5"
-        elif sim.__contains__("SFHo"):
-            fname = "/data01/numrel/vsevolod.nedora/Data/EOS/SFHo/SFHo_hydro_29-Jun-2015.h5"
-        elif sim.__contains__("BLh"):
-            fname = "/data01/numrel/vsevolod.nedora/Data/EOS/SFHo+BL/BLH_new_hydro_10-Jun-2019.h5"
-        elif sim.__contains__("BHBlp"):
-            fname = "/data01/numrel/vsevolod.nedora/Data/EOS/BHB/BHB_lp_hydro_10-May-2016.h5"
-        else:
-            raise NameError("Current dir does not contain a hint to what EOS to use: \n{}"
-                            .format(sim))
-        return fname
-
-    @staticmethod
-    def get_list_iterations_from_res_3d(prodfir):
-        """
-        Checks the /res_3d/ for 12345 folders, (iterations) retunrs their sorted list
-        :param sim:
-        :return:
-        """
-
-        if not os.path.isdir(prodfir):
-            raise IOError("no {} directory found".format(prodfir))
-
-        itdirs = os.listdir(prodfir)
-
-        if len(itdirs) == 0:
-            raise NameError("No iteration-folders found in the {}".format(prodfir))
-
-        # this is a f*cking masterpiece of programming)))
-        list_iterations = np.array(
-            np.sort(np.array(list([int(itdir) for itdir in itdirs if re.match("^[-+]?[0-9]+$", itdir)]))))
-        if len(list_iterations) == 0:
-            raise ValueError("Error extracting the iterations")
-
-        return list(list_iterations)
-
-    @staticmethod
-    def find_itdir_with_grid(sim, gridfname='cyl_grid.h5'):
-        # for dir_ in os.listdir()
-        path = Paths.ppr_sims + sim + '/res_3d/' + '*' + '/' + gridfname
-        files = glob(path)
-        # print(files)
-        if len(files) == 0:
-            raise ValueError("No grid file ({}) found for {}".format(gridfname, sim))
-        if len(files) > 1:
-            Printcolor.yellow("More than 1({}) grid file ({}) found for {}"
-                              .format(len(files), gridfname, sim))
-            return files[0]
-        return str(files)
-
-    @staticmethod
-    def get_it_from_itdir(itdir):
-        it = -1
-        try:
-            it = int(itdir.split('/')[-2])
-        except:
-            try:
-                itdirs = list(itdir)
-                it = [int(itdir) for itdir in itdirs if re.match("^[-+]?[0-9]+$", itdir)]
-            except:
-                raise ValueError("failed to extract iteration from itdir:{} ".format(itdir))
-        return it
+# class Paths:
+#
+#     scripts  =  '/data01/numrel/vsevolod.nedora/scripts_server/'
+#     default_ppr_dir = '/data01/numrel/vsevolod.nedora/postprocessed5/'
+#     lorene =    '/data/numrel/Lorene/Lorene_TABEOS/GW170817/'
+#     # lorene =    '/data01/numrel/vsevolod.nedora/Data/Lorene/'
+#     rns =       '/data01/numrel/vsevolod.nedora/Data/RNS/'
+#     TOVs =      '/data01/numrel/vsevolod.nedora/Data/TOVs/'
+#     default_data_dir = '/data1/numrel/WhiskyTHC/Backup/2018/GW170817/' # "/data01/numrel/vsevolod.nedora/tmp/" # '/data1/numrel/WhiskyTHC/Backup/2018/SLy4_M130130_SR_physics/'
+#     skynet =    '/data01/numrel/vsevolod.nedora/Data/skynet/'
+#     output =    '/data01/numrel/vsevolod.nedora/output/'
+#     plots =     '/data01/numrel/vsevolod.nedora/figs/'
+#     mkn =       '/data01/numrel/vsevolod.nedora/macrokilonova_bayes_new/source/'
+#     home =      '/data01/numrel/vsevolod.nedora/bns_ppr_tools/'
+#     SLy4_hydo=  '/data01/numrel/vsevolod.nedora/Data/EOS/SLy4/SLy4_hydro_14-Dec-2017.h5'
+#     # skynet =   '/data01/numrel/vsevolod.nedora/scripts_server/module_ejecta/skynet/'
+#
+#     @staticmethod
+#     def get_eos_fname_from_curr_dir(sim):
+#
+#         if sim.__contains__("SLy4"):
+#             fname = "/data01/numrel/vsevolod.nedora/Data/EOS/SLy4/SLy4_hydro_14-Dec-2017.h5"
+#         elif sim.__contains__("LS220"):
+#             fname = "/data01/numrel/vsevolod.nedora/Data/EOS/LS220/LS_220_hydro_27-Sep-2014.h5"
+#         elif sim.__contains__("DD2"):
+#             fname = "/data01/numrel/vsevolod.nedora/Data/EOS/DD2/DD2_DD2_hydro_30-Mar-2015.h5"
+#         elif sim.__contains__("SFHo"):
+#             fname = "/data01/numrel/vsevolod.nedora/Data/EOS/SFHo/SFHo_hydro_29-Jun-2015.h5"
+#         elif sim.__contains__("BLh"):
+#             fname = "/data01/numrel/vsevolod.nedora/Data/EOS/SFHo+BL/BLH_new_hydro_10-Jun-2019.h5"
+#         elif sim.__contains__("BHBlp"):
+#             fname = "/data01/numrel/vsevolod.nedora/Data/EOS/BHB/BHB_lp_hydro_10-May-2016.h5"
+#         else:
+#             raise NameError("Current dir does not contain a hint to what EOS to use: \n{}"
+#                             .format(sim))
+#         return fname
+#
+#     @staticmethod
+#     def get_list_iterations_from_res_3d(prodfir):
+#         """
+#         Checks the /res_3d/ for 12345 folders, (iterations) retunrs their sorted list
+#         :param sim:
+#         :return:
+#         """
+#
+#         if not os.path.isdir(prodfir):
+#             raise IOError("no {} directory found".format(prodfir))
+#
+#         itdirs = os.listdir(prodfir)
+#
+#         if len(itdirs) == 0:
+#             raise NameError("No iteration-folders found in the {}".format(prodfir))
+#
+#         # this is a f*cking masterpiece of programming)))
+#         list_iterations = np.array(
+#             np.sort(np.array(list([int(itdir) for itdir in itdirs if re.match("^[-+]?[0-9]+$", itdir)]))))
+#         if len(list_iterations) == 0:
+#             raise ValueError("Error extracting the iterations")
+#
+#         return list(list_iterations)
+#
+#     @staticmethod
+#     def find_itdir_with_grid(sim, gridfname='cyl_grid.h5'):
+#         # for dir_ in os.listdir()
+#         path = Paths.default_ppr_dir + sim + '/res_3d/' + '*' + '/' + gridfname
+#         files = glob(path)
+#         # print(files)
+#         if len(files) == 0:
+#             raise ValueError("No grid file ({}) found for {}".format(gridfname, sim))
+#         if len(files) > 1:
+#             Printcolor.yellow("More than 1({}) grid file ({}) found for {}"
+#                               .format(len(files), gridfname, sim))
+#             return files[0]
+#         return str(files)
+#
+#     @staticmethod
+#     def get_it_from_itdir(itdir):
+#         it = -1
+#         try:
+#             it = int(itdir.split('/')[-2])
+#         except:
+#             try:
+#                 itdirs = list(itdir)
+#                 it = [int(itdir) for itdir in itdirs if re.match("^[-+]?[0-9]+$", itdir)]
+#             except:
+#                 raise ValueError("failed to extract iteration from itdir:{} ".format(itdir))
+#         return it
 
 
 class Files:

@@ -16,7 +16,9 @@ from scidata.carpet.interp import Interpolator
 
 # from module_preanalysis.preanalysis import LOAD_ITTIME
 
-from uutils import Printcolor, Paths, Tools
+from uutils import Printcolor, Tools
+
+import paths as Paths
 
 from profile_methods import (get_time_for_it, get_it_for_time)
 

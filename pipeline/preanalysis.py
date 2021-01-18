@@ -11,7 +11,8 @@ from module_preanalysis.it_time import LOAD_ITTIME, SIM_STATUS, PRINT_SIM_STATUS
 from module_preanalysis.init_data import INIT_DATA, LOAD_INIT_DATA
 from module_preanalysis.collate import COLLATE_DATA
 
-from uutils import Paths, Printcolor
+from uutils import Printcolor
+import paths as Paths
 
 TASKLIST = ["update_status", "collate", "print_status", "init_data"]
 
@@ -25,7 +26,7 @@ def do_tasks():
 
         elif task == "collate":
             COLLATE_DATA(glob_sim, indir=glob_indir, pprdir=glob_outdir,
-                         usemaxtime=glob_usemaxtime, maxtime=glob_usemaxtime)
+                         usemaxtime=glob_usemaxtime, maxtime=glob_usemaxtime, overwrite=glob_overwrite)
 
         elif task == "print_status":
             Printcolor.blue("Task:'{}' Executing...".format(task))
@@ -93,7 +94,7 @@ if __name__ == '__main__':
     # check given data
 
     if (glob_indir is None):
-        glob_indir = Paths.gw170817 + glob_sim
+        glob_indir = Paths.default_data_dir + glob_sim + '/'
         if not os.path.isdir(glob_indir):
             raise NameError("Default simulation data dir: {} does not exist in rootpath: {} ".format(glob_sim, glob_indir))
     if not os.path.isdir(glob_indir):
@@ -107,6 +108,7 @@ if __name__ == '__main__':
                                 .format(task, TASKLIST))
     if glob_overwrite == "no":  glob_overwrite = False
     elif glob_overwrite == "yes": glob_overwrite = True
+    else: raise NameError("Option '--overwrite' can be 'yes' or 'no' only. Given:{}".format(glob_overwrite))
     #
     if glob_usemaxtime == "no":
         glob_usemaxtime = False
@@ -121,7 +123,7 @@ if __name__ == '__main__':
                           .format(glob_usemaxtime))
 
     if (glob_outdir is None):
-        glob_outdir = Paths.ppr_sims + glob_sim
+        glob_outdir = Paths.default_ppr_dir + glob_sim + '/'
         if not os.path.isdir(glob_outdir):
             raise NameError("Default putput data dir: {} does not exist in rootpath: {} ".format(glob_sim, glob_outdir))
     glob_outdir_sim = glob_outdir

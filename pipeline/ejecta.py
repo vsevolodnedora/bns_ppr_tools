@@ -15,10 +15,13 @@ warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 __tasklist__ = ["reshape", "all", "hist", "timecorr", "corr", "totflux",
                  "massave", "ejtau", "yields", "thetaprof", "summary"]
 
+__masks__ = ["geo", "bern_geoend", "Y_e04_geoend", "theta60_geoend"]
+
 from standalone.outflowsurfdens_asciiToH5 import do_reshape
-from uutils import (Paths, Printcolor, Labels, Limits, Constants)
+from uutils import (Printcolor, Labels, Limits, Constants)
 from module_ejecta.ejecta_methods import (EJECTA_PARS)
 from plotting.plotting_methods import PLOT_MANY_TASKS
+import paths as Paths
 
 filename = lambda det: "outflow_surface_det_%d_fluxdens.h5" % det
 
@@ -811,7 +814,7 @@ def do_full_analysis():
 
     for det in glob_detectors:
 
-        fname = glob_outdir + filename(glob_detectors)
+        fname = glob_outdir + filename(det)
 
         assert os.path.isfile(fname)
 
@@ -908,12 +911,12 @@ if __name__ == '__main__':
 
     #
     if glob_indir is None:
-        glob_indir = Paths.gw170817 + glob_sim + '/'
+        glob_indir = Paths.default_data_dir + glob_sim + '/'
         if not os.path.isdir(glob_indir):
             raise IOError("Default data dir not found: {}".format(glob_indir))
 
     if glob_outdir is None:
-        glob_outdir = Paths.ppr_sims + glob_sim + '/'
+        glob_outdir = Paths.default_ppr_dir + glob_sim + '/'
         if not os.path.isdir(glob_outdir):
             raise IOError("Default output dir not found: {}".format(glob_outdir))
 
@@ -954,10 +957,12 @@ if __name__ == '__main__':
                         .format(glob_maxtime))
 
     # do tasks
-    if "reshape" in glob_tasklist:
+    if ("reshape" in glob_tasklist) and (len(glob_tasklist) == 1):
 
         if glob_eos is None:
-            raise NameError("For task 'reshape' Hydro EOS is needed. Provide file via `--eos MyEOS`")
+            glob_eos = Paths.get_eos_fname_from_curr_dir(glob_sim)
+            if not os.path.isfile(glob_eos):
+                raise IOError("Default eos file for a simulation {} not found : {}".format(glob_sim, glob_eos))
 
         if not os.path.isfile(glob_eos):
             raise IOError("Given eos file not found : {}".format(glob_eos))
@@ -969,7 +974,13 @@ if __name__ == '__main__':
             glob_outdir,
             glob_indir,
             glob_eos,
+            glob_overwrite
         )
+
+        exit(0)
+
+    if "all" in glob_masks and len(glob_masks) == 1:
+        glob_masks = __masks__
 
     # check path to skynet files (needed for nucleo analysis)
     if glob_skynet is None:

@@ -66,8 +66,7 @@ from uutils import Printcolor, REFLEVEL_LIMITS
 
 from plotting.plotting_methods import PLOT_MANY_TASKS
 
-
-from uutils import Paths, Printcolor
+from uutils import Printcolor
 # from module_preanalysis.preanalysis import LOAD_ITTIME
 from slices_methods import COMPUTE_STORE
 

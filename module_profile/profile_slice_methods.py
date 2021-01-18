@@ -18,7 +18,9 @@ from profile_formulas import FORMULAS
 
 # from module_preanalysis.preanalysis import LOAD_ITTIME
 
-from uutils import Printcolor, Paths
+from uutils import Printcolor
+
+import paths as Paths
 
 # from profile import __masks__
 

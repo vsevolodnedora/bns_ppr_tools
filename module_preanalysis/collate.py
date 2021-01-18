@@ -12,7 +12,7 @@ import os
 import re
 from scipy import interpolate
 from argparse import ArgumentParser
-from uutils import Paths, Printcolor, Lists, Constants, Tools
+from uutils import Printcolor, Lists, Constants, Tools
 
 
 from it_time import LOAD_ITTIME
