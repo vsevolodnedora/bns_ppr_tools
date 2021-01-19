@@ -323,11 +323,11 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
             # for i in range(len(newmask[:, 0, 0])):
             #     newmask[i, :, :].fill(theta_mask)
 
-            print(newmask.shape)
+            # print(newmask.shape)
             # exit(1)
             # mask_ye = ye >= 0.4
             mask_bern = self.get_mask("bern")
-            print(mask_bern.shape)
+            # print(mask_bern.shape)
             # print(mask_bern.shape)
             mask_geo_end = self.__time_mask_end_geo()
             return newmask & mask_bern & mask_geo_end
@@ -472,16 +472,17 @@ class EJECTA(ADD_MASK):
 
         dt = np.diff(self.get_full_arr("times"))
         dt = np.insert(dt, 0, 0)
-        mask = self.get_mask(mask).astype(int)
-        weights = mask * self.get_full_arr("fluxdens") * \
+        mask_arr = self.get_mask(mask).astype(int)
+        weights = mask_arr * \
+                  self.get_full_arr("fluxdens") * \
                   self.get_full_arr("surface_element") * \
                   dt[:, np.newaxis, np.newaxis]
         #
         if np.sum(weights) == 0.:
-            Printcolor.red("sum(weights) = 0. For mask:{} there is not mass"
-                           .format(mask))
-            raise ValueError("sum(weights) = 0. For mask:{} there is not mass"
-                           .format(mask))
+            table = np.cumsum(self.get_ejecta_arr(mask, "tot_flux"))
+            mass = np.cumsum(table[:, 2])
+            print("Error. sum(weights) = 0. For mask:{} there is not mass (Total ej.mass is {})".format(mask,mass))
+            raise ValueError("sum(weights) = 0. For mask:{} there is not mass (Total ej.mass is {})".format(mask,mass))
         #
         return weights
 
@@ -523,25 +524,8 @@ class EJECTA(ADD_MASK):
             indexes.append(i_indx)
         assert len(indexes) > 0
         #
-        # print("indexes done")
         weights = np.array(self.get_ejecta_arr(mask, "weights"))
         data = np.array(self.get_full_arr(v_n))
-
-        # print(weights[np.array(indexes[0], dtype=int), :, :].flatten())
-        # exit(1)
-
-        # historgram = []
-        # for i_t, t in enumerate(times):
-        #     print("{}".format(i_t))
-        #     if np.array(data).ndim == 3:
-        #         data_ = data[i_t, :, :].flatten()
-        #     else:
-        #         data_ = data.flatten()
-        #     tmp, _ = np.histogram(data_, bins=edge, weights=weights[i_t, :, :].flatten())
-        #     historgram = np.append(historgram, tmp)
-        #
-        # print("done") # 1min.15
-        # exit(1)
 
         for i_ind, ind_list in enumerate(indexes):
             # print("{} {}/{}".format(i_ind,len(indexes), len(ind_list)))
@@ -558,9 +542,9 @@ class EJECTA(ADD_MASK):
 
         bins = 0.5 * (edge[1:] + edge[:-1])
 
-        print("hist", historgrams.shape)
-        print("times", timeedges.shape)
-        print("edges", bins.shape)
+        # print("hist", historgrams.shape)
+        # print("times", timeedges.shape)
+        # print("edges", bins.shape)
 
         return bins, timeedges, historgrams
 
@@ -593,8 +577,6 @@ class EJECTA(ADD_MASK):
            0th element in 1st raw (column) - can be used a corner value
 
         '''
-
-        print(xyz.shape, x.shape, y.shape, z.shape)
 
         tmp = np.zeros((len(xyz[:, 0, 0])+1, len(xyz[0, :, 0])+1, len(xyz[0, 0, :])+1))
         tmp[1:, 1:, 1:] = xyz
@@ -661,14 +643,9 @@ class EJECTA(ADD_MASK):
     @staticmethod
     def get_edges_from_centers(bins):
 
-        # print(bins)
-
         edges = np.array(0.5 * (bins[1:] + bins[:-1]))  # from edges to center of bins
         edges = np.insert(edges, 0, edges[0] - np.diff(edges)[0])
         edges = np.append(edges, edges[-1] + np.diff(edges)[-1])
-
-        # print(edges)
-        # exit(1)
 
         return edges
 
@@ -733,18 +710,20 @@ class EJECTA(ADD_MASK):
             data_tau_i = data_tau[i, :, :]
             data = tuple([data_ye_i.flatten(), data_entr_i.flatten(), data_tau_i.flatten()])
             tmp, _ = np.histogramdd(data, bins=edges, weights=weights[i, :, :].flatten())
-            # print(np.array(x).shape)
-            # exit(1)
             correlation += tmp
 
         bins_ye = 0.5 * (edges_ye[1:] + edges_ye[:-1])
         bins_entr = 0.5 * (edges_entr[1:] + edges_entr[:-1])
         bins_tau = 0.5 * (edges_tau[1:] + edges_tau[:-1])
 
-        assert np.sum(correlation) > 0
-        assert np.sum(correlation) <= np.sum(weights)
-        # print(correlation.shape)
-        # print(grid_ye.shape)
+        if not (np.sum(correlation) > 0):
+            print("Error. np.sum(correlation) = 0")
+            raise ValueError("np.sum(correlation) = 0")
+
+        if not (np.sum(correlation) <= np.sum(weights)):
+            print("Error np.sum(correlation) > np.sum(weights)")
+            raise ValueError("np.sum(correlation) <= np.sum(weights)")
+
         assert correlation.shape == (17, 17, 17)
 
         return bins_ye, bins_entr, bins_tau, correlation
@@ -778,9 +757,8 @@ class EJECTA(ADD_MASK):
 
         # as Bernoulli criteria uses different vel_inf defention
         if v_n.__contains__("vel_inf") and mask.__contains__("bern"):
-            # print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
             v_n = v_n.replace("vel_inf", "vel_inf_bern")
-            # print(v_n)
+
 
         # ----------------------------------------
         if v_n in ["tot_mass", "tot_flux"]:
@@ -816,7 +794,7 @@ class EJECTA(ADD_MASK):
 
         elif v_n.__contains__("mass_ave "):
             v_n = str(v_n.split("mass_ave ")[-1])
-            print(v_n)
+            # print(v_n)
             arr = self.get_mass_averaged(mask, v_n)
 
         else:
@@ -1005,8 +983,8 @@ class EJECTA_NORMED_NUCLEO(EJECTA_NUCLEO):
         ]
 
         self.matrix_normed_sim = [[np.zeros(0,)
-                                     for y in range(len(self.list_masks))]
-                                     for z in range(len(self.list_nucleo_norm_methods))]
+                                  for z in range(len(self.list_nucleo_norm_methods))]
+                                  for y in range(len(self.list_masks))]
 
         self.matrix_normed_sol = [np.zeros(0,) for z in range(len(self.list_nucleo_norm_methods))]
 
@@ -1114,6 +1092,13 @@ class EJECTA_NORMED_NUCLEO(EJECTA_NUCLEO):
                             .format(method, self.list_nucleo_norm_methods))
 
     def is_nucleo_yiled_normed(self, mask, method):
+
+        if not mask in self.list_masks:
+            raise NameError("mask:{} is not in the list:{}"
+                            .format(mask, self.list_masks))
+
+        # print(len(self.matrix_normed_sim))
+        # print(self.matrix_normed_sim[self.i_mask(mask)])
 
         data = self.matrix_normed_sim[self.i_mask(mask)][self.i_meth(method)]
         if len(data) == 0:
