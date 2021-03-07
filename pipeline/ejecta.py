@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 __tasklist__ = ["reshape", "all", "hist", "timecorr", "corr", "totflux",
                  "massave", "ejtau", "yields", "thetaprof", "summary"]
 
-__masks__ = ["geo", "bern_geoend", "Y_e04_geoend", "theta60_geoend"]
+__masks__ = ["geo", "geo_v06", "bern_geoend", "Y_e04_geoend", "theta60_geoend"]
 
 from standalone.outflowsurfdens_asciiToH5 import do_reshape
 from uutils import (Printcolor, Labels, Limits, Constants)
@@ -41,7 +41,9 @@ def outflowed_historgrams(o_outflow, pprdir, det, masks, v_ns, rewrite=False):
                         ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "computing"],
                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
                     # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    # print(np.min(o_outflow.get_full_arr("rho")),np.max(o_outflow.get_full_arr("rho")))
                     hist = o_outflow.get_ejecta_arr(mask, "hist {}".format(v_n))
+                    # print(hist)
                     np.savetxt(outdir + "/hist_{}.dat".format(v_n), X=hist)
 
                     o_plot = PLOT_MANY_TASKS()
@@ -820,7 +822,12 @@ def do_full_analysis():
 
         fname = glob_outdir + filename(det)
 
-        assert os.path.isfile(fname)
+        if not os.path.isfile(fname):
+            print("Error. Analysis not possible. File not found {}".format(fname))
+            Printcolor.print_colored_string(
+                ["task:", "all", "det:", "{}".format(det), ':', "failed"],
+                ["blue", "green", "blue", "green", "", "red"])
+            continue
 
         outflowed = EJECTA_PARS(fname=fname, skynetdir=glob_skynet, add_mask=None)
 
@@ -841,7 +848,7 @@ def do_full_analysis():
 def do_selected_tasks():
     for det in glob_detectors:
 
-        fname = glob_outdir + filename(glob_detectors)
+        fname = glob_outdir + filename(det)
         outflowed = EJECTA_PARS(fname=fname, skynetdir=glob_skynet, add_mask=None)
 
         for task in glob_tasklist:
@@ -953,12 +960,22 @@ if __name__ == '__main__':
     if glob_maxtime == -1:
         glob_usemaxtime = False
         glob_maxtime = -1
+        # print(glob_outdir + "maxtime.txt")
+        if os.path.isfile(glob_outdir + "maxtime.txt"):
+            glob_maxtime = float(np.loadtxt(glob_outdir + "maxtime.txt"))
+            glob_usemaxtime = True
+            Printcolor.print_colored_string(
+                ["Note: maxtime.txt found. Setting value:","{:.1f}".format(glob_maxtime), "[ms]"],
+                ["yellow", "green", "yellow"]
+            )
     elif re.match(r'^-?\d+(?:\.\d+)?$', glob_maxtime):
         glob_maxtime = float(glob_maxtime)  # [ms]
         glob_usemaxtime = True
     else:
         raise NameError("To limit the data usage profive --maxtime in [ms] (after simulation start_. Given: {}"
                         .format(glob_maxtime))
+
+    # exit(1)
 
     # do tasks
     if ("reshape" in glob_tasklist) and (len(glob_tasklist) == 1):
@@ -996,7 +1013,6 @@ if __name__ == '__main__':
 
     # prepare dir tree for other tasks output
     do_folder_tree(glob_outdir)
-
 
     # pipeline
     if len(glob_tasklist) == 1 and ("all" in glob_tasklist):

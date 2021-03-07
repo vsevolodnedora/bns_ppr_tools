@@ -110,8 +110,8 @@ fi
 
 for i in $simlist; do
   echo "$i"
-#  call python preanalysis.py -s $i -t update_status print_status
-#  call python profile.py -s $i -t all --it all
+#  call python old_preanalysis.py -s $i -t update_status print_status
+#  call python module_profile.py -s $i -t all --it all
   call python preanalysis.py -s $i -t init_data
 done
 

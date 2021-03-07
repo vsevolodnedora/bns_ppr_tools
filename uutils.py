@@ -553,6 +553,10 @@ class Limits:
             return 0, 120.
         elif v_n in ["temperature", "temp"]:
             return 0, 5.
+        elif v_n in ["rho"]:
+            return 1e-10, 1e-4
+        elif v_n in ["logrho"]:
+            return -16., -8.
         else:
             raise NameError("limit for v_n:{} is not found"
                             .format(v_n))

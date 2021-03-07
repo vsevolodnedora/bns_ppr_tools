@@ -27,13 +27,14 @@ from ejecta_formulas import FORMULAS
 from uutils import Constants, Printcolor
 
 # bins for histograms
+rho_const = 6.176269145886162e+17
 histogram_ye = np.linspace(0.035, 0.55, 100)
 histogram_theta = np.linspace(0.031, 3.111, 50) # return np.linspace(0.0, np.pi, 50)
 histogram_phi = np.linspace(0.06, 6.29, 93)
-histogram_vel_inf = np.linspace(0., 1., 200)
+histogram_vel_inf = np.linspace(0., 1., 50)
 histogram_entropy = np.linspace(0, 200, 100)
 histogram_tempreture = np.linspace(0, 5, 100) #return 10.0 ** np.linspace(-2, 2, 100)
-
+histogram_logrho = np.linspace(-16.0, -8.0, 200) # / rho_const
 
 class HISTOGRAM_EDGES:
 
@@ -45,6 +46,8 @@ class HISTOGRAM_EDGES:
         elif v_n == "vel_inf" or v_n == "vel_inf_bern": return histogram_vel_inf
         elif v_n == "entropy": return histogram_entropy
         elif v_n == "temperature":  return histogram_tempreture
+        # elif v_n == "rho": return histogram_rho
+        elif v_n == "logrho": return histogram_logrho
         else: raise NameError("no hist edges found for v_n:{}".format(v_n))
 
 
@@ -135,7 +138,7 @@ class COMPUTE_OUTFLOW_SURFACE_H5(LOAD_OUTFLOW_SURFACE_H5):
 
         LOAD_OUTFLOW_SURFACE_H5.__init__(self, fname=fname)
 
-        self.list_comp_v_ns = ["enthalpy", "vel_inf", "vel_inf_bern", "vel"]
+        self.list_comp_v_ns = ["enthalpy", "vel_inf", "vel_inf_bern", "vel", "logrho"]
 
         # self.list_v_ns = self.list_v_ns + self.list_comp_v_ns
 
@@ -163,6 +166,8 @@ class COMPUTE_OUTFLOW_SURFACE_H5(LOAD_OUTFLOW_SURFACE_H5):
                                      self.get_full_comp_arr("enthalpy"))
         elif v_n == "vel":
             arr = FORMULAS.vel(self.get_full_arr("w_lorentz"))
+        elif v_n == "logrho":
+            arr = np.log10(self.get_full_arr("rho"))
         else:
             raise NameError("No computation method for v_n:{} is found"
                             .format(v_n))
@@ -203,7 +208,8 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
 
         COMPUTE_OUTFLOW_SURFACE_H5.__init__(self, fname=fname)
 
-        self.list_masks = ["geo", "bern", "bern_geoend", "Y_e04_geoend", "theta60_geoend",
+        self.list_masks = ["geo", "geo_v06",
+                           "bern", "bern_geoend", "Y_e04_geoend", "theta60_geoend",
                            "geo_entropy_above_10", "geo_entropy_below_10"]
         if add_mask != None and not add_mask in self.list_masks:
             self.list_masks.append(add_mask)
@@ -276,6 +282,13 @@ class ADD_MASK(COMPUTE_OUTFLOW_SURFACE_H5):
             # 1 - if geodeisc is true
             einf = self.get_full_arr("eninf")
             res = (einf >= self.set_min_eninf)
+            return res
+        if mask == "geo_v06":
+            # 1 - if geodeisc is true
+            einf = self.get_full_arr("eninf")
+            vinf = self.get_full_arr("vel_inf")
+            res = (einf >= self.set_min_eninf) & (vinf >= 0.6)
+            return res
         elif mask == "geo_entropy_below_10":
             einf = self.get_full_arr("eninf")
             res = (einf >= self.set_min_eninf)
@@ -423,9 +436,10 @@ class EJECTA(ADD_MASK):
 
         ADD_MASK.__init__(self, fname=fname, add_mask=add_mask)
 
-        self.list_hist_v_ns = ["Y_e", "theta", "phi", "vel_inf", "entropy", "temperature"]
+        self.list_hist_v_ns = ["Y_e", "theta", "phi", "vel_inf", "entropy", "temperature", "logrho"]
 
-        self.list_corr_v_ns = ["Y_e theta", "vel_inf theta", "Y_e vel_inf"]
+        self.list_corr_v_ns = ["Y_e theta", "vel_inf theta", "Y_e vel_inf",
+                               "logrho vel_inf", "logrho theta", "logrho Y_e"]
 
         self.list_ejecta_v_ns = [
                                     "tot_mass", "tot_flux",  "weights", "corr3d Y_e entropy tau",
@@ -452,7 +466,7 @@ class EJECTA(ADD_MASK):
     def i_ejv_n(self, v_n):
         return int(self.list_ejecta_v_ns.index(v_n))
 
-    # --- methods for EJECTA arrays ---
+    # --- methods for EJECTA arrays ----
 
     def get_cumulative_ejected_mass(self, mask):
         fluxdens = self.get_full_arr("fluxdens")
@@ -466,7 +480,7 @@ class EJECTA(ADD_MASK):
         tot_mass = np.cumsum(flux_arr * dt)  # sum over time
         tot_flux = np.cumsum(flux_arr)  # sum over time
         # print("totmass:{}".format(tot_mass[-1]))
-        return t * 0.004925794970773136 / 1e3, flux_arr, tot_mass # time in [s]
+        return (t * 0.004925794970773136 / 1e3, flux_arr, tot_mass) # time in [s]
 
     def get_weights(self, mask):
 
@@ -479,10 +493,9 @@ class EJECTA(ADD_MASK):
                   dt[:, np.newaxis, np.newaxis]
         #
         if np.sum(weights) == 0.:
-            table = np.cumsum(self.get_ejecta_arr(mask, "tot_flux"))
-            mass = np.cumsum(table[:, 2])
-            print("Error. sum(weights) = 0. For mask:{} there is not mass (Total ej.mass is {})".format(mask,mass))
-            raise ValueError("sum(weights) = 0. For mask:{} there is not mass (Total ej.mass is {})".format(mask,mass))
+            _, _, mass = self.get_cumulative_ejected_mass(mask)
+            print("Error. sum(weights) = 0. For mask:{} there is not mass (Total ej.mass is {})".format(mask,mass[-1]))
+            raise ValueError("sum(weights) = 0. For mask:{} there is not mass (Total ej.mass is {})".format(mask,mass[-1]))
         #
         return weights
 
@@ -491,9 +504,10 @@ class EJECTA(ADD_MASK):
         times = self.get_full_arr("times")
         weights = np.array(self.get_ejecta_arr(mask, "weights"))
         data = np.array(self.get_full_arr(v_n))
-        if v_n == "rho": data = np.log10(data)
+        # if v_n == "rho":
+        #     data = np.log10(data)
         historgram = np.zeros(len(edge) - 1)
-        tmp2 = []
+        # tmp2 = []
         # print(data.shape, weights.shape, edge.shape)
         for i in range(len(times)):
             if np.array(data).ndim == 3: data_ = data[i, :, :].flatten()
@@ -503,6 +517,9 @@ class EJECTA(ADD_MASK):
             historgram += tmp
         middles = 0.5 * (edge[1:] + edge[:-1])
         assert len(historgram) == len(middles)
+        if np.sum(historgram) == 0.:
+            print("Error. Histogram weights.sum() = 0 ")
+            raise ValueError("Error. Histogram weights.sum() = 0 ")
         return middles, historgram
 
         # res = np.vstack((middles, historgram))
