@@ -187,6 +187,8 @@ class LOAD_RESHAPE_SAVE_PARALLEL:
 
         try:
             pool.map(task, self.flist)
+        except KeyboardInterrupt:
+            exit(0)
         finally:  # To make sure processes are closed in the end, even if errors happen
             pool.close()
             #pool.join()

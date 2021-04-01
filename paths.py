@@ -3,9 +3,11 @@
 """
 
 # path to dir, inside of which the 'simulation_name/' dir with output
-default_ppr_dir = '/data01/numrel/vsevolod.nedora/postprocessed5/'
+# default_ppr_dir = '/data01/numrel/vsevolod.nedora/postprocessed5/'
+default_ppr_dir = '/data01/numrel/vsevolod.nedora/postprocessed_phase_trans/'
 # path to dir where to look for 'simulation_name/' dir with data e.g., 'output-xxxx/' folders
-default_data_dir = '/data1/numrel/WhiskyTHC/Backup/2018/GW170817/'
+# default_data_dir = '/data1/numrel/WhiskyTHC/Backup/2018/GW170817/'
+default_data_dir = '/data1/numrel/WhiskyTHC/Backup/2018/GW170817/Ejecta_Data_Quarks/'
 # path to dir with skynet files for nucleosyntehsis
 skynet =    '/data01/numrel/vsevolod.nedora/Data/skynet/'
 # path to TOV siquences (for initial data extraction only)
@@ -27,6 +29,8 @@ def get_eos_fname_from_curr_dir(sim):
         fname = "/data01/numrel/vsevolod.nedora/Data/EOS/SFHo+BL/BLH_new_hydro_10-Jun-2019.h5"
     elif sim.__contains__("BHBlp"):
         fname = "/data01/numrel/vsevolod.nedora/Data/EOS/BHB/BHB_lp_hydro_10-May-2016.h5"
+    elif sim.__contains__("BLQ"):
+        fname = "/data/numrel/WhiskyTHC/EOS/SFHo+BLQ/BLh_gibbs_180_0.35_new_hydro_08-Nov-2019.h5"
     else:
         raise NameError("Current dir does not contain a hint to what EOS to use: \n{}"
                         .format(sim))

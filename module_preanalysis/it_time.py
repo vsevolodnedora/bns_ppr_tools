@@ -198,9 +198,16 @@ class SIM_STATUS:
             print("\t{} does not contain {} -> d1 data is not appended".format(output_dir, self.d1_ittime_file))
             return d1data, np.array(itd1, dtype=int), np.array(td1, dtype=float)
         #
+        if not os.access(self.simdir + '/' + output_dir + '/data/' + self.d1_ittime_file, os.R_OK):
+            raise IOError("Access denied to file: {}".format(self.simdir + '/' + output_dir + '/data/' + self.d1_ittime_file))
         it_time_i = np.loadtxt(self.simdir + '/' + output_dir + '/data/' + self.d1_ittime_file, usecols=(0, 1))
-        itd1 = np.array(it_time_i[:, 0], dtype=int)
-        td1 = np.array(it_time_i[:, 1], dtype=float) * Constants.time_constant * 1e-3
+        #
+        if len(it_time_i) == 2: # if only one iteration present
+            itd1 = np.array([it_time_i[0]], dtype=int)
+            td1 = np.array([it_time_i[1]], dtype=float) * Constants.time_constant * 1e-3
+        else:
+            itd1 = np.array(it_time_i[:, 0], dtype=int)
+            td1 = np.array(it_time_i[:, 1], dtype=float) * Constants.time_constant * 1e-3
         #
         if not np.isnan(maxtime):
             itd1 = itd1[td1 < maxtime]
@@ -231,6 +238,9 @@ class SIM_STATUS:
         assert len(d1it) == len(d1times)
         if len(d1times) == 0:
             raise ValueError("len(d1it) = 0 -> cannot compute times for d2it")
+        #
+        if len(d1it) == 1:
+            return True, d1it, d1times
         #
         f = interpolate.interp1d(d1it, d1times, kind="slinear",fill_value="extrapolate")
         times = f(iterations)
@@ -264,6 +274,9 @@ class SIM_STATUS:
         if len(d1times) == 0:
             raise ValueError("len(d1it) = 0 -> cannot compute times for d3it")
         #
+        if len(d1it) == 1:
+            return True, d1it, d1times
+        #
         f = interpolate.interp1d(d1it, d1times, kind="slinear", fill_value="extrapolate")
         times = f(iterations)
         if not np.isnan(maxtime):
@@ -283,8 +296,16 @@ class SIM_STATUS:
             return d1data, np.array(itd1, dtype=int), np.array(td1, dtype=float)
         #
         it_time_i = np.loadtxt(self.simdir + '/' + output_dir + '/data/' + self.d1_ittime_file, usecols=(0, 1))
-        itd1 = np.array(it_time_i[:, 0], dtype=int)
-        td1 = np.array(it_time_i[:, 1], dtype=float) * Constants.time_constant * 1e-3
+        if not os.access(self.simdir + '/' + output_dir + '/data/' + self.d1_ittime_file, os.R_OK):
+            raise IOError("Accesss denied: {}".format(self.simdir + '/' + output_dir + '/data/' + self.d1_ittime_file))
+        # if len(it_time_i) == 2:
+        #     raise IOError("Too few iterations: 1 found in file {}".format(output_dir + '/data/' + self.d1_ittime_file))
+        if len(it_time_i) == 2:
+            itd1 = np.array([it_time_i[0]], dtype=int)
+            td1 = np.array([it_time_i[1]], dtype=float) * Constants.time_constant * 1e-3
+        else:
+            itd1 = np.array(it_time_i[:, 0], dtype=int)
+            td1 = np.array(it_time_i[:, 1], dtype=float) * Constants.time_constant * 1e-3
         #
         if not np.isnan(maxtime):
             itd1 = itd1[td1 < maxtime]
