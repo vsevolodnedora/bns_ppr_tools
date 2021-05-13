@@ -18,6 +18,7 @@ from argparse import ArgumentParser
 import time
 from scidata.carpet.interp import Interpolator
 
+import paths
 from uutils import Printcolor
 
 import paths as Paths
@@ -30,19 +31,21 @@ from module_profile.profile_grids import (POLAR_GRID, CARTESIAN_GRID, CYLINDRICA
 from module_profile.profile_methods import (MASK_STORE, MAINMETHODS_STORE, INTMETHODS_STORE, get_time_for_it)
 from module_profile.profile_results import (LOAD_DENSITY_MODES, LOAD_RES_CORR)
 from module_profile.profile_slice_methods import (MAINMETHODS_STORE_SLICE)
+from module_profile.params import (get_hist_bins, get_corr_dic, get_reflev_borders)
 from plotting.plotting_methods import PLOT_MANY_TASKS
 
 
 __tasklist__ = ["all", "corr", "hist", "slice", "mass", "densmode", "vtk", "densmode",
-                            "densmodeint", "mjenclosed",
-                            "plotall", "plotcorr", "plotslicecorr", "plothist", "plotslice", "plotmass", "slicecorr",
-                            "plotdensmode", "plotcenterofmass", "plotdensmodephase"]
+                "densmodeint", "mjenclosed",
+                "plotall", "plotcorr", "plotslicecorr", "plothist", "plotslice", "plotmass", "slicecorr",
+                "plotdensmode", "plotcenterofmass", "plotdensmodephase"
+                ]
 
 __masks__ = ["disk", "remnant", "total"]
 
 __d3slicesvns__ = ["x", "y", "z", "rho", "w_lorentz", "vol", "press", "entr", "eps", "lapse", "velx", "vely", "velz",
                     "gxx", "gxy", "gxz", "gyy", "gyz", "gzz", "betax", "betay", "betaz", 'temp', 'Ye'] + \
-                    ["u_0", "density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
+                  ["u_0", "density",  "enthalpy", "vphi", "vr", "dens_unb_geo", "dens_unb_bern", "dens_unb_garch",
                     "ang_mom", "ang_mom_flux", "theta", "r", "phi", "hu_0"]
 
 __d3corrs__ = ["rho_r", "rho_Ye", "r_Ye", "temp_Ye", "rho_temp", "rho_theta", "velz_theta", "rho_ang_mom", "velz_Ye",
@@ -73,6 +76,8 @@ __d3sliceplotvns__ = ["Ye", "velx", "rho", "ang_mom_flux","ang_mom","dens_unb_ga
 __d3sliceplotrls__ = [0, 1, 2, 3, 4, 5, 6]
 
 __rootoutdir__ = "profiles/"
+
+
 
 
 # tools
@@ -139,65 +144,33 @@ def print_colored_string(parts, colors, comma=False):
     else:
         print('')
 
-def get_xmin_xmax_ymin_ymax_zmin_zmax(rl):
-    if rl == 6:
-        xmin, xmax = -14, 14
-        ymin, ymax = -14, 14
-        zmin, zmax = 0, 14
-    elif rl == 5:
-        xmin, xmax = -28, 28
-        ymin, ymax = -28, 28
-        zmin, zmax = 0, 28
-    elif rl == 4:
-        xmin, xmax = -48, 48
-        ymin, ymax = -48, +48
-        zmin, zmax = 0, 48
-    elif rl == 3:
-        xmin, xmax = -88, 88
-        ymin, ymax = -88, 88
-        zmin, zmax = 0, 88
-    elif rl == 2:
-        xmin, xmax = -178, 178
-        ymin, ymax = -178, +178
-        zmin, zmax = 0, 178
-    elif rl == 1:
-        xmin, xmax = -354, 354
-        ymin, ymax = -354, +354
-        zmin, zmax = 0, 354
-    elif rl == 0:
-        xmin, xmax = -1044, 1044
-        ymin, ymax = -1044, 1044
-        zmin, zmax = 0, 1044
-    else:
-        # pass
-        raise IOError("Set limits for rl:{}".format(rl))
-
-    return xmin, xmax, ymin, ymax, zmin, zmax
-
 # for iteration
 def d3_mass_for_it(it, d3corrclass, mask, outdir, rewrite=False):
     # disk
 
     fpath = outdir + "mass.txt"
 
-    try:
-        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-            if os.path.isfile(fpath): os.remove(fpath)
-            print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), "mask:", mask, ":", "computing"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+    def task(fpath):
+        mass = d3corrclass.get_total_mass(it, multiplier=2., mask_v_n=mask)
+        np.savetxt(fname=fpath, X=np.array([mass]))
+        return mass
 
-            mass = d3corrclass.get_total_mass(it, multiplier=2., mask_v_n=mask)
-            np.savetxt(fname=fpath, X=np.array([mass]))
-            if mass == 0.:
-                Printcolor.yellow("\tComputed disk mass = 0.")
-            else:
-                pass
-    except IOError:
-        print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), "mask:", mask, ":", "IOError"],
-                         ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-    except:
-        print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), "mask:", mask, ":", "Error"],
-                         ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+    if Paths.debug:
+        task(fpath)
+    else:
+        try:
+            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                if os.path.isfile(fpath): os.remove(fpath)
+                print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), "mask:", mask, ":", "computing"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                mass = task(fpath)
+                if mass == 0.:  Printcolor.yellow("\tComputed disk mass = 0.")
+        except IOError:
+            print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), "mask:", mask, ":", "IOError"],
+                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+        except:
+            print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), "mask:", mask, ":", "Error"],
+                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 #
 # def d3_remnant_mass_for_it(it, d3corrclass, outdir, rewrite=False):
 #     fpath = outdir + __d3remnantmass__
@@ -225,166 +198,191 @@ def d3_hist_for_it(it, d3corrclass, mask, glob_v_ns, outdir, rewrite=False):
 
     selected_vn1vn2s = select_string(glob_v_ns, __d3histvns__)
 
+    def task(v_n, hist_dic, it, mask, fpath):
+        edges_weights = d3corrclass.get_histogram(it, hist_dic, mask=mask, multiplier=2.)
+        np.savetxt(fname=fpath, X=edges_weights, header="# {}   mass".format(v_n))
+
     for v_n in selected_vn1vn2s:
 
+        hist_dic = {"v_n": v_n, "edges": get_hist_bins(mask, v_n)}
+
         # chose a dic
-        if v_n == "r":
-            hist_dic = d3corrclass.hist_task_dic_r
-        elif v_n == "theta":
-            hist_dic = d3corrclass.hist_task_dic_theta
-        elif v_n == "Ye":
-            hist_dic = d3corrclass.hist_task_dic_ye
-        elif v_n == "velz":
-            hist_dic = d3corrclass.hist_task_dic_velz
-        elif v_n == "temp":
-            hist_dic = d3corrclass.hist_task_dic_temp
-        elif v_n == "rho" and mask == "disk":
-            hist_dic = d3corrclass.hist_task_dic_rho_d
-        elif v_n == "rho" and mask == "remnant":
-            hist_dic = d3corrclass.hist_task_dic_rho_r
-        elif v_n == "dens_unb_bern":
-            hist_dic = d3corrclass.hist_task_dens_unb_bern
-        elif v_n == "press":
-            hist_dic = d3corrclass.hist_task_pressure
-        elif v_n == "entr" and mask == "disk":
-            hist_dic = d3corrclass.hist_task_dic_entropy_d
-        elif v_n == "entr" and mask == "remnant":
-            hist_dic = d3corrclass.hist_task_dic_entropy_r
-        else:
-            raise NameError("hist v_n:{} is not recognized".format(v_n))
+        # if v_n == "r":
+        #     hist_dic = d3corrclass.hist_task_dic_r
+        # elif v_n == "theta":
+        #     hist_dic = d3corrclass.hist_task_dic_theta
+        # elif v_n == "Ye":
+        #     hist_dic = d3corrclass.hist_task_dic_ye
+        # elif v_n == "velz":
+        #     hist_dic = d3corrclass.hist_task_dic_velz
+        # elif v_n == "temp":
+        #     hist_dic = d3corrclass.hist_task_dic_temp
+        # elif v_n == "rho" and mask == "disk":
+        #     hist_dic = d3corrclass.hist_task_dic_rho_d
+        # elif v_n == "rho" and mask == "remnant":
+        #     hist_dic = d3corrclass.hist_task_dic_rho_r
+        # elif v_n == "dens_unb_bern":
+        #     hist_dic = d3corrclass.hist_task_dens_unb_bern
+        # elif v_n == "press":
+        #     hist_dic = d3corrclass.hist_task_pressure
+        # elif v_n == "entr" and mask == "disk":
+        #     hist_dic = d3corrclass.hist_task_dic_entropy_d
+        # elif v_n == "entr" and mask == "remnant":
+        #     hist_dic = d3corrclass.hist_task_dic_entropy_r
+        # else:
+        #     raise NameError("hist v_n:{} is not recognized".format(v_n))
         #             pressure = d3corrclass.get_prof_arr(it, 3, v_n)
         #             print(pressure)
         #             print(pressure.min(), pressure.max())
         #             exit(1)
         fpath = outdir + "hist_{}.dat".format(v_n)
         #
-        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-            if os.path.isfile(fpath): os.remove(fpath)
-            print_colored_string(["task:", "hist", "it:", "{}".format(it), "mask", mask, "v_n:", v_n, ":", "computing"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
-            try:
-                edges_weights = d3corrclass.get_histogram(it, hist_dic, mask=mask, multiplier=2.)
-                np.savetxt(fname=fpath, X=edges_weights, header="# {}   mass".format(v_n))
-            except KeyboardInterrupt:
-                exit(1)
-            except IOError:
-                print_colored_string(["task:", "hist", "it:", "{}".format(it),"mask", mask, "v_n:", v_n, ":", "IOError"],
-                                     ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
-            except:
-                print_colored_string(["task:", "hist", "it:", "{}".format(it),"mask", mask, "v_n:", v_n, ":", "Error"],
-                                     ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+
+        if Paths.debug:
+            task(v_n, hist_dic, it, mask, fpath)
         else:
-            print_colored_string(["task:", "hist", "it:", "{}".format(it), "mask", mask, "v_n:", v_n, ":", "skipping"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                if os.path.isfile(fpath): os.remove(fpath)
+                print_colored_string(["task:", "hist", "it:", "{}".format(it), "mask", mask, "v_n:", v_n, ":", "computing"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+                try:
+                    task(v_n, hist_dic, it, mask, fpath)
+                except KeyboardInterrupt:
+                    exit(1)
+                except IOError:
+                    print_colored_string(["task:", "hist", "it:", "{}".format(it),"mask", mask, "v_n:", v_n, ":", "IOError"],
+                                         ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+                except:
+                    print_colored_string(["task:", "hist", "it:", "{}".format(it),"mask", mask, "v_n:", v_n, ":", "Error"],
+                                         ["blue", "green", "blue", "green", "blue", "green","blue", "green", "", "red"])
+            else:
+                print_colored_string(["task:", "hist", "it:", "{}".format(it), "mask", mask, "v_n:", v_n, ":", "skipping"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
 
 def d3_corr_for_it(it, d3corrclass, mask, glob_v_ns, outdir, rewrite=False):
 
     selected_vn1vn2s = select_string(glob_v_ns, __d3corrs__)
 
+    def task(it, corr_task_dic, mask, fpath):
+        edges, mass = d3corrclass.get_correlation(it, corr_task_dic, mask, multiplier=2.)
+        dfile = h5py.File(fpath, "w")
+        dfile.create_dataset("mass", data=mass, dtype=np.float32)
+        for dic, edge in zip(corr_task_dic, edges):
+            dfile.create_dataset("{}".format(dic["v_n"]), data=edge)
+        dfile.close()
+
     for v_ns in selected_vn1vn2s:
         # chose a dictionary
-        if v_ns == "rho_r":
-            corr_task_dic = d3corrclass.corr_task_dic_rho_r
-        elif v_ns == "r_Ye":
-            corr_task_dic = d3corrclass.corr_task_dic_r_ye
-        elif v_ns == "rho_Ye":
-            corr_task_dic = d3corrclass.corr_task_dic_rho_ye
-        elif v_ns == "Ye_entr":
-            corr_task_dic = d3corrclass.corr_task_dic_ye_entr
-        elif v_ns == "temp_Ye":
-            corr_task_dic = d3corrclass.corr_task_dic_temp_ye
-        elif v_ns == "velz_Ye":
-            corr_task_dic = d3corrclass.corr_task_dic_velz_ye
-        elif v_ns == "rho_theta":
-            corr_task_dic = d3corrclass.corr_task_dic_rho_theta
-        elif v_ns == "velz_theta":
-            corr_task_dic = d3corrclass.corr_task_dic_velz_theta
-        elif v_ns == "rho_temp":
-            corr_task_dic = d3corrclass.corr_task_dic_rho_temp
-        elif v_ns == "rho_ang_mom":
-            corr_task_dic = d3corrclass.corr_task_dic_rho_ang_mom
-        elif v_ns == "rho_ang_mom_flux":
-            corr_task_dic = d3corrclass.corr_task_dic_rho_ang_mom_flux
-        elif v_ns == "Ye_dens_unb_bern":
-            corr_task_dic = d3corrclass.corr_task_dic_ye_dens_unb_bern
-        elif v_ns == "rho_dens_unb_bern":
-            corr_task_dic = d3corrclass.corr_task_dic_rho_dens_unb_bern
-        elif v_ns == "velz_dens_unb_bern":
-            corr_task_dic = d3corrclass.corr_task_dic_velz_dens_unb_bern
-        elif v_ns == "theta_dens_unb_bern":
-            corr_task_dic = d3corrclass.corr_task_dic_theta_dens_unb_bern
-        elif v_ns == "ang_mom_flux_theta":
-            corr_task_dic = d3corrclass.corr_task_dic_ang_mom_flux_theta
-        elif v_ns == "ang_mom_flux_dens_unb_bern":
-            corr_task_dic = d3corrclass.corr_task_dic_ang_mom_flux_dens_unb_bern
-        elif v_ns == "inv_ang_mom_flux_dens_unb_bern":
-            corr_task_dic = d3corrclass.corr_task_dic_inv_ang_mom_flux_dens_unb_bern
-        elif v_ns == "hu_0_ang_mom":
-            corr_task_dic = d3corrclass.corr_task_dic_hu_0_ang_mom
-        elif v_ns == "hu_0_ang_mom_flux":
-            corr_task_dic = d3corrclass.corr_task_dic_hu_0_ang_mom_flux
-        elif v_ns == "hu_0_Ye":
-            corr_task_dic = d3corrclass.corr_task_dic_hu_0_ye
-        elif v_ns == "hu_0_temp":
-            corr_task_dic = d3corrclass.corr_task_dic_hu_0_temp
-        elif v_ns == "hu_0_entr":
-            corr_task_dic = d3corrclass.corr_task_dic_hu_0_entr
-        else:
-            raise NameError("unknown task for correlation computation: {}"
-                            .format(v_ns))
+
+        corr_task_dic = get_corr_dic(mask, v_ns)
+
+        # if v_ns == "rho_r":
+        #     corr_task_dic = d3corrclass.corr_task_dic_rho_r
+        # elif v_ns == "r_Ye":
+        #     corr_task_dic = d3corrclass.corr_task_dic_r_ye
+        # elif v_ns == "rho_Ye":
+        #     corr_task_dic = d3corrclass.corr_task_dic_rho_ye
+        # elif v_ns == "Ye_entr":
+        #     corr_task_dic = d3corrclass.corr_task_dic_ye_entr
+        # elif v_ns == "temp_Ye":
+        #     corr_task_dic = d3corrclass.corr_task_dic_temp_ye
+        # elif v_ns == "velz_Ye":
+        #     corr_task_dic = d3corrclass.corr_task_dic_velz_ye
+        # elif v_ns == "rho_theta":
+        #     corr_task_dic = d3corrclass.corr_task_dic_rho_theta
+        # elif v_ns == "velz_theta":
+        #     corr_task_dic = d3corrclass.corr_task_dic_velz_theta
+        # elif v_ns == "rho_temp":
+        #     corr_task_dic = d3corrclass.corr_task_dic_rho_temp
+        # elif v_ns == "rho_ang_mom":
+        #     corr_task_dic = d3corrclass.corr_task_dic_rho_ang_mom
+        # elif v_ns == "rho_ang_mom_flux":
+        #     corr_task_dic = d3corrclass.corr_task_dic_rho_ang_mom_flux
+        # elif v_ns == "Ye_dens_unb_bern":
+        #     corr_task_dic = d3corrclass.corr_task_dic_ye_dens_unb_bern
+        # elif v_ns == "rho_dens_unb_bern":
+        #     corr_task_dic = d3corrclass.corr_task_dic_rho_dens_unb_bern
+        # elif v_ns == "velz_dens_unb_bern":
+        #     corr_task_dic = d3corrclass.corr_task_dic_velz_dens_unb_bern
+        # elif v_ns == "theta_dens_unb_bern":
+        #     corr_task_dic = d3corrclass.corr_task_dic_theta_dens_unb_bern
+        # elif v_ns == "ang_mom_flux_theta":
+        #     corr_task_dic = d3corrclass.corr_task_dic_ang_mom_flux_theta
+        # elif v_ns == "ang_mom_flux_dens_unb_bern":
+        #     corr_task_dic = d3corrclass.corr_task_dic_ang_mom_flux_dens_unb_bern
+        # elif v_ns == "inv_ang_mom_flux_dens_unb_bern":
+        #     corr_task_dic = d3corrclass.corr_task_dic_inv_ang_mom_flux_dens_unb_bern
+        # elif v_ns == "hu_0_ang_mom":
+        #     corr_task_dic = d3corrclass.corr_task_dic_hu_0_ang_mom
+        # elif v_ns == "hu_0_ang_mom_flux":
+        #     corr_task_dic = d3corrclass.corr_task_dic_hu_0_ang_mom_flux
+        # elif v_ns == "hu_0_Ye":
+        #     corr_task_dic = d3corrclass.corr_task_dic_hu_0_ye
+        # elif v_ns == "hu_0_temp":
+        #     corr_task_dic = d3corrclass.corr_task_dic_hu_0_temp
+        # elif v_ns == "hu_0_entr":
+        #     corr_task_dic = d3corrclass.corr_task_dic_hu_0_entr
+        # else:
+        #     raise NameError("unknown task for correlation computation: {}"
+        #                     .format(v_ns))
 
         fpath = outdir + "corr_{}.h5".format(v_ns)
 
-        try:
-            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                if os.path.isfile(fpath): os.remove(fpath)
-                print_colored_string(["task:", "corr", "it:", "{}".format(it), "mask:", mask, "v_ns:", v_ns, ":", "computing"],
-                                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
-                edges, mass = d3corrclass.get_correlation(it, corr_task_dic, mask, multiplier=2.)
-                dfile = h5py.File(fpath, "w")
-                dfile.create_dataset("mass", data=mass, dtype=np.float32)
-                for dic, edge in zip(corr_task_dic, edges):
-                    dfile.create_dataset("{}".format(dic["v_n"]), data=edge)
-                dfile.close()
-            else:
-                print_colored_string(["task:", "corr", "it:", "{}".format(it), "mask:", mask, "v_ns:", v_ns, ":", "skipping"],
-                                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        except IOError:
-            print_colored_string(["task:", "corr", "it:", "{}".format(it), "mask:", mask, "v_ns:", v_ns, ":", "IOError"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except ValueError:
-            print_colored_string(["task:", "corr", "it:", "{}".format(it), "mask:", mask, "v_ns:", v_ns, ":", "ValueError"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except KeyboardInterrupt:
-            exit(1)
-        except:
-            print_colored_string(["task:", "corr", "it:", "{}".format(it), "mask:", mask, "v_ns:", v_ns, ":", "faild"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+        if Paths.debug:
+            task(it, corr_task_dic, mask, fpath)
+        else:
+            try:
+                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                    if os.path.isfile(fpath): os.remove(fpath)
+                    print_colored_string(["task:", "corr", "it:", "{}".format(it), "mask:", mask, "v_ns:", v_ns, ":", "computing"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+                    task(it, corr_task_dic, mask, fpath)
+                else:
+                    print_colored_string(["task:", "corr", "it:", "{}".format(it), "mask:", mask, "v_ns:", v_ns, ":", "skipping"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            except IOError:
+                print_colored_string(["task:", "corr", "it:", "{}".format(it), "mask:", mask, "v_ns:", v_ns, ":", "IOError"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except ValueError:
+                print_colored_string(["task:", "corr", "it:", "{}".format(it), "mask:", mask, "v_ns:", v_ns, ":", "ValueError"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except KeyboardInterrupt:
+                exit(1)
+            except:
+                print_colored_string(["task:", "corr", "it:", "{}".format(it), "mask:", mask, "v_ns:", v_ns, ":", "faild"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def d3_to_d2_slice_for_it(it, d3corrclass, glob_planes, outdir, rewrite=False):
 
     selected_planes = select_string(glob_planes, __d3slicesplanes__)
 
+    def task(it, plane, fpath):
+        d3corrclass.make_save_prof_slice(it, plane, __d3slicesvns__, fpath)
+
     for plane in selected_planes:
         fpath = outdir + "profile" + '.' + plane + ".h5"
-        try:#if True: #try:
-            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                if os.path.isfile(fpath): os.remove(fpath)
-                print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "computing"],
-                                     ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-                d3corrclass.make_save_prof_slice(it, plane, __d3slicesvns__, fpath)
-            else:
-                print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "skipping"],
-                                     ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        except ValueError:
-            print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "ValueError"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except IOError:
-            print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "IOError"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except:
-            print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "failed"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+
+        if Paths.debug:
+            task(it, plane, fpath)
+        else:
+            try:#if True: #try:
+                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                    if os.path.isfile(fpath): os.remove(fpath)
+                    print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "computing"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                    task(it, plane, fpath)
+                else:
+                    print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "skipping"],
+                                         ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            except ValueError:
+                print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "ValueError"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except IOError:
+                print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "IOError"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
+                print_colored_string(["task:", "prof slice", "it:", "{}".format(it), "plane:", plane, ":", "failed"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 
 
@@ -392,109 +390,156 @@ def d2_slice_corr_for_it(it, d3slice, glob_v_ns, glob_masks, plane, outdir, rewr
 
     selected_vn1vn2s = select_string(glob_v_ns, __d2corrs__)
 
+    def task(it, corr_task_dic, mask, fpath):
+        edges, mass = d3slice.get_correlation(it, corr_task_dic, mask, multiplier=2.)
+        dfile = h5py.File(fpath, "w")
+        dfile.create_dataset("mass", data=mass, dtype=np.float32)
+        for dic, edge in zip(corr_task_dic, edges):
+            dfile.create_dataset("{}".format(dic["v_n"]), data=edge)
+        dfile.close()
+
     for mask in glob_masks:
         if not os.path.isdir(outdir + mask + '/'):
             os.mkdir(outdir + mask + '/')
         outdir_ = outdir + mask + '/'
         for v_ns in selected_vn1vn2s:
             #
-            if v_ns == "Q_eff_nua_dens_unb_bern":
-                corr_task_dic = d3slice.corr_task_dic_q_eff_nua_dens_unb_bern
-            elif v_ns == "Q_eff_nua_over_density_hu_0":
-                corr_task_dic = d3slice.corr_task_dic_q_eff_nua_over_D_hu_0
-            elif v_ns == "Q_eff_nua_over_density_theta":
-                corr_task_dic = d3slice.corr_task_dic_q_eff_nua_over_D_theta
-            elif v_ns == "Q_eff_nua_over_density_Ye":
-                corr_task_dic = d3slice.corr_task_dic_q_eff_nua_over_D_Ye
-            elif v_ns == "Q_eff_nua_u_0":
-                corr_task_dic = d3slice.corr_task_dic_q_eff_nua_u_0
-            elif v_ns == "Q_eff_nua_Ye":
-                corr_task_dic = d3slice.corr_task_dic_q_eff_nua_ye
-            elif v_ns == "velz_Ye":
-                corr_task_dic = d3slice.corr_task_dic_velz_ye
-            elif v_ns == "Q_eff_nua_hu_0":
-                corr_task_dic = d3slice.corr_task_dic_q_eff_nua_hu_0
-            else:
-                raise NameError("unknown task for correlation computation: {}"
-                                .format(v_ns))
+
+            corr_task_dic = get_corr_dic(mask, v_ns)
+
+            # if v_ns == "Q_eff_nua_dens_unb_bern":
+            #     #corr_task_dic = d3slice.corr_task_dic_q_eff_nua_dens_unb_bern
+            #     corr_task_dic = [
+            #         {"v_n": "Q_eff_nua", "edges": get_hist_bins(mask, 'Q_eff_nua')},
+            #         {"v_n": "dens_unb_bern", "edges": get_hist_bins(mask, 'dens_unb_bern')}
+            #     ]
+            # elif v_ns == "Q_eff_nua_over_density_hu_0":
+            #     # corr_task_dic = d3slice.corr_task_dic_q_eff_nua_over_D_hu_0
+            #     corr_task_dic = [
+            #         {"v_n": "Q_eff_nua_over_density", "edges": get_hist_bins(mask, 'Q_eff_nua_over_density')},
+            #         {"v_n": "hu_0", "edges": get_hist_bins(mask, 'hu_0')}
+            #     ]
+            # elif v_ns == "Q_eff_nua_over_density_theta":
+            #     # corr_task_dic = d3slice.corr_task_dic_q_eff_nua_over_D_theta
+            #     corr_task_dic = [
+            #         {"v_n": "Q_eff_nua_over_density", "edges": get_hist_bins(mask, 'Q_eff_nua_over_density')},
+            #         {"v_n": "theta", "edges": get_hist_bins(mask, 'theta')}
+            #     ]
+            # elif v_ns == "Q_eff_nua_over_density_Ye":
+            #     # corr_task_dic = d3slice.corr_task_dic_q_eff_nua_over_D_Ye
+            #     corr_task_dic = [
+            #         {"v_n": "Q_eff_nua_over_density", "edges": get_hist_bins(mask, 'Q_eff_nua_over_density')},
+            #         {"v_n": "Ye", "edges": get_hist_bins(mask, 'Ye')}
+            #     ]
+            # elif v_ns == "Q_eff_nua_u_0":
+            #     # corr_task_dic = d3slice.corr_task_dic_q_eff_nua_u_0
+            #     corr_task_dic = [
+            #         {"v_n": "Q_eff_nua", "edges": get_hist_bins(mask, 'Q_eff_nua')},
+            #         {"v_n": "u_0", "edges": get_hist_bins(mask, 'u_0')}
+            #     ]
+            # elif v_ns == "Q_eff_nua_Ye":
+            #     # corr_task_dic = d3slice.corr_task_dic_q_eff_nua_ye
+            #     corr_task_dic = [
+            #         {"v_n": "Q_eff_nua", "edges": get_hist_bins(mask, 'Q_eff_nua')},
+            #         {"v_n": "Ye", "edges": get_hist_bins(mask, 'Ye')}
+            #     ]
+            # elif v_ns == "velz_Ye":
+            #     # corr_task_dic = d3slice.corr_task_dic_velz_ye
+            #     corr_task_dic = [
+            #         {"v_n": "velz", "edges": get_hist_bins(mask, 'velz')},  # in c
+            #         {"v_n": "Ye", "edges": get_hist_bins(mask, 'Ye')}
+            #     ]
+            # elif v_ns == "Q_eff_nua_hu_0":
+            #     # corr_task_dic = d3slice.corr_task_dic_q_eff_nua_hu_0
+            #     corr_task_dic = [
+            #         {"v_n": "Q_eff_nua", "edges": get_hist_bins(mask, 'Q_eff_nua')},
+            #         {"v_n": "hu_0", "edges": get_hist_bins(mask, 'hu_0')}
+            #     ]
+            # else:
+            #     raise NameError("unknown task for correlation computation: {}".format(v_ns))
 
             fpath = outdir_ + "{}_corr_{}.h5".format(plane, v_ns)
 
-            try:
-                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                    if os.path.isfile(fpath): os.remove(fpath)
+            if Paths.debug:
+                task(it, corr_task_dic, mask, fpath)
+            else:
+                try:
+                    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                        if os.path.isfile(fpath): os.remove(fpath)
+                        print_colored_string(
+                            ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns,
+                             ":", "computing"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "blue", "green", "",
+                             "green"])
+                        task(it, corr_task_dic, mask, fpath)
+                    else:
+                        print_colored_string(
+                            ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "v_ns:", v_ns, ":", "skipping"],
+                            ["blue", "green", "blue", "green", "blue", "green" "blue", "green", "", "blue"])
+                except IOError:
                     print_colored_string(
-                        ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns,
-                         ":", "computing"],
-                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "blue", "green", "",
-                         "green"])
-                    edges, mass = d3slice.get_correlation(it, corr_task_dic, mask, multiplier=2.)
-                    dfile = h5py.File(fpath, "w")
-                    dfile.create_dataset("mass", data=mass, dtype=np.float32)
-                    for dic, edge in zip(corr_task_dic, edges):
-                        dfile.create_dataset("{}".format(dic["v_n"]), data=edge)
-                    dfile.close()
-                else:
+                        ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":",
+                         "IOError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except NameError:
                     print_colored_string(
-                        ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "v_ns:", v_ns, ":", "skipping"],
-                        ["blue", "green", "blue", "green", "blue", "green" "blue", "green", "", "blue"])
-            except IOError:
-                print_colored_string(
-                    ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":",
-                     "IOError"],
-                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-            except NameError:
-                print_colored_string(
-                    ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":",
-                     "NameError"],
-                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-            except ValueError:
-                print_colored_string(
-                    ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":",
-                     "ValueError"],
-                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-            except KeyboardInterrupt:
-                exit(1)
-            except:
-                print_colored_string(
-                    ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":",
-                     "failed"],
-                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                        ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":",
+                         "NameError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except ValueError:
+                    print_colored_string(
+                        ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":",
+                         "ValueError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except KeyboardInterrupt:
+                    exit(1)
+                except:
+                    print_colored_string(
+                        ["task:", "slicecorr", "it:", "{}".format(it), "plane:", plane, "mask", mask, "v_ns:", v_ns, ":",
+                         "failed"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def d3_dens_modes(d3corrclass, outdir, rewrite=False):
     fpath = outdir + "density_modes_lap15.h5"
     rl = 3
     mmax = 8
     Printcolor.yellow("\tNote: that for density mode computation, masks (lapse etc) are NOT used")
-    try:
-        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-            if os.path.isfile(fpath): os.remove(fpath)
-            print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "computing"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-            times, iterations, xcs, ycs, modes, rs, mmodes = \
-                d3corrclass.get_dens_modes_for_rl(rl=rl, mmax=mmax, nshells=100)
-            dfile = h5py.File(fpath, "w")
-            dfile.create_dataset("times", data=times)           # times that actually used
-            dfile.create_dataset("iterations", data=iterations) # iterations for these times
-            dfile.create_dataset("xc", data=xcs)                # x coordinate of the center of mass
-            dfile.create_dataset("yc", data=ycs)                # y coordinate of the center of mass
-            dfile.create_dataset("rs", data=rs)                 # central radii of the shells
-            for m in range(mmax + 1):
-                group = dfile.create_group("m=%d" % m)
-                group["int_phi"] = np.array(mmodes[m]) # NOT USED (suppose to be data for every 'R' in disk and NS)
-                group["int_phi_r"] = np.array(modes[m]).flatten() # integrated over 'R' data
-            dfile.close()
-        else:
-            print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "skipping"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-    except KeyboardInterrupt:
-        exit(1)
-    except IOError:
-        print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "IOError"],
-                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-    except:
-        print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
-                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+
+    def task(rl, mmax, fpath, nshells=100):
+        times, iterations, xcs, ycs, modes, rs, mmodes = \
+            d3corrclass.get_dens_modes_for_rl(rl=rl, mmax=mmax, nshells=nshells)
+        dfile = h5py.File(fpath, "w")
+        dfile.create_dataset("times", data=times)  # times that actually used
+        dfile.create_dataset("iterations", data=iterations)  # iterations for these times
+        dfile.create_dataset("xc", data=xcs)  # x coordinate of the center of mass
+        dfile.create_dataset("yc", data=ycs)  # y coordinate of the center of mass
+        dfile.create_dataset("rs", data=rs)  # central radii of the shells
+        for m in range(mmax + 1):
+            group = dfile.create_group("m=%d" % m)
+            group["int_phi"] = np.array(mmodes[m])  # NOT USED (suppose to be data for every 'R' in disk and NS)
+            group["int_phi_r"] = np.array(modes[m]).flatten()  # integrated over 'R' data
+        dfile.close()
+
+    if Paths.debug:
+        task(rl, mmax, fpath, nshells=100)
+    else:
+        try:
+            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                if os.path.isfile(fpath): os.remove(fpath)
+                print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "computing"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                task(rl, mmax, fpath, nshells=100)
+            else:
+                print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "skipping"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+        except KeyboardInterrupt:
+            exit(1)
+        except IOError:
+            print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "IOError"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+        except:
+            print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def d3_dens_modes_int(d3intclass, outdir, rewrite=False):
     """
@@ -506,35 +551,43 @@ def d3_dens_modes_int(d3intclass, outdir, rewrite=False):
     mmax = 8
     Printcolor.blue("\tNote: that for density mode computation, masks (lapse etc) are NOT used")
     Printcolor.yellow("\tNote: that in this task, grid interpolation takes long time")
-    try:
-        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-            if os.path.isfile(fpath): os.remove(fpath)
-            print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "computing"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-            times, iterations, rcs, phics, modes, r_pol, modes_r = d3intclass.compute_density_modes(mmode=mmax, masklapse=0.15)
-            dfile = h5py.File(fpath, "w")
-            dfile.create_dataset("times", data=times)  # times that actually used
-            dfile.create_dataset("iterations", data=iterations)  # iterations for these times
-            dfile.create_dataset("r_pol", data=r_pol)  # iterations for these times
-            dfile.create_dataset("rcs", data=rcs)  # x coordinate of the center of mass
-            dfile.create_dataset("phics", data=phics)  # y coordinate of the center of mass
-            for m in range(mmax + 1):
-                group = dfile.create_group("m=%d" % m)
-                group["int_phi"] = np.array(modes_r[m]).flatten()  # NOT USED (suppose to be data for every 'R' in disk and NS)
-                group["int_phi_r"] = np.array(modes[m]).flatten()  # integrated over 'R' data
-            dfile.close()
 
-        else:
-            print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "skipping"],
-                                 ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-    except KeyboardInterrupt:
-        exit(1)
-    except IOError:
-        print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "IOError"],
-                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-    except:
-        print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
-                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+    def task(mmax, fpath, masklapse=0.15):
+        times, iterations, rcs, phics, modes, r_pol, modes_r = \
+            d3intclass.compute_density_modes(mmode=mmax, masklapse=masklapse)
+        dfile = h5py.File(fpath, "w")
+        dfile.create_dataset("times", data=times)  # times that actually used
+        dfile.create_dataset("iterations", data=iterations)  # iterations for these times
+        dfile.create_dataset("r_pol", data=r_pol)  # iterations for these times
+        dfile.create_dataset("rcs", data=rcs)  # x coordinate of the center of mass
+        dfile.create_dataset("phics", data=phics)  # y coordinate of the center of mass
+        for m in range(mmax + 1):
+            group = dfile.create_group("m=%d" % m)
+            group["int_phi"] = np.array(
+                modes_r[m]).flatten()  # NOT USED (suppose to be data for every 'R' in disk and NS)
+            group["int_phi_r"] = np.array(modes[m]).flatten()  # integrated over 'R' data
+        dfile.close()
+
+    if Paths.debug:
+        task(mmax, fpath, masklapse=0.15)
+    else:
+        try:
+            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                if os.path.isfile(fpath): os.remove(fpath)
+                print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "computing"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                task(mmax, fpath, masklapse=0.15)
+            else:
+                print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "skipping"],
+                                     ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+        except KeyboardInterrupt:
+            exit(1)
+        except IOError:
+            print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "IOError"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+        except:
+            print_colored_string(["task:", "dens modes", "rl:", str(rl), "mmax:", str(mmax), ":", "failed"],
+                                 ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def d3_int_data_to_vtk(d3intclass, glob_its, glob_v_ns, outdir, rewrite=False):
     private_dir = "vtk/"
@@ -632,6 +685,9 @@ def d3_interpolate_mjenclosed(d3intclass, glob_its, glob_masks, outdir, rewrite=
     dz_cyl = d3intclass.new_grid.get_int_grid("dz_cyl")
     r_cyl = d3intclass.new_grid.get_int_grid("r_cyl")
     #
+
+
+
     for it in glob_its:
         sys.stdout.flush()
         _outdir = outdir + str(it) + '/'
@@ -1027,9 +1083,9 @@ def plot_d3_prof_slices(d3class, glob_its, glob_v_ns, resdir, figdir='module_sli
                     raise NameError("v_n:{} not recogmized".format(v_n))
 
                 def_dic_xy["xmin"], def_dic_xy["xmax"], def_dic_xy["ymin"], def_dic_xy["ymax"], _, _ \
-                    = get_xmin_xmax_ymin_ymax_zmin_zmax(rl)
+                    = get_reflev_borders(rl)
                 def_dic_xz["xmin"], def_dic_xz["xmax"], _, _, def_dic_xz["ymin"], def_dic_xz["ymax"] \
-                    = get_xmin_xmax_ymin_ymax_zmin_zmax(rl)
+                    = get_reflev_borders(rl)
 
                 """ --- --- --- """
                 datafpath = resdir
@@ -2236,13 +2292,13 @@ def compute_methods_with_original_data(
 
             for mask in glob_masks:
 
-                _outdir += mask + '/'
+                __outdir = _outdir + mask + '/'
                 if not os.path.isdir(outdir):
                     os.mkdir(outdir)
 
-                if task == "corr":  d3_corr_for_it(it, d3corr_class, mask, glob_v_ns, _outdir, rewrite=glob_overwrite)
-                if task == "hist":  d3_hist_for_it(it, d3corr_class, mask, glob_v_ns, _outdir, rewrite=glob_overwrite)
-                if task == "mass": d3_mass_for_it(it, d3corr_class, mask, _outdir, rewrite=glob_overwrite)
+                if task == "corr":  d3_corr_for_it(it, d3corr_class, mask, glob_v_ns, __outdir, rewrite=glob_overwrite)
+                if task == "hist":  d3_hist_for_it(it, d3corr_class, mask, glob_v_ns, __outdir, rewrite=glob_overwrite)
+                if task == "mass": d3_mass_for_it(it, d3corr_class, mask, __outdir, rewrite=glob_overwrite)
                 # d3_remnant_mass_for_it(it, d3corr_class, outdir, rewrite=glob_overwrite)
             # else:
             #     raise NameError("d3 method is not recognized: {}".format(task))
@@ -2346,13 +2402,13 @@ if __name__ == '__main__':
     parser = ArgumentParser(description="postprocessing pipeline")
     parser.add_argument("-s", dest="sim", required=True, help="task to perform")
     parser.add_argument("-t", dest="tasklist", required=False, nargs='+', default=[], help="tasks to perform")
+    parser.add_argument('--mask', dest="mask", required=False, nargs='+', default=[],
+                        help="Mask data for specific analysis. 'disk' is default ")
     parser.add_argument("--v_n", dest="v_ns", required=False, nargs='+', default=[], help="variable (or group) name")
     parser.add_argument("--rl", dest="reflevels", required=False, nargs='+', default=[], help="reflevels")
     parser.add_argument("--it", dest="iterations", required=False, nargs='+', default=[], help="iterations")
     parser.add_argument('--time', dest="times", required=False, nargs='+', default=[], help='Timesteps')
     parser.add_argument('--plane', dest="plane", required=False, nargs='+', default=[], help='Plane: xy,xz,yz for slice analysis')
-    parser.add_argument('--mask', dest="mask", required=False, nargs='+', default=[],
-                        help="Mask data for specific analysis. 'disk' is default ")
     #
     parser.add_argument("-o", dest="outdir", required=False, default=None, help="path for output dir")
     parser.add_argument("-i", dest="indir", required=False, default=None, help="path to simulation dir")
@@ -2386,17 +2442,6 @@ if __name__ == '__main__':
                              default=True, show_default=True):
             exit(1)
 
-    # checking if to use maxtime
-    if glob_maxtime == -1:
-        glob_usemaxtime = False
-        glob_maxtime = -1
-    elif re.match(r'^-?\d+(?:\.\d+)?$', glob_maxtime):
-        glob_maxtime = float(glob_maxtime)  # [ms]
-        glob_usemaxtime = True
-    else:
-        raise NameError("To limit the data usage profive --maxtime in [ms] (after simulation start_. Given: {}"
-                        .format(glob_maxtime))
-
     # check mask
     if len(glob_masks) == 0:
         glob_masks = ["disk"]
@@ -2422,7 +2467,7 @@ if __name__ == '__main__':
 
     # assert that paths to data and to output are valid
     if glob_indir is None:
-        glob_indir = Paths.default_data_dir + glob_sim + '/' + "profiles/3d/"
+        glob_indir = Paths.default_data_dir + glob_sim + '/' + Paths.default_profile_dic#"profiles/3d/"
         if not os.path.isdir(glob_indir):
             raise IOError("Default path for profiles is not valid: {}".format(glob_indir))
     if not os.path.isdir(glob_indir):
@@ -2434,6 +2479,33 @@ if __name__ == '__main__':
     if not os.path.isdir(glob_outdir):
         raise IOError("Output path is not valid: {}".format(glob_outdir))
 
+    # checking if to use maxtime
+    if glob_maxtime == -1:
+        glob_usemaxtime = False
+        glob_maxtime = -1
+        # print(glob_outdir + "maxtime.txt")
+        if os.path.isfile(glob_outdir + "maxtime.txt"):
+            glob_maxtime = float(np.loadtxt(glob_outdir + "maxtime.txt"))
+            glob_usemaxtime = True
+            Printcolor.print_colored_string(
+                ["Note: maxtime.txt found. Setting value:","{:.1f}".format(glob_maxtime), "[ms]"],
+                ["yellow", "green", "yellow"]
+            )
+    elif re.match(r'^-?\d+(?:\.\d+)?$', glob_maxtime):
+        glob_maxtime = float(glob_maxtime)  # [ms]
+        glob_usemaxtime = True
+    else:
+        raise NameError("To limit the data usage profive --maxtime in [ms] (after simulation start_. Given: {}"
+                        .format(glob_maxtime))
+    # if glob_maxtime == -1:
+    #     glob_usemaxtime = False
+    #     glob_maxtime = -1
+    # elif re.match(r'^-?\d+(?:\.\d+)?$', glob_maxtime):
+    #     glob_maxtime = float(glob_maxtime)  # [ms]
+    #     glob_usemaxtime = True
+    # else:
+    #     raise NameError("To limit the data usage profive --maxtime in [ms] (after simulation start_. Given: {}"
+    #                     .format(glob_maxtime))
 
     # check if tasks are set properly
     if len(glob_tasklist) == 0:
@@ -2455,7 +2527,8 @@ if __name__ == '__main__':
     #
     if len(itprof) == 0:
         Printcolor.red("No profiles found. Please, extract profiles for {} "
-                         "and save them in /sim_dir/profiles/3d/ and/or update ittime.h5".format(glob_sim))
+                         "and save them in /sim_dir/{} and/or update ittime.h5"
+                       .format(glob_sim, Paths.default_profile_dic))
         exit(0)
     else:
         Printcolor.print_colored_string(["Available", "{}".format(len(itprof)), "profiles to postprocess"],

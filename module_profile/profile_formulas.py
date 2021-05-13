@@ -99,7 +99,7 @@ class FORMULAS:
         # rho_unbnd_bernoulli = rho * mask_ber
         density_unbnd_bernoulli = density * mask_ber
         # print(density_unbnd_bernoulli); exit(1)
-        print(np.sum(density_unbnd_bernoulli / density))
+        # print(np.sum(density_unbnd_bernoulli / density))
         # print(np.unique(density_unbnd_bernoulli / density)); exit(1)
         return density_unbnd_bernoulli
 

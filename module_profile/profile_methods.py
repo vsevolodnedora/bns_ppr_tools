@@ -11,6 +11,7 @@ import sys
 from argparse import ArgumentParser
 import time
 from scidata.carpet.interp import Interpolator
+import scidata.carpet.grid as grid
 
 from profile_grids import (CARTESIAN_GRID, CYLINDRICAL_GRID, POLAR_GRID)
 
@@ -22,6 +23,8 @@ from uutils import Printcolor
 
 from scipy import interpolate
 
+rho_const = 6.176269145886162e+17
+
 def get_time_for_it(it, list_times, list_iterations):
     # assert not (it > list_iterations[-1])
     # assert not (it < list_iterations[0])
@@ -31,7 +34,6 @@ def get_it_for_time(time, list_times, list_iterations):
     assert not (time > list_times[-1])
     assert not (time < list_times[0])
     return interpolate.interp1d(list_times, list_iterations, kind="linear", fill_value="extrapolate")(time)
-
 
 class LOAD_PROFILE:
 
@@ -107,7 +109,7 @@ class LOAD_PROFILE:
                             .format(it, self.list_iterations))
 
     def i_it(self, it):
-        return int(self.list_iterations.index(it))
+        return int(list(self.list_iterations).index(it))
 
     def check_grid_v_n(self, v_n):
         if not v_n in self.list_grid_v_ns:
@@ -191,7 +193,7 @@ class LOAD_PROFILE:
     # ---
 
     def read_carpet_grid(self, it):
-        import scidata.carpet.grid as grid
+        #import scidata.carpet.grid as grid
         L = []
         dfile = self.get_profile_dfile(it)
 
@@ -280,6 +282,8 @@ class LOAD_PROFILE:
             delta = grid[rl].delta
             extent = self.get_group(it, rl).attrs["extent"]
             origin = grid[rl].origin
+            if len(x[np.isnan(x)]) > 0: raise ValueError("Nans in grid 'x' it:{} rl:{}".format(it, rl))
+            if len(y[np.isnan(y)]) > 0: raise ValueError("Nans in grid 'y' it:{} rl:{}".format(it, rl))
             self.grid_data_matrix[self.i_it(it)][rl][self.i_grid_v_n("x")] = x
             self.grid_data_matrix[self.i_it(it)][rl][self.i_grid_v_n("y")] = y
             self.grid_data_matrix[self.i_it(it)][rl][self.i_grid_v_n("delta")] = delta
@@ -288,6 +292,9 @@ class LOAD_PROFILE:
         else:
             grid = self.get_grid(it)
             x, y, z = grid.mesh()[rl]
+            if len(x[np.isnan(x)]) > 0: raise ValueError("Nans in grid 'x' it:{} rl:{}".format(it, rl))
+            if len(y[np.isnan(y)]) > 0: raise ValueError("Nans in grid 'y' it:{} rl:{}".format(it, rl))
+            if len(z[np.isnan(z)]) > 0: raise ValueError("Nans in grid 'z' it:{} rl:{}".format(it, rl))
             delta = grid[rl].delta
             extent = self.get_group(it, rl).attrs["extent"]
             origin = grid[rl].origin
@@ -864,155 +871,155 @@ class MAINMETHODS_STORE(MASK_STORE):
 
         # "v_n": "temp", "points: number, "scale": "log", (and "min":number, "max":number)
 
-        rho_const = 6.176269145886162e+17
+        # rho_const = 6.176269145886162e+17
 
-        self.corr_task_dic_hu_0_ang_mom = [
-            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
-            {"v_n": "ang_mom", "points": 500, "scale": "log", "min":1e-9} # find min, max yourself
-        ]
-
-        self.corr_task_dic_hu_0_ang_mom_flux = [
-            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
-            {"v_n": "ang_mom_flux", "points": 300, "scale": "log", "min":1e-12},  # not in CGS :^
-        ]
-
-        self.corr_task_dic_hu_0_ye = [
-            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
-            {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)},  # not in CGS :^
-        ]
-
-        self.corr_task_dic_hu_0_temp = [
-            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
-            {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
-        ]
-
-        self.corr_task_dic_hu_0_entr = [
-            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
-            {"v_n": "entr", "edges": np.linspace(0., 200., 500)}
-        ]
-
-        self.corr_task_dic_r_phi = [
-            {"v_n": "r", "edges": np.linspace(0, 50, 500)},
-            {"v_n": "phi", "edges": np.linspace(-np.pi, np.pi, 500)},
-        ]
-
-        self.corr_task_dic_r_ye = [
-            # {"v_n": "rho",  "edges": 10.0 ** np.linspace(4.0, 16.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "r", "edges": np.linspace(0, 100, 500)},
-            {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)}
-        ]
-
-        self.corr_task_dic_rho_r = [
-            {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "r", "edges": np.linspace(0, 100, 500)}
-        ]
-
-        self.corr_task_dic_rho_ye = [
-            # {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
-            {"v_n": "rho",  "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}
-        ]
-
-        self.corr_task_dic_ye_entr = [
-            # {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
-            {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)},
-            {"v_n": "entr", "edges": np.linspace(0., 100., 500)}
-        ]
-
-        self.corr_task_dic_temp_ye = [
-            # {"v_n": "rho",  "edges": 10.0 ** np.linspace(4.0, 16.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
-            {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}
-        ]
-
-        self.corr_task_dic_velz_ye = [
-            # {"v_n": "rho",  "edges": 10.0 ** np.linspace(4.0, 16.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "velz", "edges": np.linspace(-1., 1., 500)},
-            {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}
-        ]
-
-        self.corr_task_dic_rho_temp = [
-            # {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
-            {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
-        ]
-
-        self.corr_task_dic_rho_theta = [
-            {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "theta", "edges": np.linspace(0, 0.5*np.pi, 500)}
-        ]
-
-        self.corr_task_dic_velz_theta = [
-            {"v_n": "velz", "edges": np.linspace(-1., 1., 500)},  # not in CGS :^
-            {"v_n": "theta", "edges": np.linspace(0, 0.5*np.pi, 500)}
-        ]
-
-        self.corr_task_dic_theta_dens_unb_bern = [
-            {"v_n": "theta", "edges": np.linspace(0, 0.5 * np.pi, 500)},
-            {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}  # not in CGS :^
-        ]
-
-        self.corr_task_dic_rho_ang_mom = [
-            {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "ang_mom", "points": 500, "scale": "log", "min":1e-9} # find min, max yourself
-        ]
-
-        self.corr_task_dic_ye_dens_unb_bern = [
-            {"v_n": "Ye",            "edges": np.linspace(0, 0.5, 500)}, #"edges": np.linspace(-1., 1., 500)},  # in c
-            {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
-        ]
-
-        self.corr_task_dic_rho_ang_mom_flux = [
-            {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "ang_mom_flux", "points": 500, "scale": "log", "min":1e-12}
-        ]
-
-        self.corr_task_dic_rho_dens_unb_bern = [
-            {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
-            {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
-        ]
-
-        self.corr_task_dic_velz_dens_unb_bern = [
-            {"v_n": "velz", "points": 500, "scale": "linear"}, #"edges": np.linspace(-1., 1., 500)},  # in c
-            {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
-        ]
-
-        self.corr_task_dic_ang_mom_flux_theta = [
-            {"v_n": "ang_mom_flux", "points": 300, "scale": "log", "min":1e-12},  # not in CGS :^
-            {"v_n": "theta", "edges": np.linspace(0, 0.5*np.pi, 500)}
-        ]
-
-        self.corr_task_dic_ang_mom_flux_dens_unb_bern = [
-            {"v_n": "ang_mom_flux", "points": 500, "scale": "log", "min":1e-12},  # not in CGS :^
-            {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
-        ]
-
-        self.corr_task_dic_inv_ang_mom_flux_dens_unb_bern = [
-            {"v_n": "inv_ang_mom_flux", "points": 500, "scale": "log", "min":1e-12},  # not in CGS :^
-            {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
-        ]
-
-        # -- 3D
-
-        self.corr_task_dic_r_phi_ang_mom_flux = [
-            {"v_n": "r", "edges": np.linspace(0, 100, 50)},
-            {"v_n": "phi", "edges": np.linspace(-np.pi, np.pi, 500)},
-            {"v_n": "ang_mom_flux", "points": 500, "scale": "log", "min": 1e-12}
-        ]
-
-        # hist [d - disk, r - remnant
-
-        self.hist_task_dic_entropy_d ={"v_n": "entr", "edges": np.linspace(0., 200., 500)}
-        self.hist_task_dic_entropy_r = {"v_n": "entr", "edges": np.linspace(0., 25., 300)}
-        self.hist_task_dic_r =      {"v_n": "r", "edges": np.linspace(0., 200., 500)}
-        self.hist_task_dic_theta =  {"v_n": "theta", "edges": np.linspace(0., np.pi / 2., 500)}
-        self.hist_task_dic_ye =     {"v_n": "Ye",   "edges": np.linspace(0., 0.5, 500)}
-        self.hist_task_dic_temp =   {"v_n": "temp", "edges": 10.0 ** np.linspace(-2., 2., 300)}
-        self.hist_task_dic_velz =   {"v_n": "velz", "edges": np.linspace(-1., 1., 500)}
-        self.hist_task_dic_rho_d =    {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const}
-        self.hist_task_dic_rho_r =    {"v_n": "rho", "edges": 10.0 ** np.linspace(10.0, 17.0, 500) / rho_const}
-        self.hist_task_dens_unb_bern = {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
-        self.hist_task_pressure =   {"v_n": "press", "edges": 10.0 ** np.linspace(-13., 5., 300)}
+        # self.corr_task_dic_hu_0_ang_mom = [
+        #     {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
+        #     {"v_n": "ang_mom", "points": 500, "scale": "log", "min":1e-9} # find min, max yourself
+        # ]
+        #
+        # self.corr_task_dic_hu_0_ang_mom_flux = [
+        #     {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
+        #     {"v_n": "ang_mom_flux", "points": 300, "scale": "log", "min":1e-12},  # not in CGS :^
+        # ]
+        #
+        # self.corr_task_dic_hu_0_ye = [
+        #     {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
+        #     {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)},  # not in CGS :^
+        # ]
+        #
+        # self.corr_task_dic_hu_0_temp = [
+        #     {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
+        #     {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
+        # ]
+        #
+        # self.corr_task_dic_hu_0_entr = [
+        #     {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)},
+        #     {"v_n": "entr", "edges": np.linspace(0., 200., 500)}
+        # ]
+        #
+        # self.corr_task_dic_r_phi = [
+        #     {"v_n": "r", "edges": np.linspace(0, 50, 500)},
+        #     {"v_n": "phi", "edges": np.linspace(-np.pi, np.pi, 500)},
+        # ]
+        #
+        # self.corr_task_dic_r_ye = [
+        #     # {"v_n": "rho",  "edges": 10.0 ** np.linspace(4.0, 16.0, 500) / rho_const},  # not in CGS :^
+        #     {"v_n": "r", "edges": np.linspace(0, 100, 500)},
+        #     {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)}
+        # ]
+        #
+        # self.corr_task_dic_rho_r = [
+        #     {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
+        #     {"v_n": "r", "edges": np.linspace(0, 100, 500)}
+        # ]
+        #
+        # self.corr_task_dic_rho_ye = [
+        #     # {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
+        #     {"v_n": "rho",  "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
+        #     {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}
+        # ]
+        #
+        # self.corr_task_dic_ye_entr = [
+        #     # {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
+        #     {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)},
+        #     {"v_n": "entr", "edges": np.linspace(0., 100., 500)}
+        # ]
+        #
+        # self.corr_task_dic_temp_ye = [
+        #     # {"v_n": "rho",  "edges": 10.0 ** np.linspace(4.0, 16.0, 500) / rho_const},  # not in CGS :^
+        #     {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
+        #     {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}
+        # ]
+        #
+        # self.corr_task_dic_velz_ye = [
+        #     # {"v_n": "rho",  "edges": 10.0 ** np.linspace(4.0, 16.0, 500) / rho_const},  # not in CGS :^
+        #     {"v_n": "velz", "edges": np.linspace(-1., 1., 500)},
+        #     {"v_n": "Ye",   "edges": np.linspace(0, 0.5, 500)}
+        # ]
+        #
+        # self.corr_task_dic_rho_temp = [
+        #     # {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
+        #     {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
+        #     {"v_n": "temp", "edges": 10.0 ** np.linspace(-2, 2, 300)},
+        # ]
+        #
+        # self.corr_task_dic_rho_theta = [
+        #     {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
+        #     {"v_n": "theta", "edges": np.linspace(0, 0.5*np.pi, 500)}
+        # ]
+        #
+        # self.corr_task_dic_velz_theta = [
+        #     {"v_n": "velz", "edges": np.linspace(-1., 1., 500)},  # not in CGS :^
+        #     {"v_n": "theta", "edges": np.linspace(0, 0.5*np.pi, 500)}
+        # ]
+        #
+        # self.corr_task_dic_theta_dens_unb_bern = [
+        #     {"v_n": "theta", "edges": np.linspace(0, 0.5 * np.pi, 500)},
+        #     {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}  # not in CGS :^
+        # ]
+        #
+        # self.corr_task_dic_rho_ang_mom = [
+        #     {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
+        #     {"v_n": "ang_mom", "points": 500, "scale": "log", "min":1e-9} # find min, max yourself
+        # ]
+        #
+        # self.corr_task_dic_ye_dens_unb_bern = [
+        #     {"v_n": "Ye",            "edges": np.linspace(0, 0.5, 500)}, #"edges": np.linspace(-1., 1., 500)},  # in c
+        #     {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
+        # ]
+        #
+        # self.corr_task_dic_rho_ang_mom_flux = [
+        #     {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
+        #     {"v_n": "ang_mom_flux", "points": 500, "scale": "log", "min":1e-12}
+        # ]
+        #
+        # self.corr_task_dic_rho_dens_unb_bern = [
+        #     {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const},  # not in CGS :^
+        #     {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
+        # ]
+        #
+        # self.corr_task_dic_velz_dens_unb_bern = [
+        #     {"v_n": "velz", "points": 500, "scale": "linear"}, #"edges": np.linspace(-1., 1., 500)},  # in c
+        #     {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
+        # ]
+        #
+        # self.corr_task_dic_ang_mom_flux_theta = [
+        #     {"v_n": "ang_mom_flux", "points": 300, "scale": "log", "min":1e-12},  # not in CGS :^
+        #     {"v_n": "theta", "edges": np.linspace(0, 0.5*np.pi, 500)}
+        # ]
+        #
+        # self.corr_task_dic_ang_mom_flux_dens_unb_bern = [
+        #     {"v_n": "ang_mom_flux", "points": 500, "scale": "log", "min":1e-12},  # not in CGS :^
+        #     {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
+        # ]
+        #
+        # self.corr_task_dic_inv_ang_mom_flux_dens_unb_bern = [
+        #     {"v_n": "inv_ang_mom_flux", "points": 500, "scale": "log", "min":1e-12},  # not in CGS :^
+        #     {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
+        # ]
+        #
+        # # -- 3D
+        #
+        # self.corr_task_dic_r_phi_ang_mom_flux = [
+        #     {"v_n": "r", "edges": np.linspace(0, 100, 50)},
+        #     {"v_n": "phi", "edges": np.linspace(-np.pi, np.pi, 500)},
+        #     {"v_n": "ang_mom_flux", "points": 500, "scale": "log", "min": 1e-12}
+        # ]
+        #
+        # # hist [d - disk, r - remnant
+        #
+        # self.hist_task_dic_entropy_d ={"v_n": "entr", "edges": np.linspace(0., 200., 500)}
+        # self.hist_task_dic_entropy_r = {"v_n": "entr", "edges": np.linspace(0., 25., 300)}
+        # self.hist_task_dic_r =      {"v_n": "r", "edges": np.linspace(0., 200., 500)}
+        # self.hist_task_dic_theta =  {"v_n": "theta", "edges": np.linspace(0., np.pi / 2., 500)}
+        # self.hist_task_dic_ye =     {"v_n": "Ye",   "edges": np.linspace(0., 0.5, 500)}
+        # self.hist_task_dic_temp =   {"v_n": "temp", "edges": 10.0 ** np.linspace(-2., 2., 300)}
+        # self.hist_task_dic_velz =   {"v_n": "velz", "edges": np.linspace(-1., 1., 500)}
+        # self.hist_task_dic_rho_d =    {"v_n": "rho", "edges": 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const}
+        # self.hist_task_dic_rho_r =    {"v_n": "rho", "edges": 10.0 ** np.linspace(10.0, 17.0, 500) / rho_const}
+        # self.hist_task_dens_unb_bern = {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
+        # self.hist_task_pressure =   {"v_n": "press", "edges": 10.0 ** np.linspace(-13., 5., 300)}
 
     def get_min_max(self, it, v_n):
         self.check_it(it)
@@ -1103,18 +1110,42 @@ class MAINMETHODS_STORE(MASK_STORE):
     def get_correlation(self, it, list_corr_task_dic, mask, multiplier=2.):
 
         edges = []
-        for setup_dictionary in list_corr_task_dic:
-            edges.append(self.get_edges(it, setup_dictionary))
-        edges = tuple(edges)
-        #
-        correlation = np.zeros([len(edge) - 1 for edge in edges])
-        #
         nlevels = self.get_nlevels(it)
+
+        for setup_dictionary in list_corr_task_dic:
+            v_n = setup_dictionary["v_n"]
+            edges.append(self.get_edges(it, setup_dictionary))
+            # check if there is data within histogram edges
+            data_min, data_max = [], []
+            data_within_edges = False
+            for rl in range(nlevels):
+                if v_n == 'inv_ang_mom_flux': _v_n = 'ang_mom_flux'
+                else: _v_n = v_n
+                rl_data = self.get_masked_data(it, rl, _v_n, mask)
+                rl_data = rl_data[~np.isnan(rl_data)]
+                if len(rl_data) > 0:
+                    data_min.append(rl_data.min())
+                    data_max.append(rl_data.max())
+                    if (edges[-1].min() < rl_data.max()) or (edges[-1].max() > rl_data.min()):
+                        data_within_edges = True
+            data_min = np.array(data_min)
+            data_max = np.array(data_max)
+            if not data_within_edges:
+                raise ValueError("Histogram edges do not fit data it:{} masl:{} v_n:{} \n"
+                                 "data_min:{} [{}]\n"
+                                 "data_max:{} [{}]\n"
+                                 "edge_min:{} edge_max:{}".format(
+                    it, mask, v_n, data_min, data_min.max(), data_max, data_max.min(),
+                    edges[-1].min(), edges[-1].max()))
+
+        edges = tuple(edges)
+        correlation = np.zeros([len(edge) - 1 for edge in edges])
+
         for rl in range(nlevels):
             data = []
             weights = self.get_masked_data(it, rl, "density", mask).flatten() * \
                       np.prod(self.get_grid_data(it, rl, "delta")) * multiplier
-            for corr_dic in list_corr_task_dic:
+            for i, corr_dic in enumerate(list_corr_task_dic):
                 v_n = corr_dic["v_n"]
                 if v_n == 'inv_ang_mom_flux':
                     v_n = 'ang_mom_flux'
@@ -1125,7 +1156,9 @@ class MAINMETHODS_STORE(MASK_STORE):
             tmp, _ = np.histogramdd(data, bins=edges, weights=weights)
             correlation += tmp
 
-        assert np.sum(correlation) > 0
+        if np.sum(correlation) == 0.:
+            print("Error! sum(correlation)=0 it:{} mask:{} v_ns:{}"
+                  .format(it, mask, [corr_dic["v_n"] for corr_dic in list_corr_task_dic]))
 
         return edges, correlation
 

@@ -26,6 +26,8 @@ import paths as Paths
 
 __masks__ = ["disk", "remnant"]
 
+rho_const = 6.176269145886162e+17
+
 class LOAD_PROFILE_SLICE:
 
     def __init__(self, flist, itlist, timesteplist):
@@ -94,7 +96,7 @@ class LOAD_PROFILE_SLICE:
 
     def i_it(self, it):
         self.check_it(it)
-        return int(self.list_iterations.index(it))
+        return int(list(self.list_iterations).index(it))
 
     def i_prof_v_n(self, v_n):
         self.check_v_n(v_n)
@@ -111,7 +113,7 @@ class LOAD_PROFILE_SLICE:
         # fname = "profile" + '.' + plane + ".h5"
         # fpath = path + fname
 
-        idx = self.list_iterations.index(it)
+        idx = list(self.list_iterations).index(it)
         fpath = self.list_files[idx]
 
         if not os.path.isfile(fpath):
@@ -155,9 +157,9 @@ class LOAD_PROFILE_SLICE:
                 self.prof_attr_matrix[self.i_it(it)][rl][self.i_attr_v_n(v_n)] = attr
             # checks
             if len(missing_v_ns) > 0:
-                print("\tmissing data from \n\t{}".format(fpath, missing_v_ns))
+                print("\tmissing data from \n\t{}\n\t{}".format(fpath, missing_v_ns))
             if len(missing_attrs) > 0:
-                print("\tmissing attr from \n\t{}".format(fpath, missing_attrs))
+                print("\tmissing attr from \n\t{}\n\t{}".format(fpath, missing_attrs))
 
 
         dfile.close()
@@ -378,45 +380,45 @@ class MAINMETHODS_STORE_SLICE(ADD_MASK_SLICE):
 
         # correlation tasks
 
-        self.corr_task_dic_q_eff_nua_ye = [
-            {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
-            {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)}
-        ]
-
-        self.corr_task_dic_q_eff_nua_dens_unb_bern = [
-            {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
-            {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
-        ]
-
-        self.corr_task_dic_q_eff_nua_over_D_theta = [
-            {"v_n": "Q_eff_nua_over_density", "edges": 10.0 ** np.linspace(-10., -2., 500)},
-            {"v_n": "theta", "edges": np.linspace(0., np.pi / 2., 500)}
-        ]
-
-        self.corr_task_dic_q_eff_nua_over_D_Ye = [
-            {"v_n": "Q_eff_nua_over_density", "edges": 10.0 ** np.linspace(-10., -2., 500)},
-            {"v_n": "Ye", "edges": np.linspace(0., 0.5, 500)}
-        ]
-
-        self.corr_task_dic_q_eff_nua_hu_0 = [
-            {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
-            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)}
-        ]
-
-        self.corr_task_dic_q_eff_nua_u_0 = [
-            {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
-            {"v_n": "u_0", "edges": np.linspace(-1.2, -0.8, 500)}
-        ]
-
-        self.corr_task_dic_q_eff_nua_over_D_hu_0 = [
-            {"v_n": "Q_eff_nua_over_density", "edges": 10.0 ** np.linspace(-10., -2., 500)},
-            {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)}
-        ]
-
-        self.corr_task_dic_velz_ye = [
-            {"v_n": "velz", "edges": np.linspace(-1., 1., 500)},  # in c
-            {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)}
-        ]
+        # self.corr_task_dic_q_eff_nua_ye = [
+        #     {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
+        #     {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)}
+        # ]
+        #
+        # self.corr_task_dic_q_eff_nua_dens_unb_bern = [
+        #     {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
+        #     {"v_n": "dens_unb_bern", "edges": 10.0 ** np.linspace(-12., -6., 500)}
+        # ]
+        #
+        # self.corr_task_dic_q_eff_nua_over_D_theta = [
+        #     {"v_n": "Q_eff_nua_over_density", "edges": 10.0 ** np.linspace(-10., -2., 500)},
+        #     {"v_n": "theta", "edges": np.linspace(0., np.pi / 2., 500)}
+        # ]
+        #
+        # self.corr_task_dic_q_eff_nua_over_D_Ye = [
+        #     {"v_n": "Q_eff_nua_over_density", "edges": 10.0 ** np.linspace(-10., -2., 500)},
+        #     {"v_n": "Ye", "edges": np.linspace(0., 0.5, 500)}
+        # ]
+        #
+        # self.corr_task_dic_q_eff_nua_hu_0 = [
+        #     {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
+        #     {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)}
+        # ]
+        #
+        # self.corr_task_dic_q_eff_nua_u_0 = [
+        #     {"v_n": "Q_eff_nua", "edges": 10.0 ** np.linspace(-15., -10., 500)},
+        #     {"v_n": "u_0", "edges": np.linspace(-1.2, -0.8, 500)}
+        # ]
+        #
+        # self.corr_task_dic_q_eff_nua_over_D_hu_0 = [
+        #     {"v_n": "Q_eff_nua_over_density", "edges": 10.0 ** np.linspace(-10., -2., 500)},
+        #     {"v_n": "hu_0", "edges": np.linspace(-1.2, -0.8, 500)}
+        # ]
+        #
+        # self.corr_task_dic_velz_ye = [
+        #     {"v_n": "velz", "edges": np.linspace(-1., 1., 500)},  # in c
+        #     {"v_n": "Ye", "edges": np.linspace(0, 0.5, 500)}
+        # ]
 
     def get_edges(self, it, corr_task_dic):
 
