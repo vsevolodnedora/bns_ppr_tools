@@ -597,6 +597,11 @@ class MASK_STORE(COMPUTE_STORE):
                           'rho': [1.e13 / 6.176e+17, 1.e30],
                           'lapse': [0.15, 1.]}
 
+    total_mask_setup = {'rm_rl': True,
+                          # 'rho': [1.e13 / 6.176e+17, 1.e30],
+                          'lapse': [0.15, 1.]
+                        }
+
     def __init__(self, flist, itlist, timesteplist, symmetry=None):
         COMPUTE_STORE.__init__(self, flist=flist, itlist=itlist, timesteplist=timesteplist, symmetry=symmetry)
 
@@ -608,7 +613,7 @@ class MASK_STORE(COMPUTE_STORE):
         #                    'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
         #                    'lapse': [0.15, 1.]} # remove apparent horizon
 
-        self.list_mask_names = ["disk", "remnant", "rl_xy", "rl_xz", "rl"]
+        self.list_mask_names = ["disk", "remnant", "total", "rl_xy", "rl_xz", "rl"]
 
         self.mask_matrix = [[[np.ones(0, dtype=bool)
                               for i in range(len(self.list_mask_names))]
@@ -672,7 +677,6 @@ class MASK_STORE(COMPUTE_STORE):
                 #
                 self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
         # elif name == "rl_xz":
-
         elif name == "rl_xz":
             nlevels = self.get_nlevels(it)
             nlevelist = np.arange(nlevels, 0, -1) - 1
@@ -771,8 +775,6 @@ class MASK_STORE(COMPUTE_STORE):
                     del mask_i
 
                 self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
-
-
         elif name == "remnant":
             #
             mask_setup = self.remnant_mask_setup
@@ -815,6 +817,63 @@ class MASK_STORE(COMPUTE_STORE):
                     if isinstance(max_val, str):
                         if max_val == "min": max_val = arr_1.min()
                         elif max_val == "max": max_val = arr_1.max()
+                        else:
+                            raise NameError("unrecognized max_val:{} for mask:{}"
+                                            .format(max_val, name))
+                    else:
+                        max_val = float(mask_setup[v_n][1])
+                    #
+                    mask_i = (arr_1 > min_val) & (arr_1 <= max_val)
+                    mask = mask & mask_i
+                    del arr_1
+                    del mask_i
+                #
+                self.mask_matrix[self.i_it(it)][rl][self.i_mask_v_n(name)] = mask
+        elif name == "total":
+            mask_setup = self.remnant_mask_setup
+            nlevels = self.get_nlevels(it)
+            nlevelist = np.arange(nlevels, 0, -1) - 1
+            x = []
+            y = []
+            z = []
+            for ii, rl in enumerate(nlevelist):
+                x.append(self.get_grid_data(it, rl, "x")[3:-3, 3:-3, 3:-3])
+                y.append(self.get_grid_data(it, rl, "y")[3:-3, 3:-3, 3:-3])
+                z.append(self.get_grid_data(it, rl, "z")[3:-3, 3:-3, 3:-3])
+                mask = np.ones(x[ii].shape, dtype=bool)
+                if ii > 0 and mask_setup["rm_rl"]:
+                    x_ = (x[ii][:, :, :] <= x[ii - 1][:, 0, 0].max()) & (
+                            x[ii][:, :, :] >= x[ii - 1][:, 0, 0].min())
+                    y_ = (y[ii][:, :, :] <= y[ii - 1][0, :, 0].max()) & (
+                            y[ii][:, :, :] >= y[ii - 1][0, :, 0].min())
+                    z_ = (z[ii][:, :, :] <= z[ii - 1][0, 0, :].max()) & (
+                            z[ii][:, :, :] >= z[ii - 1][0, 0, :].min())
+                    mask = mask & np.invert((x_ & y_ & z_))
+                #
+                for v_n in mask_setup.keys()[1:]:
+                    self.check_v_n(v_n)
+                    if len(mask_setup[v_n]) != 2:
+                        raise NameError("Error. 2 values are required to set a limit. Give {} for {}"
+                                        .format(mask_setup[v_n], v_n))
+                    arr_1 = self.get_comp_data(it, rl, v_n)[3:-3, 3:-3, 3:-3]
+                    min_val = mask_setup[v_n][0]
+                    max_val = mask_setup[v_n][1]
+                    if isinstance(min_val, str):
+                        if min_val == "min":
+                            min_val = arr_1.min()
+                        elif min_val == "max":
+                            min_val = arr_1.max()
+                        else:
+                            raise NameError("unrecognized min_val:{} for mask:{}"
+                                            .format(min_val, name))
+                    else:
+                        min_val = float(mask_setup[v_n][0])
+                    #
+                    if isinstance(max_val, str):
+                        if max_val == "min":
+                            max_val = arr_1.min()
+                        elif max_val == "max":
+                            max_val = arr_1.max()
                         else:
                             raise NameError("unrecognized max_val:{} for mask:{}"
                                             .format(max_val, name))

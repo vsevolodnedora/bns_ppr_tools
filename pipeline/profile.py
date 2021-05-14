@@ -402,6 +402,12 @@ def d2_slice_corr_for_it(it, d3slice, glob_v_ns, glob_masks, plane, outdir, rewr
         if not os.path.isdir(outdir + mask + '/'):
             os.mkdir(outdir + mask + '/')
         outdir_ = outdir + mask + '/'
+        #__outdir = _outdir + 'slicecorr_{}/'.format(plane)
+        if not os.path.isdir(outdir_):
+            os.mkdir(outdir_)
+        outdir__ = outdir_ + 'slicecorr_{}/'.format(plane)
+        if not os.path.isdir(outdir__):
+            os.mkdir(outdir__)
         for v_ns in selected_vn1vn2s:
             #
 
@@ -458,7 +464,7 @@ def d2_slice_corr_for_it(it, d3slice, glob_v_ns, glob_masks, plane, outdir, rewr
             # else:
             #     raise NameError("unknown task for correlation computation: {}".format(v_ns))
 
-            fpath = outdir_ + "{}_corr_{}.h5".format(plane, v_ns)
+            fpath = outdir__ + "corr_{}.h5".format(plane, v_ns)
 
             if Paths.debug:
                 task(it, corr_task_dic, mask, fpath)
@@ -1227,6 +1233,37 @@ def plot_d3_prof_slices(d3class, glob_its, glob_v_ns, resdir, figdir='module_sli
 
 def plot_d3_corr(d3histclass, glob_its, glob_ts, glob_v_ns, glob_masks, resdir, rewrite=False):
 
+    def task(default_dic, it, vn1vn2, v_n_x, v_n_y, outfpath):
+        table = d3histclass.get_res_corr(it, v_n_x, v_n_y)
+        default_dic["data"] = table
+        default_dic["v_n_x"] = v_n_x
+        default_dic["v_n_y"] = v_n_y
+        default_dic["xlabel"] = Labels.labels(v_n_x)
+        default_dic["ylabel"] = Labels.labels(v_n_y)
+
+        o_plot = PLOT_MANY_TASKS()
+        o_plot.gen_set["figdir"] = outfpath
+        o_plot.gen_set["type"] = "cartesian"
+        o_plot.gen_set["figsize"] = (4.2, 3.8)  # <->, |] # to match hists with (8.5, 2.7)
+        o_plot.gen_set["figname"] = "{}.png".format(vn1vn2)
+        o_plot.gen_set["sharex"] = False
+        o_plot.gen_set["sharey"] = False
+        o_plot.gen_set["subplots_adjust_h"] = 0.0
+        o_plot.gen_set["subplots_adjust_w"] = 0.2
+        o_plot.set_plot_dics = []
+
+        # -------------------------------
+        # tr = (t - tmerg) * 1e3  # ms
+        # t = d3histclass.get_time_for_it(it, output="profiles", d1d2d3prof="prof")
+        default_dic["it"] = it
+        default_dic["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t * 1e3))
+        o_plot.set_plot_dics.append(default_dic)
+
+        o_plot.main()
+        o_plot.set_plot_dics = []
+        o_plot.figure.clear()
+
+
     iterations = select_number(glob_its, d3histclass.list_iterations)
     v_ns = select_string(glob_v_ns, __d3corrs__, for_all="all")
 
@@ -1481,53 +1518,29 @@ def plot_d3_corr(d3histclass, glob_its, glob_ts, glob_v_ns, glob_masks, resdir, 
                 if not os.path.isdir(outfpath):
                     os.mkdir(outfpath)
                 fpath = outfpath + "{}.png".format(vn1vn2)
-                try:
-                    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                        if os.path.isfile(fpath): os.remove(fpath)
-                        print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "computing"],
-                                             ["blue", "green", "blue", "green", "blue", "green", "", "green"])
 
-                        table = d3histclass.get_res_corr(it, v_n_x, v_n_y)
-                        default_dic["data"] = table
-                        default_dic["v_n_x"] = v_n_x
-                        default_dic["v_n_y"] = v_n_y
-                        default_dic["xlabel"] = Labels.labels(v_n_x)
-                        default_dic["ylabel"] = Labels.labels(v_n_y)
+                if Paths.debug:
+                    task(default_dic, it, vn1vn2, v_n_x, v_n_y, outfpath)
+                else:
+                    try:
+                        if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                            if os.path.isfile(fpath): os.remove(fpath)
+                            print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "computing"],
+                                                 ["blue", "green", "blue", "green", "blue", "green", "", "green"])
 
-
-                        o_plot = PLOT_MANY_TASKS()
-                        o_plot.gen_set["figdir"] = outfpath
-                        o_plot.gen_set["type"] = "cartesian"
-                        o_plot.gen_set["figsize"] = (4.2, 3.8)  # <->, |] # to match hists with (8.5, 2.7)
-                        o_plot.gen_set["figname"] = "{}.png".format(vn1vn2)
-                        o_plot.gen_set["sharex"] = False
-                        o_plot.gen_set["sharey"] = False
-                        o_plot.gen_set["subplots_adjust_h"] = 0.0
-                        o_plot.gen_set["subplots_adjust_w"] = 0.2
-                        o_plot.set_plot_dics = []
-
-                        #-------------------------------
-                        # tr = (t - tmerg) * 1e3  # ms
-                        # t = d3histclass.get_time_for_it(it, output="profiles", d1d2d3prof="prof")
-                        default_dic["it"] = it
-                        default_dic["title"]["text"] = r'$t:{:.1f}$ [ms]'.format(float(t*1e3))
-                        o_plot.set_plot_dics.append(default_dic)
-
-                        o_plot.main()
-                        o_plot.set_plot_dics = []
-                        o_plot.figure.clear()
-                        #-------------------------------
-                    else:
-                        print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "skipping"],
-                                             ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-                except IOError:
-                    print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "missing file"],
-                                         ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-                except KeyboardInterrupt:
-                    exit(1)
-                except:
-                    print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "failed"],
-                                         ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+                            task(default_dic, it, vn1vn2, v_n_x, v_n_y, outfpath)
+                            #-------------------------------
+                        else:
+                            print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "skipping"],
+                                                 ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+                    except IOError:
+                        print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "missing file"],
+                                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    except KeyboardInterrupt:
+                        exit(1)
+                    except:
+                        print_colored_string(["task:", "plot corr", "it:", "{}".format(it), "v_ns:", vn1vn2, ":", "failed"],
+                                             ["blue", "green", "blue", "green", "blue", "green", "", "red"])
                 default_dic = {}
 
 def plot_d2_slice_corr(d3histclass, glob_its, glob_ts, glob_v_ns, glob_planes, glob_masks, resdir, rewrite=False):
@@ -2293,8 +2306,8 @@ def compute_methods_with_original_data(
             for mask in glob_masks:
 
                 __outdir = _outdir + mask + '/'
-                if not os.path.isdir(outdir):
-                    os.mkdir(outdir)
+                if not os.path.isdir(__outdir):
+                    os.mkdir(__outdir)
 
                 if task == "corr":  d3_corr_for_it(it, d3corr_class, mask, glob_v_ns, __outdir, rewrite=glob_overwrite)
                 if task == "hist":  d3_hist_for_it(it, d3corr_class, mask, glob_v_ns, __outdir, rewrite=glob_overwrite)
@@ -2361,13 +2374,16 @@ def compute_methods_with_processed_data(
             raise IOError("Iteration: {} has not been processed".format(it))
 
         _outdir = outdir + str(it) + '/'
+        if not os.path.isdir(_outdir):
+            os.mkdir(_outdir)
         for task in glob_tasklist:
             if task == "slicecorr":
                 for plane in glob_planes:
+
                     profiles_xy_paths = [dirpath + "profile.{}.h5".format(plane) for dirpath in dirpaths]
                     o_slices = MAINMETHODS_STORE_SLICE(flist=profiles_xy_paths, itlist=processed_iterations,
                                                                                 timesteplist=processed_timesteps)
-                    d2_slice_corr_for_it(it, o_slices, glob_v_ns, glob_masks, plane, outdir, rewrite=glob_overwrite)
+                    d2_slice_corr_for_it(it, o_slices, glob_v_ns, glob_masks, plane, _outdir, rewrite=glob_overwrite)
                     sys.stdout.flush()
 
 
@@ -2378,8 +2394,8 @@ def compute_methods_with_processed_data(
     # plotting tasks
     for task in glob_tasklist:
         if task.__contains__("plot"):
-
-
+            print("Error, Plotting methods are not implemented")
+            continue
             # if task in ["all", "plotall", "densmode"]:  pass
             if task == "plotcorr":          plot_d3_corr(d3_corr, processed_iterations, processed_timesteps,
                                                          glob_v_ns, glob_masks, outdir, rewrite=glob_overwrite)
@@ -2455,15 +2471,7 @@ if __name__ == '__main__':
     #  See 'd2_slice_corr_for_it' for example
 
     # check plane
-    if len(glob_planes) == 0:
-        pass
-    elif len(glob_planes) == 1 and "all" in glob_planes:
-        glob_planes = __d3slicesplanes__
-    elif len(glob_planes) > 1:
-        for plane in glob_planes:
-            if not plane in __d3slicesplanes__:
-                raise NameError("plane:{} is not in the list of the __d3slicesplanes__:{}"
-                                .format(plane, __d3slicesplanes__))
+
 
     # assert that paths to data and to output are valid
     if glob_indir is None:
@@ -2520,6 +2528,19 @@ if __name__ == '__main__':
             if not task in __tasklist__:
                 raise NameError("task: {} is not among available ones: {}"
                                 .format(task, __tasklist__))
+
+    # assert planes
+    if len(glob_planes) == 0:
+        for t in glob_tasklist:
+            if t.__contains__('slice'):
+                raise IOError("Task with slice '{}' requires --plane parameters".format(t))
+    elif len(glob_planes) == 1 and "all" in glob_planes:
+        glob_planes = __d3slicesplanes__
+    elif len(glob_planes) > 1:
+        for plane in glob_planes:
+            if not plane in __d3slicesplanes__:
+                raise NameError("plane:{} is not in the list of the __d3slicesplanes__:{}"
+                                .format(plane, __d3slicesplanes__))
 
     # check if there any profiles to use
     ittime = LOAD_ITTIME(glob_sim, pprdir=glob_outdir)

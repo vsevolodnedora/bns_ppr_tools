@@ -24,7 +24,7 @@ import paths as Paths
 
 # from profile import __masks__
 
-__masks__ = ["disk", "remnant"]
+__masks__ = ["disk", "remnant", "total"]
 
 rho_const = 6.176269145886162e+17
 
@@ -290,10 +290,16 @@ class ADD_MASK_SLICE(COMPUTE_STORE_SLICE):
         self.disk_mask_setup = {'rm_rl': True,  # REMOVE previouse ref. level from the next
                                 'rho': [6.e4 / 6.176e+17, 1.e13 / 6.176e+17],  # REMOVE atmo and NS
                                 'lapse': [0.15, 1.]}  # remove apparent horizon
+        self.remnant_mask_setup = {'rm_rl': True,  # REMOVE previouse ref. level from the next
+                                   'rho': [1.e10 / 6.176e+17, 1.e17 / 6.176e+17],  # REMOVE atmo and NS
+                                   'lapse': [0.15, 1.]}  # remove apparent horizon
+        self.total_mask_setup = {  'rm_rl': True,  # REMOVE previouse ref. level from the next
+                                   #'rho': [1.e10 / 6.176e+17, 1.e17 / 6.176e+17],  # REMOVE atmo and NS
+                                   'lapse': [0.15, 1.]}  # remove apparent horizon
 
-        self.mask_matrix = [[[[np.zeros(0,)
+        self.mask_matrix = [[[np.zeros(0,)
                              for y in range(len(self.list_mask_v_ns))]
-                             for p in range(len(self.list_planes))]
+                             #for p in range(len(self.list_planes))]
                              for x in range(self.set_max_nlevels)]
                              for i in range(len(self.list_iterations))]
 
@@ -321,32 +327,52 @@ class ADD_MASK_SLICE(COMPUTE_STORE_SLICE):
                 arr = self.get_comp_data(it, rl, v_n)
                 val1, val2 = disk_mask_setup[v_n][0], disk_mask_setup[v_n][1]
                 tmp = np.ones(arr.shape)
-                tmp[(arr<val1)&(arr>val2)] = 0
+                tmp[(arr<val1)&(arr>val2)] = 0.
+                rl_arr *= tmp
+            arr = rl_arr
+        elif mask_v_n == "remnant":
+            rl_arr = self.get_comp_data(it, rl, "rl_mask")
+            remnant_mask_setup = self.remnant_mask_setup
+            for v_n in remnant_mask_setup.keys()[1:]:
+                arr = self.get_comp_data(it, rl, v_n)
+                val1, val2 = remnant_mask_setup[v_n][0], remnant_mask_setup[v_n][1]
+                tmp = np.ones(arr.shape)
+                tmp[(arr<val1)&(arr>val2)] = 0.
+                rl_arr *= tmp
+            arr = rl_arr
+        elif mask_v_n == "total":
+            rl_arr = self.get_comp_data(it, rl, "rl_mask")
+            total_mask_setup = self.total_mask_setup
+            for v_n in total_mask_setup.keys()[1:]:
+                arr = self.get_comp_data(it, rl, v_n)
+                val1, val2 = total_mask_setup[v_n][0], total_mask_setup[v_n][1]
+                tmp = np.ones(arr.shape)
+                tmp[(arr<val1)&(arr>val2)] = 0.
                 rl_arr * tmp
             arr = rl_arr
         elif mask_v_n == "rl_Ye04":
             rl_mask = self.get_mask(it, rl, "rl")
             ye_mask = self.get_comp_data(it, rl, "Ye")
-            ye_mask[ye_mask < 0.4] = 0
-            ye_mask[ye_mask >= 0.4] = 1
+            ye_mask[ye_mask < 0.4] = 0.
+            ye_mask[ye_mask >= 0.4] = 1.
             arr = rl_mask * ye_mask
         elif mask_v_n == "rl_theta60":
             rl_mask = self.get_mask(it, rl, "rl")
             theta = self.get_comp_data(it, rl, "theta")
-            theta = 90 - (theta * 180 / np.pi)
+            theta = 90. - (theta * 180. / np.pi)
             # print(theta); exit(1)
             theta = np.nan_to_num(theta)
             # print("{}: min:{} max:{} shape:{}".format("theta", theta.min(), theta.max(), theta.shape));
             # exit(1)
-            theta[theta < 60.] = 0
-            theta[theta >= 60.] = 1
+            theta[theta < 60.] = 0.
+            theta[theta >= 60.] = 1.
             # print(theta)
             arr = rl_mask * theta
         elif mask_v_n == "rl_hu0":
             rl_mask = self.get_mask(it, rl, "rl")
             hu0 = self.get_comp_data(it, rl, "hu_0") * -1. # -1.6 -0.6
             hu0[hu0 < 1.] = 0.
-            hu0[hu0 >= 1.] = 1
+            hu0[hu0 >= 1.] = 1.
             arr = rl_mask * hu0
         else:
             raise NameError("No method set for mask: {}".format(mask_v_n))
@@ -357,7 +383,7 @@ class ADD_MASK_SLICE(COMPUTE_STORE_SLICE):
     def is_mask_computed(self, it, rl, mask_v_n):
 
         arr = self.mask_matrix[self.i_it(it)][rl][self.i_mask(mask_v_n)]
-        if len(arr) == 0:
+        if arr.shape == (0,):
             arr = self.compute_mask(it, rl, mask_v_n)
 
         self.mask_matrix[self.i_it(it)][rl][self.i_mask(mask_v_n)] = arr
@@ -454,9 +480,9 @@ class MAINMETHODS_STORE_SLICE(ADD_MASK_SLICE):
         for setup_dictionary in list_corr_task_dic:
             edges.append(self.get_edges(it, setup_dictionary))
         edges = tuple(edges)
-        #
+
         correlation = np.zeros([len(edge) - 1 for edge in edges])
-        #
+
         nlevels = self.get_nlevels(it)
         assert nlevels > 0
         for rl in range(nlevels):
@@ -466,8 +492,8 @@ class MAINMETHODS_STORE_SLICE(ADD_MASK_SLICE):
             # ye_mask[ye_mask >= 0.4] = 1
             mask = self.get_mask(it, rl, mask_v_n)
             dens = self.get_comp_data(it, rl, "density")
-            weights = ((dens * mask) * np.prod(self.get_attr(it, rl, "delta")) * multiplier)
-            print("rl:{} weights:{}".format(rl, weights.shape))
+            weights = (dens * mask) * np.prod(self.get_attr(it, rl, "delta")) * multiplier
+
             for corr_dic in list_corr_task_dic:
                 tmp = self.get_comp_data(it, rl, corr_dic["v_n"])
                 # print("\tdata:{} | {} min:{} max:{} "

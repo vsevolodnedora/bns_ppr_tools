@@ -48,15 +48,17 @@ def get_hist_bins(mask, v_n):
     #elif v_n == "inv_ang_mom_flux": return NameError("")
     elif v_n == "temp": bins = 10.0 ** np.linspace(-2, 2, 300)
     elif v_n == "entr":
-        if mask == 'disk': bins = np.linspace(0., 200., 500)
-        elif mask == 'remnant': bins = np.linspace(0., 30., 500)
-        else: raise NameError("bins are not implemented: v_n:{} mask:{}".format(v_n, mask))
+        if mask == 'remnant': bins = np.linspace(0., 30., 500)
+        else: bins = np.linspace(0., 200., 500)
+        #elif mask == 'remnant': bins = np.linspace(0., 30., 500)
+        #else: raise NameError("bins are not implemented: v_n:{} mask:{}".format(v_n, mask))
     elif v_n == "r": bins = np.linspace(0, 50, 500)
     elif v_n == "phi": bins = np.linspace(-np.pi, np.pi, 500)
     elif v_n == "rho":
         if mask == "disk": bins = 10.0 ** np.linspace(4.0, 13.0, 500) / rho_const
         elif mask == "remnant": bins = 10.0 ** np.linspace(10.0, 17.00, 500) / rho_const
-        else: raise NameError("bins are not implemented: v_n:{} mask:{}".format(v_n, mask))
+        else: bins = 10.0 ** np.linspace(5.0, 16.00, 500) / rho_const
+        #else: raise NameError("bins are not implemented: v_n:{} mask:{}".format(v_n, mask))
     elif v_n == "velz": bins = np.linspace(-1., 1., 500)
     elif v_n == "theta": bins = np.linspace(0, 0.5 * np.pi, 500)
     elif v_n == "dens_unb_bern": bins = 10.0 ** np.linspace(-12., -6., 500)

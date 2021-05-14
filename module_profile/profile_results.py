@@ -73,7 +73,7 @@ class LOAD_RES_CORR:
 
     def i_it(self, it):
         self.check_it(it)
-        return int(self.list_iterations.index(it))
+        return int(list(self.list_iterations).index(it))
 
     def get_corr_fpath(self, it, v_n):
         self.check_it(it)
@@ -94,7 +94,7 @@ class LOAD_RES_CORR:
         self.check_v_n(v_n_x)
         self.check_v_n(v_n_y)
 
-        idx = self.list_iterations.index(it)
+        idx = list(self.list_iterations).index(it)
         fdir = self.list_dirs[idx]
 
         # check if the direct file exists or the inverse
