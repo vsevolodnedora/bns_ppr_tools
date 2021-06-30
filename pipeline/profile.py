@@ -9,19 +9,15 @@ from __future__ import division
 
 import click
 import h5py
-from math import log10
 import sys
 import numpy as np
 import os
 import re
 from argparse import ArgumentParser
-import time
-from scidata.carpet.interp import Interpolator
 
-import paths
 from uutils import Printcolor
 
-import paths as Paths
+import config as Paths
 
 from module_preanalysis.it_time import LOAD_ITTIME
 
@@ -31,7 +27,7 @@ from module_profile.profile_grids import (POLAR_GRID, CARTESIAN_GRID, CYLINDRICA
 from module_profile.profile_methods import (MASK_STORE, MAINMETHODS_STORE, INTMETHODS_STORE, get_time_for_it)
 from module_profile.profile_results import (LOAD_DENSITY_MODES, LOAD_RES_CORR)
 from module_profile.profile_slice_methods import (MAINMETHODS_STORE_SLICE)
-from module_profile.params import (get_hist_bins, get_corr_dic, get_reflev_borders)
+from hist_bins import (get_hist_bins, get_corr_dic, get_reflev_borders)
 from plotting.plotting_methods import PLOT_MANY_TASKS
 
 

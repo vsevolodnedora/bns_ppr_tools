@@ -10,13 +10,20 @@ if [[ (-z "$1") ]]; then
     exit 1
 fi
 
-call python preanalysis.py -s $1 -t update_status print_status || exit 1
-call python preanalysis.py -s $1 -t collate --overwrite yes || exit 1
-call python gw.py -t strain tmergtcoll -s $1 --overwrite yes || exit 1
+#call python preanalysis.py -s $1 -t update_status print_status || exit 1
+#call python preanalysis.py -s $1 -t collate --overwrite yes || exit 1
+#call python gw.py -t strain tmergtcoll -s $1 --overwrite yes || exit 1
 call python ejecta.py -s $1 -t reshape -d 0 1 -p 8 --overwrite yes || exit 1
 call python ejecta.py -s $1 -t all -d 0 1 -m all --v_n all --overwrite yes || exit 1
+#call python profile.py -s $1 -t all --it all --mask disk remnant --plane all --v_n all --overwrite yes || exit 1
 
-echo "Done"
+echo "All Done"
+
+
+
+
+
+
 
 # template for running the pipeline with varios options
 

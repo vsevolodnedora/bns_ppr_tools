@@ -18,7 +18,7 @@ from plotting.plotting_methods import PLOT_MANY_TASKS
 
 from uutils import Printcolor, REFLEVEL_LIMITS
 
-import paths as Paths
+import config as Paths
 
 from module_slices.slices_methods import COMPUTE_STORE
 

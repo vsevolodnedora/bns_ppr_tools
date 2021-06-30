@@ -20,7 +20,7 @@ from profile_formulas import FORMULAS
 
 from uutils import Printcolor
 
-import paths as Paths
+# import paths as Paths
 
 # from profile import __masks__
 

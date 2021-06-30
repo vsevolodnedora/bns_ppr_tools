@@ -21,7 +21,7 @@ from standalone.outflowsurfdens_asciiToH5 import do_reshape
 from uutils import (Printcolor, Labels, Limits, Constants)
 from module_ejecta.ejecta_methods import (EJECTA_PARS)
 from plotting.plotting_methods import PLOT_MANY_TASKS
-import paths as Paths
+import config as Paths
 
 filename = lambda det: "outflow_surface_det_%d_fluxdens.h5" % det
 
@@ -30,72 +30,169 @@ def outflowed_historgrams(o_outflow, pprdir, det, masks, v_ns, rewrite=False):
     # exit(1)
 
     # creating histograms
+
+    def task(mask, v_n, outdir):
+        # print(np.min(o_outflow.get_full_arr("rho")),np.max(o_outflow.get_full_arr("rho")))
+        hist = o_outflow.get_ejecta_arr(mask, "hist {}".format(v_n))
+        # print(hist)
+        np.savetxt(outdir + "/hist_{}.dat".format(v_n), X=hist)
+
+        o_plot = PLOT_MANY_TASKS()
+        o_plot.gen_set["figdir"] = outdir
+        o_plot.gen_set["type"] = "cartesian"
+        o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+        o_plot.gen_set["figname"] = "hist_{}.png".format(v_n)
+        o_plot.gen_set["sharex"] = False
+        o_plot.gen_set["sharey"] = False
+        o_plot.gen_set["dpi"] = 128
+        o_plot.gen_set["subplots_adjust_h"] = 0.3
+        o_plot.gen_set["subplots_adjust_w"] = 0.0
+        o_plot.set_plot_dics = []
+
+        plot_dic = {
+            'task': 'hist1d', 'ptype': 'cartesian',
+            'position': (1, 1),
+            'data': hist, 'normalize': True,
+            'v_n_x': v_n, 'v_n_y': None,
+            'color': "black", 'ls': ':', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
+            'xmin': None, 'xamx': None, 'ymin': 1e-4, 'ymax': 1e0,
+            'xlabel': Labels.labels(v_n), 'ylabel': Labels.labels("mass"),
+            'label': None, 'yscale': 'log',
+            'fancyticks': True, 'minorticks': True,
+            'fontsize': 14,
+            'labelsize': 14,
+            'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+        }
+        # if v_n == "tempterature":
+
+        plot_dic = Limits.in_dic(plot_dic)
+
+        o_plot.set_plot_dics.append(plot_dic)
+        o_plot.main()
+
     for mask in masks:
         outdir = pprdir + "outflow_{}/".format(det) + mask + '/'
         for v_n in v_ns:
             fpath = outdir + "/hist_{}.dat".format(v_n)
-            try:
-                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                    if os.path.isfile(fpath): os.remove(fpath)
+            if Paths.debug:
+                task(mask, v_n, outdir)
+            else:
+                try:
+                    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                        if os.path.isfile(fpath): os.remove(fpath)
+                        Printcolor.print_colored_string(
+                            ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "computing"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+                        # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                        task(mask, v_n, outdir)
+                        # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    else:
+                        Printcolor.print_colored_string(
+                            ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "skipping"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
+                except KeyboardInterrupt:
+                    Printcolor.red("Forced termination... done")
+                    exit(1)
+                except ValueError:
                     Printcolor.print_colored_string(
-                        ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "computing"],
-                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
-                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-                    # print(np.min(o_outflow.get_full_arr("rho")),np.max(o_outflow.get_full_arr("rho")))
-                    hist = o_outflow.get_ejecta_arr(mask, "hist {}".format(v_n))
-                    # print(hist)
-                    np.savetxt(outdir + "/hist_{}.dat".format(v_n), X=hist)
-
-                    o_plot = PLOT_MANY_TASKS()
-                    o_plot.gen_set["figdir"] = outdir
-                    o_plot.gen_set["type"] = "cartesian"
-                    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
-                    o_plot.gen_set["figname"] = "hist_{}.png".format(v_n)
-                    o_plot.gen_set["sharex"] = False
-                    o_plot.gen_set["sharey"] = False
-                    o_plot.gen_set["dpi"] = 128
-                    o_plot.gen_set["subplots_adjust_h"] = 0.3
-                    o_plot.gen_set["subplots_adjust_w"] = 0.0
-                    o_plot.set_plot_dics = []
-
-                    plot_dic = {
-                        'task': 'hist1d', 'ptype': 'cartesian',
-                        'position': (1, 1),
-                        'data': hist, 'normalize': True,
-                        'v_n_x': v_n, 'v_n_y': None,
-                        'color': "black", 'ls': ':', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
-                        'xmin': None, 'xamx': None, 'ymin': 1e-4, 'ymax': 1e0,
-                        'xlabel': Labels.labels(v_n), 'ylabel': Labels.labels("mass"),
-                        'label': None, 'yscale': 'log',
-                        'fancyticks': True, 'minorticks': True,
-                        'fontsize': 14,
-                        'labelsize': 14,
-                        'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
-                    }
-                    # if v_n == "tempterature":
-
-                    plot_dic = Limits.in_dic(plot_dic)
-
-                    o_plot.set_plot_dics.append(plot_dic)
-                    o_plot.main()
-                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-                else:
+                        ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "ValueError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except:
                     Printcolor.print_colored_string(
-                        ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "skipping"],
-                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
-            except KeyboardInterrupt:
-                Printcolor.red("Forced termination... done")
-                exit(1)
-            except ValueError:
-                Printcolor.print_colored_string(
-                    ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "ValueError"],
-                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-            except:
-                Printcolor.print_colored_string(
-                    ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "failed"],
-                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                        ["task:", "d1hist", "det:", "{}".format(det), "mask:", mask, "v_n:", v_n, ":", "failed"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_correlations(o_outflow, pprdir, det, masks, v_ns, rewrite=False):
+
+    def task(mask, v_n1, v_n2, fpath, outdir):
+        corr = o_outflow.get_ejecta_arr(mask, "corr2d {} {}".format(v_n1, v_n2))
+        y_arr = corr[1:, 0]
+        x_arr = corr[0, 1:]
+        z_arr = corr[1:, 1:]
+        dfile = h5py.File(fpath, "w")
+        dfile.create_dataset(v_n1, data=x_arr)
+        dfile.create_dataset(v_n2, data=y_arr)
+        dfile.create_dataset("mass", data=z_arr)
+        dfile.close()
+        # print(x_arr)
+        # exit(1)
+
+        # np.savetxt(outdir + "/hist_{}.dat".format(v_n), X=hist)
+        #
+        o_plot = PLOT_MANY_TASKS()
+        o_plot.gen_set["figdir"] = outdir
+        o_plot.gen_set["type"] = "cartesian"
+        o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+        o_plot.gen_set["figname"] = "corr_{}_{}.png".format(v_n1, v_n2)
+        o_plot.gen_set["sharex"] = False
+        o_plot.gen_set["sharey"] = False
+        o_plot.gen_set["dpi"] = 128
+        o_plot.gen_set["subplots_adjust_h"] = 0.3
+        o_plot.gen_set["subplots_adjust_w"] = 0.0
+        o_plot.set_plot_dics = []
+        #
+        corr_dic2 = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
+            'task': 'corr2d', 'dtype': 'corr', 'ptype': 'cartesian',
+            'data': corr,
+            'position': (1, 1),
+            'v_n_x': v_n1, 'v_n_y': v_n2, 'v_n': 'mass', 'normalize': True,
+            'cbar': {
+                'location': 'right .03 .0', 'label': Labels.labels("mass"),  # 'fmt': '%.1f',
+                'labelsize': 14, 'fontsize': 14},
+            'cmap': 'inferno_r', 'set_under': 'white', 'set_over': 'black',
+            'xlabel': Labels.labels(v_n1), 'ylabel': Labels.labels(v_n2),
+            'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
+            'xscale': "linear", 'yscale': "linear", 'norm': 'log',
+            'mask_below': None, 'mask_above': None,
+            'title': {},  # {"text": o_corr_data.sim.replace('_', '\_'), 'fontsize': 14},
+            'fancyticks': True,
+            'minorticks': True,
+            'sharex': False,  # removes angular citkscitks
+            'sharey': False,
+            'fontsize': 14,
+            'labelsize': 14
+        }
+        corr_dic2 = Limits.in_dic(corr_dic2)
+
+        corr_dic2["axhline"] = {"y": 60, "linestyle": "-", "linewidth": 0.5, "color": "black"}
+        corr_dic2["axvline"] = {"x": 0.4, "linestyle": "-", "linewidth": 0.5, "color": "black"}
+
+        o_plot.set_plot_dics.append(corr_dic2)
+        #
+
+        # if v_n1 in ["Y_e", "ye", "Ye"]:
+        #     corr_dic2["xmin"] = 0.
+        #     corr_dic2["xmax"] = 0.5
+        # if v_n1 in ["vel_inf", "vinf", "velinf"]:
+        #     corr_dic2["xmin"] = 0.
+        #     corr_dic2["xmax"] = 1.
+        # if v_n1 in ["vel_inf", "vinf", "velinf"]:
+        #     corr_dic2["xmin"] = 0.
+        #     corr_dic2["xmax"] = 1.
+        # if v_n2 in ["Y_e", "ye", "Ye"]:
+        #     corr_dic2["ymin"] = 0.
+        #     corr_dic2["ymax"] = 0.5
+        # if v_n2 in ["vel_inf", "vinf", "velinf"]:
+        #     corr_dic2["ymin"] = 0.
+        #     corr_dic2["ymax"] = 1.
+        # if v_n2 in ["vel_inf", "vinf", "velinf"]:
+        #     corr_dic2["ymin"] = 0.
+        #     corr_dic2["ymax"] = 1.
+        # if v_n1 in ["theta"]:
+        #     corr_dic2["xmin"] = 0.
+        #     corr_dic2["xmax"] = 90.
+        # if v_n1 in ["phi"]:
+        #     corr_dic2["xmin"] = 0.
+        #     corr_dic2["xmax"] = 360
+        # if v_n2 in ["theta"]:
+        #     corr_dic2["ymin"] = 0.
+        #     corr_dic2["ymax"] = 90.
+        # if v_n2 in ["phi"]:
+        #     corr_dic2["ymin"] = 0.
+        #     corr_dic2["ymax"] = 360
+        #
+        # o_plot.set_plot_dics.append(plot_dic)
+        o_plot.main()
 
     assert len(v_ns) % 2 == 0
 
@@ -103,701 +200,658 @@ def outflowed_correlations(o_outflow, pprdir, det, masks, v_ns, rewrite=False):
         outdir = pprdir + "outflow_{}/".format(det) + mask + '/'
         for v_n1, v_n2 in zip(v_ns[::2], v_ns[1::2]):
             fpath = outdir + "corr_{}_{}.h5".format(v_n1, v_n2)
-            try:
-                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                    if os.path.isfile(fpath): os.remove(fpath)
+            if Paths.debug:
+                task(mask, v_n1, v_n2, fpath, outdir)
+            else:
+                try:
+                    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                        if os.path.isfile(fpath): os.remove(fpath)
+                        Printcolor.print_colored_string(
+                            ["task:", "d1corr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}_{}".format(v_n1, v_n2),
+                             ":", "computing"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+                        # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                        task(mask, v_n1, v_n2, fpath, outdir)
+                        # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    else:
+                        Printcolor.print_colored_string(
+                            ["task:", "d1corr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}_{}".format(v_n1, v_n2),
+                             ":", "skipping"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
+                except KeyboardInterrupt:
+                    Printcolor.red("Forced termination... done")
+                    exit(1)
+                except ValueError:
                     Printcolor.print_colored_string(
                         ["task:", "d1corr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}_{}".format(v_n1, v_n2),
-                         ":", "computing"],
-                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
-                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-                    corr = o_outflow.get_ejecta_arr(mask, "corr2d {} {}".format(v_n1, v_n2))
-                    y_arr = corr[1:, 0]
-                    x_arr = corr[0, 1:]
-                    z_arr = corr[1:, 1:]
-                    dfile = h5py.File(fpath, "w")
-                    dfile.create_dataset(v_n1, data=x_arr)
-                    dfile.create_dataset(v_n2, data=y_arr)
-                    dfile.create_dataset("mass", data=z_arr)
-                    dfile.close()
-                    # print(x_arr)
-                    # exit(1)
-
-                    # np.savetxt(outdir + "/hist_{}.dat".format(v_n), X=hist)
-                    #
-                    o_plot = PLOT_MANY_TASKS()
-                    o_plot.gen_set["figdir"] = outdir
-                    o_plot.gen_set["type"] = "cartesian"
-                    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
-                    o_plot.gen_set["figname"] = "corr_{}_{}.png".format(v_n1, v_n2)
-                    o_plot.gen_set["sharex"] = False
-                    o_plot.gen_set["sharey"] = False
-                    o_plot.gen_set["dpi"] = 128
-                    o_plot.gen_set["subplots_adjust_h"] = 0.3
-                    o_plot.gen_set["subplots_adjust_w"] = 0.0
-                    o_plot.set_plot_dics = []
-                    #
-                    corr_dic2 = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
-                        'task': 'corr2d', 'dtype': 'corr', 'ptype': 'cartesian',
-                        'data': corr,
-                        'position': (1, 1),
-                        'v_n_x': v_n1, 'v_n_y': v_n2, 'v_n': 'mass', 'normalize': True,
-                        'cbar': {
-                            'location': 'right .03 .0', 'label': Labels.labels("mass"),  # 'fmt': '%.1f',
-                            'labelsize': 14, 'fontsize': 14},
-                        'cmap': 'inferno_r', 'set_under': 'white', 'set_over': 'black',
-                        'xlabel': Labels.labels(v_n1), 'ylabel': Labels.labels(v_n2),
-                        'xmin': None, 'xmax': None, 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
-                        'xscale': "linear", 'yscale': "linear", 'norm': 'log',
-                        'mask_below': None, 'mask_above': None,
-                        'title': {},  # {"text": o_corr_data.sim.replace('_', '\_'), 'fontsize': 14},
-                        'fancyticks': True,
-                        'minorticks': True,
-                        'sharex': False,  # removes angular citkscitks
-                        'sharey': False,
-                        'fontsize': 14,
-                        'labelsize': 14
-                    }
-                    corr_dic2 = Limits.in_dic(corr_dic2)
-
-                    corr_dic2["axhline"] = {"y": 60, "linestyle": "-", "linewidth": 0.5, "color": "black"}
-                    corr_dic2["axvline"] = {"x": 0.4, "linestyle": "-", "linewidth": 0.5, "color": "black"}
-
-                    o_plot.set_plot_dics.append(corr_dic2)
-                    #
-
-                    # if v_n1 in ["Y_e", "ye", "Ye"]:
-                    #     corr_dic2["xmin"] = 0.
-                    #     corr_dic2["xmax"] = 0.5
-                    # if v_n1 in ["vel_inf", "vinf", "velinf"]:
-                    #     corr_dic2["xmin"] = 0.
-                    #     corr_dic2["xmax"] = 1.
-                    # if v_n1 in ["vel_inf", "vinf", "velinf"]:
-                    #     corr_dic2["xmin"] = 0.
-                    #     corr_dic2["xmax"] = 1.
-                    # if v_n2 in ["Y_e", "ye", "Ye"]:
-                    #     corr_dic2["ymin"] = 0.
-                    #     corr_dic2["ymax"] = 0.5
-                    # if v_n2 in ["vel_inf", "vinf", "velinf"]:
-                    #     corr_dic2["ymin"] = 0.
-                    #     corr_dic2["ymax"] = 1.
-                    # if v_n2 in ["vel_inf", "vinf", "velinf"]:
-                    #     corr_dic2["ymin"] = 0.
-                    #     corr_dic2["ymax"] = 1.
-                    # if v_n1 in ["theta"]:
-                    #     corr_dic2["xmin"] = 0.
-                    #     corr_dic2["xmax"] = 90.
-                    # if v_n1 in ["phi"]:
-                    #     corr_dic2["xmin"] = 0.
-                    #     corr_dic2["xmax"] = 360
-                    # if v_n2 in ["theta"]:
-                    #     corr_dic2["ymin"] = 0.
-                    #     corr_dic2["ymax"] = 90.
-                    # if v_n2 in ["phi"]:
-                    #     corr_dic2["ymin"] = 0.
-                    #     corr_dic2["ymax"] = 360
-                    #
-                    # o_plot.set_plot_dics.append(plot_dic)
-                    o_plot.main()
-                    # del v_ns[0:2]
-                    # del v_ns[0]
-                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-                else:
+                         ":", "ValueError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except:
                     Printcolor.print_colored_string(
                         ["task:", "d1corr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}_{}".format(v_n1, v_n2),
-                         ":", "skipping"],
-                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
-            except KeyboardInterrupt:
-                Printcolor.red("Forced termination... done")
-                exit(1)
-            except ValueError:
-                Printcolor.print_colored_string(
-                    ["task:", "d1corr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}_{}".format(v_n1, v_n2),
-                     ":", "ValueError"],
-                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-            except:
-                Printcolor.print_colored_string(
-                    ["task:", "d1corr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}_{}".format(v_n1, v_n2),
-                     ":", "failed"],
-                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                         ":", "failed"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_timecorr(o_outflow, pprdir, det, masks, v_ns, rewrite=False):
 
     # assert len(v_ns) % 2 == 0
 
+    def task(mask, v_n, fpath, outdir):
+        table = o_outflow.get_ejecta_arr(mask, "timecorr {}".format(v_n))
+        table[0, 1:] *= Constants.time_constant
+        timearr = table[0, 1:]
+        yarr = table[1:, 0]
+        zarr = table[1:, 1:]
+
+        # print (timearr)
+
+        # table[0, 1:] *= Constants.time_constant
+
+        # corr = o_outflow.get_ejecta_arr(det, mask, "timehist {} {}".format(v_n1, v_n2))
+
+        # y_arr = corr[1:, 0]
+        # x_arr = corr[0, 1:]
+        # z_arr = corr[1:, 1:]
+        dfile = h5py.File(fpath, "w")
+        dfile.create_dataset("time", data=timearr)
+        dfile.create_dataset(v_n, data=yarr)
+        dfile.create_dataset("mass", data=zarr)
+        dfile.close()
+        # print(x_arr)
+        # exit(1)
+
+        # np.savetxt(outdir + "/hist_{}.dat".format(v_n), X=hist)
+        #
+        o_plot = PLOT_MANY_TASKS()
+        o_plot.gen_set["figdir"] = outdir
+        o_plot.gen_set["type"] = "cartesian"
+        o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+        o_plot.gen_set["figname"] = "timecorr_{}.png".format(v_n)
+        o_plot.gen_set["sharex"] = False
+        o_plot.gen_set["sharey"] = False
+        o_plot.gen_set["dpi"] = 128
+        o_plot.gen_set["subplots_adjust_h"] = 0.3
+        o_plot.gen_set["subplots_adjust_w"] = 0.0
+        o_plot.set_plot_dics = []
+        #
+        corr_dic2 = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
+            'task': 'corr2d', 'dtype': 'corr', 'ptype': 'cartesian',
+            'data': table,
+            'position': (1, 1),
+            'v_n_x': "time", 'v_n_y': v_n, 'v_n': 'mass', 'normalize': True,
+            'cbar': {
+                'location': 'right .03 .0', 'label': Labels.labels("mass"),  # 'fmt': '%.1f',
+                'labelsize': 14, 'fontsize': 14},
+            'cmap': 'inferno',
+            'xlabel': Labels.labels("time"), 'ylabel': Labels.labels(v_n),
+            'xmin': timearr[0], 'xmax': timearr[-1], 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
+            'xscale': "linear", 'yscale': "linear", 'norm': 'log',
+            'mask_below': None, 'mask_above': None,
+            'title': {},  # {"text": o_corr_data.sim.replace('_', '\_'), 'fontsize': 14},
+            'fancyticks': True,
+            'minorticks': True,
+            'sharex': False,  # removes angular citkscitks
+            'sharey': False,
+            'fontsize': 14,
+            'labelsize': 14
+        }
+
+        corr_dic2 = Limits.in_dic(corr_dic2)
+        o_plot.set_plot_dics.append(corr_dic2)
+        #
+
+        # if v_n1 in ["Y_e", "ye", "Ye"]:
+        #     corr_dic2["xmin"] = 0.
+        #     corr_dic2["xmax"] = 0.5
+        # if v_n1 in ["vel_inf", "vinf", "velinf"]:
+        #     corr_dic2["xmin"] = 0.
+        #     corr_dic2["xmax"] = 1.
+        # if v_n1 in ["vel_inf", "vinf", "velinf"]:
+        #     corr_dic2["xmin"] = 0.
+        #     corr_dic2["xmax"] = 1.
+        # if v_n2 in ["Y_e", "ye", "Ye"]:
+        #     corr_dic2["ymin"] = 0.
+        #     corr_dic2["ymax"] = 0.5
+        # if v_n2 in ["vel_inf", "vinf", "velinf"]:
+        #     corr_dic2["ymin"] = 0.
+        #     corr_dic2["ymax"] = 1.
+        # if v_n2 in ["vel_inf", "vinf", "velinf"]:
+        #     corr_dic2["ymin"] = 0.
+        #     corr_dic2["ymax"] = 1.
+        # if v_n1 in ["theta"]:
+        #     corr_dic2["xmin"] = 0.
+        #     corr_dic2["xmax"] = 90.
+        # if v_n1 in ["phi"]:
+        #     corr_dic2["xmin"] = 0.
+        #     corr_dic2["xmax"] = 360
+        # if v_n2 in ["theta"]:
+        #     corr_dic2["ymin"] = 0.
+        #     corr_dic2["ymax"] = 90.
+        # if v_n2 in ["phi"]:
+        #     corr_dic2["ymin"] = 0.
+        #     corr_dic2["ymax"] = 360
+        #
+        # o_plot.set_plot_dics.append(plot_dic)
+        o_plot.main()
+
     for mask in masks:
         outdir = pprdir + "outflow_{}/".format(det) + mask + '/'
         for v_n in v_ns:
             fpath = outdir + "timecorr_{}.h5".format(v_n)
+            if Paths.debug:
+                task(mask, v_n, fpath, outdir)
+            else:
+                try:
+                    if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                        if os.path.isfile(fpath): os.remove(fpath)
+                        Printcolor.print_colored_string(
+                            ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":",
+                             "computing"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+                        # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                        task(mask, v_n, fpath, outdir)
+                        # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    else:
+                        Printcolor.print_colored_string(
+                            ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":",
+                             "skipping"],
+                            ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
+                except KeyboardInterrupt:
+                    Printcolor.red("Forced termination... done")
+                    exit(1)
+                except ValueError:
+                    Printcolor.print_colored_string(
+                        ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":",
+                         "ValueError"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                except:
+                    Printcolor.print_colored_string(
+                        ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":",
+                         "failed"],
+                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+
+def outflowed_totmass(o_outflow, pprdir, det, masks, rewrite=False):
+
+    def task(mask, fpath, outdir):
+        data = o_outflow.get_ejecta_arr(mask, "tot_flux")
+        np.savetxt(fpath, X=data, header=" 1:time 2:flux 3:mass")
+
+        o_plot = PLOT_MANY_TASKS()
+        o_plot.gen_set["figdir"] = outdir
+        o_plot.gen_set["type"] = "cartesian"
+        o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+        o_plot.gen_set["figname"] = "total_flux.png"
+        o_plot.gen_set["sharex"] = False
+        o_plot.gen_set["sharey"] = False
+        o_plot.gen_set["dpi"] = 128
+        o_plot.gen_set["subplots_adjust_h"] = 0.3
+        o_plot.gen_set["subplots_adjust_w"] = 0.0
+        o_plot.set_plot_dics = []
+
+        plot_dic = {
+            'task': 'line', 'ptype': 'cartesian',
+            'position': (1, 1),
+            'xarr': data[:, 0] * 1e3, 'yarr': data[:, 2] * 1e2,
+            'v_n_x': "time", 'v_n_y': "mass",
+            'color': "black", 'ls': '-', 'lw': 0.8, 'ds': 'default', 'alpha': 1.0,
+            'ymin': 0, 'ymax': 3.0, 'xmin': np.array(data[:, 0] * 1e3).min(),
+            'xmax': np.array(data[:, 0] * 1e3).max(),
+            'xlabel': Labels.labels("time"), 'ylabel': Labels.labels("ejmass"),
+            'label': None, 'yscale': 'linear',
+            'fancyticks': True, 'minorticks': True,
+            'fontsize': 14,
+            'labelsize': 14,
+            'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
+        }
+
+        o_plot.set_plot_dics.append(plot_dic)
+        o_plot.main()
+
+    for mask in masks:
+        outdir = pprdir + "outflow_{}/".format(det) + mask + '/'
+        fpath = outdir + "total_flux.dat"
+        if Paths.debug:
+            task(mask, fpath, outdir)
+        else:
             try:
                 if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                     if os.path.isfile(fpath): os.remove(fpath)
                     Printcolor.print_colored_string(
-                        ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":",
-                         "computing"],
-                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "green"])
+                        ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "green"])
                     # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-                    table = o_outflow.get_ejecta_arr(mask, "timecorr {}".format(v_n))
-                    table[0, 1:] *= Constants.time_constant
-                    timearr = table[0, 1:]
-                    yarr = table[1:, 0]
-                    zarr = table[1:, 1:]
-
-                    # print (timearr)
-
-                    # table[0, 1:] *= Constants.time_constant
-
-                    # corr = o_outflow.get_ejecta_arr(det, mask, "timehist {} {}".format(v_n1, v_n2))
-
-                    # y_arr = corr[1:, 0]
-                    # x_arr = corr[0, 1:]
-                    # z_arr = corr[1:, 1:]
-                    dfile = h5py.File(fpath, "w")
-                    dfile.create_dataset("time", data=timearr)
-                    dfile.create_dataset(v_n, data=yarr)
-                    dfile.create_dataset("mass", data=zarr)
-                    dfile.close()
-                    # print(x_arr)
-                    # exit(1)
-
-                    # np.savetxt(outdir + "/hist_{}.dat".format(v_n), X=hist)
-                    #
-                    o_plot = PLOT_MANY_TASKS()
-                    o_plot.gen_set["figdir"] = outdir
-                    o_plot.gen_set["type"] = "cartesian"
-                    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
-                    o_plot.gen_set["figname"] = "timecorr_{}.png".format(v_n)
-                    o_plot.gen_set["sharex"] = False
-                    o_plot.gen_set["sharey"] = False
-                    o_plot.gen_set["dpi"] = 128
-                    o_plot.gen_set["subplots_adjust_h"] = 0.3
-                    o_plot.gen_set["subplots_adjust_w"] = 0.0
-                    o_plot.set_plot_dics = []
-                    #
-                    corr_dic2 = {  # relies on the "get_res_corr(self, it, v_n): " method of data object
-                        'task': 'corr2d', 'dtype': 'corr', 'ptype': 'cartesian',
-                        'data': table,
-                        'position': (1, 1),
-                        'v_n_x': "time", 'v_n_y': v_n, 'v_n': 'mass', 'normalize': True,
-                        'cbar': {
-                            'location': 'right .03 .0', 'label': Labels.labels("mass"),  # 'fmt': '%.1f',
-                            'labelsize': 14, 'fontsize': 14},
-                        'cmap': 'inferno',
-                        'xlabel': Labels.labels("time"), 'ylabel': Labels.labels(v_n),
-                        'xmin': timearr[0], 'xmax': timearr[-1], 'ymin': None, 'ymax': None, 'vmin': 1e-4, 'vmax': 1e-1,
-                        'xscale': "linear", 'yscale': "linear", 'norm': 'log',
-                        'mask_below': None, 'mask_above': None,
-                        'title': {},  # {"text": o_corr_data.sim.replace('_', '\_'), 'fontsize': 14},
-                        'fancyticks': True,
-                        'minorticks': True,
-                        'sharex': False,  # removes angular citkscitks
-                        'sharey': False,
-                        'fontsize': 14,
-                        'labelsize': 14
-                    }
-
-                    corr_dic2 = Limits.in_dic(corr_dic2)
-                    o_plot.set_plot_dics.append(corr_dic2)
-                    #
-
-                    # if v_n1 in ["Y_e", "ye", "Ye"]:
-                    #     corr_dic2["xmin"] = 0.
-                    #     corr_dic2["xmax"] = 0.5
-                    # if v_n1 in ["vel_inf", "vinf", "velinf"]:
-                    #     corr_dic2["xmin"] = 0.
-                    #     corr_dic2["xmax"] = 1.
-                    # if v_n1 in ["vel_inf", "vinf", "velinf"]:
-                    #     corr_dic2["xmin"] = 0.
-                    #     corr_dic2["xmax"] = 1.
-                    # if v_n2 in ["Y_e", "ye", "Ye"]:
-                    #     corr_dic2["ymin"] = 0.
-                    #     corr_dic2["ymax"] = 0.5
-                    # if v_n2 in ["vel_inf", "vinf", "velinf"]:
-                    #     corr_dic2["ymin"] = 0.
-                    #     corr_dic2["ymax"] = 1.
-                    # if v_n2 in ["vel_inf", "vinf", "velinf"]:
-                    #     corr_dic2["ymin"] = 0.
-                    #     corr_dic2["ymax"] = 1.
-                    # if v_n1 in ["theta"]:
-                    #     corr_dic2["xmin"] = 0.
-                    #     corr_dic2["xmax"] = 90.
-                    # if v_n1 in ["phi"]:
-                    #     corr_dic2["xmin"] = 0.
-                    #     corr_dic2["xmax"] = 360
-                    # if v_n2 in ["theta"]:
-                    #     corr_dic2["ymin"] = 0.
-                    #     corr_dic2["ymax"] = 90.
-                    # if v_n2 in ["phi"]:
-                    #     corr_dic2["ymin"] = 0.
-                    #     corr_dic2["ymax"] = 360
-                    #
-                    # o_plot.set_plot_dics.append(plot_dic)
-                    o_plot.main()
-                    # del v_ns[0:2]
-                    # del v_ns[0]
+                    task(mask, fpath, outdir)
                     # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
                 else:
                     Printcolor.print_colored_string(
-                        ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":",
-                         "skipping"],
-                        ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "blue"])
+                        ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
             except KeyboardInterrupt:
                 Printcolor.red("Forced termination... done")
                 exit(1)
             except ValueError:
                 Printcolor.print_colored_string(
-                    ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":",
-                     "ValueError"],
-                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
             except:
                 Printcolor.print_colored_string(
-                    ["task:", "timecorr", "det:", "{}".format(det), "mask:", mask, "v_n:", "{}".format(v_n), ":",
-                     "failed"],
-                    ["blue", "green", "blue", "green", "blue", "green", "blue", "green", "", "red"])
-
-def outflowed_totmass(o_outflow, pprdir, det, masks, rewrite=False):
-    for mask in masks:
-        outdir = pprdir + "outflow_{}/".format(det) + mask + '/'
-        fpath = outdir + "total_flux.dat"
-        try:
-            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                if os.path.isfile(fpath): os.remove(fpath)
-                Printcolor.print_colored_string(
-                    ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-                data = o_outflow.get_ejecta_arr(mask, "tot_flux")
-                np.savetxt(fpath, X=data, header=" 1:time 2:flux 3:mass")
-
-                o_plot = PLOT_MANY_TASKS()
-                o_plot.gen_set["figdir"] = outdir
-                o_plot.gen_set["type"] = "cartesian"
-                o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
-                o_plot.gen_set["figname"] = "total_flux.png"
-                o_plot.gen_set["sharex"] = False
-                o_plot.gen_set["sharey"] = False
-                o_plot.gen_set["dpi"] = 128
-                o_plot.gen_set["subplots_adjust_h"] = 0.3
-                o_plot.gen_set["subplots_adjust_w"] = 0.0
-                o_plot.set_plot_dics = []
-
-                plot_dic = {
-                    'task': 'line', 'ptype': 'cartesian',
-                    'position': (1, 1),
-                    'xarr': data[:, 0] * 1e3, 'yarr': data[:, 2] * 1e2,
-                    'v_n_x': "time", 'v_n_y': "mass",
-                    'color': "black", 'ls': '-', 'lw': 0.8, 'ds': 'default', 'alpha': 1.0,
-                    'ymin': 0, 'ymax': 3.0, 'xmin': np.array(data[:, 0] * 1e3).min(),
-                    'xmax': np.array(data[:, 0] * 1e3).max(),
-                    'xlabel': Labels.labels("time"), 'ylabel': Labels.labels("ejmass"),
-                    'label': None, 'yscale': 'linear',
-                    'fancyticks': True, 'minorticks': True,
-                    'fontsize': 14,
-                    'labelsize': 14,
-                    'legend': {}  # 'loc': 'best', 'ncol': 2, 'fontsize': 18
-                }
-
-                o_plot.set_plot_dics.append(plot_dic)
-                o_plot.main()
-
-                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-            else:
-                Printcolor.print_colored_string(
-                    ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        except KeyboardInterrupt:
-            Printcolor.red("Forced termination... done")
-            exit(1)
-        except ValueError:
-            Printcolor.print_colored_string(
-                ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except:
-            Printcolor.print_colored_string(
-                ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    ["task:", "mass flux", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_massaverages(o_outflow, pprdir, det, masks, rewrite=False):
+
+    def task(mask, fpath):
+        v_ns = ["fluxdens", "w_lorentz", "eninf", "surface_element", "rho", "Y_e", "entropy", "temperature"]
+        dfile = h5py.File(fpath, "w")
+        for v_n in v_ns:
+            arr = o_outflow.get_ejecta_arr(mask, "mass_ave Y_e")
+            # print(arr.shape)
+            dfile.create_dataset(v_n, data=arr)
+        # print("end")
+        dfile.create_dataset("theta", data=o_outflow.get_full_arr("theta"))
+        dfile.create_dataset("phi", data=o_outflow.get_full_arr("phi"))
+        dfile.close()
+
     for mask in masks:
         outdir = pprdir + "outflow_{}/".format(det) + mask + '/'
         fpath = outdir + "mass_averages.h5"
-        try:
-            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                if os.path.isfile(fpath): os.remove(fpath)
+        if Paths.debug:
+            task(mask, fpath)
+        else:
+            try:
+                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                    if os.path.isfile(fpath): os.remove(fpath)
+                    Printcolor.print_colored_string(
+                        ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    task(mask, fpath)
+                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                else:
+                    Printcolor.print_colored_string(
+                        ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
                 Printcolor.print_colored_string(
-                    ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-
-                v_ns = ["fluxdens", "w_lorentz", "eninf", "surface_element", "rho", "Y_e", "entropy", "temperature"]
-                dfile = h5py.File(fpath, "w")
-                for v_n in v_ns:
-                    arr = o_outflow.get_ejecta_arr(mask, "mass_ave Y_e")
-                    # print(arr.shape)
-                    dfile.create_dataset(v_n, data=arr)
-                # print("end")
-                dfile.create_dataset("theta", data=o_outflow.get_full_arr("theta"))
-                dfile.create_dataset("phi", data=o_outflow.get_full_arr("phi"))
-                dfile.close()
-
-                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-            else:
+                    ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
                 Printcolor.print_colored_string(
-                    ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        except KeyboardInterrupt:
-            Printcolor.red("Forced termination... done")
-            exit(1)
-        except ValueError:
-            Printcolor.print_colored_string(
-                ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except:
-            Printcolor.print_colored_string(
-                ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    ["task:", "mass averages", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_ejectatau(o_outflow, pprdir, det, masks, rewrite=False):
+
+    def task(mask, fpath):
+        arr = o_outflow.get_ejecta_arr(mask, "corr3d Y_e entropy tau")
+        ye, entropy, tau = arr[1:, 0, 0], arr[0, 1:, 0], arr[0, 0, 1:]
+        mass = arr[1:, 1:, 1:]
+
+        assert ye.min() > 0. and ye.max() < 0.51
+        assert entropy.min() > 0. and entropy.max() < 201.
+
+        dfile = h5py.File(fpath, "w")
+        dfile.create_dataset("Y_e", data=ye)
+        dfile.create_dataset("entropy", data=entropy)
+        dfile.create_dataset("tau", data=tau)
+        dfile.create_dataset("mass", data=mass)
+        dfile.close()
+
     for mask in masks:
         outdir = pprdir + "outflow_{}/".format(det) + mask + '/'
         fpath = outdir + "module_ejecta.h5"
-        try:
-            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                if os.path.isfile(fpath): os.remove(fpath)
+        if Paths.debug:
+            task(mask, fpath)
+        else:
+            try:
+                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                    if os.path.isfile(fpath): os.remove(fpath)
+                    Printcolor.print_colored_string(
+                        ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    task(mask, fpath)
+                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                else:
+                    Printcolor.print_colored_string(
+                        ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
                 Printcolor.print_colored_string(
-                    ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-
-                arr = o_outflow.get_ejecta_arr(mask, "corr3d Y_e entropy tau")
-                ye, entropy, tau = arr[1:, 0, 0], arr[0, 1:, 0], arr[0, 0, 1:]
-                mass = arr[1:, 1:, 1:]
-
-                assert ye.min() > 0. and ye.max() < 0.51
-                assert entropy.min() > 0. and entropy.max() < 201.
-
-                dfile = h5py.File(fpath, "w")
-                dfile.create_dataset("Y_e", data=ye)
-                dfile.create_dataset("entropy", data=entropy)
-                dfile.create_dataset("tau", data=tau)
-                dfile.create_dataset("mass", data=mass)
-                dfile.close()
-
-                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-            else:
+                    ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
                 Printcolor.print_colored_string(
-                    ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        except KeyboardInterrupt:
-            Printcolor.red("Forced termination... done")
-            exit(1)
-        except ValueError:
-            Printcolor.print_colored_string(
-                ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except:
-            Printcolor.print_colored_string(
-                ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    ["task:", "module_ejecta tau", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_yields(o_outflow, pprdir, det, masks, rewrite=False):
+
+    def task(mask, fpath, outdir):
+        yields = o_outflow.get_nucleo_arr(mask, "yields")
+        a = o_outflow.get_nucleo_arr(mask, "A")
+        z = o_outflow.get_nucleo_arr(mask, "Z")
+        dfile = h5py.File(fpath, "w")
+        dfile.create_dataset("Y_final", data=yields)
+        dfile.create_dataset("A", data=a)
+        dfile.create_dataset("Z", data=z)
+        dfile.close()
+
+        o_plot = PLOT_MANY_TASKS()
+        o_plot.gen_set["figdir"] = outdir
+        o_plot.gen_set["type"] = "cartesian"
+        o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+        o_plot.gen_set["figname"] = "yields.png"
+        o_plot.gen_set["sharex"] = False
+        o_plot.gen_set["sharey"] = False
+        o_plot.gen_set["dpi"] = 128
+        o_plot.gen_set["subplots_adjust_h"] = 0.3
+        o_plot.gen_set["subplots_adjust_w"] = 0.0
+        o_plot.set_plot_dics = []
+
+        sim_nuc = o_outflow.get_normed_sim_abund(mask, "Asol=195")
+        sol_nuc = o_outflow.get_nored_sol_abund("sum")
+        sim_nucleo = {
+            'task': 'line', 'ptype': 'cartesian',
+            'position': (1, 1),
+            'xarr': sim_nuc[:, 0], 'yarr': sim_nuc[:, 1],
+            'v_n_x': 'A', 'v_n_y': 'abundances',
+            'color': 'black', 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
+            'ymin': 1e-5, 'ymax': 2e-1, 'xmin': 50, 'xmax': 210,
+            'xlabel': Labels.labels("A"), 'ylabel': Labels.labels("Y_final"),
+            'label': None, 'yscale': 'log',
+            'fancyticks': True, 'minorticks': True,
+            'fontsize': 18,
+            'labelsize': 14,
+        }
+        o_plot.set_plot_dics.append(sim_nucleo)
+
+        sol_yeilds = {
+            'task': 'line', 'ptype': 'cartesian',
+            'position': (1, 1),
+            'xarr': sol_nuc[:, 0], 'yarr': sol_nuc[:, 1],
+            'v_n_x': 'Asun', 'v_n_y': 'Ysun',
+            'color': 'gray', 'marker': 'o', 'ms': 4, 'alpha': 0.4,
+            'ymin': 1e-5, 'ymax': 2e-1, 'xmin': 50, 'xmax': 210,
+            'xlabel': Labels.labels("A"), 'ylabel': Labels.labels("Y_final"),
+            'label': 'solar', 'yscale': 'log',
+            'fancyticks': True, 'minorticks': True,
+            'fontsize': 14,
+            'labelsize': 14,
+        }
+        o_plot.set_plot_dics.append(sol_yeilds)
+        o_plot.main()
+
     for mask in masks:
         outdir = pprdir + "outflow_{}/".format(det) + mask + '/'
         fpath = outdir + "yields.h5"
-        try:
-            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                if os.path.isfile(fpath): os.remove(fpath)
+        if Paths.debug:
+            task(mask, fpath, outdir)
+        else:
+            try:
+                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                    if os.path.isfile(fpath): os.remove(fpath)
+                    Printcolor.print_colored_string(
+                        ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    task(mask, fpath, outdir)
+                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                else:
+                    Printcolor.print_colored_string(
+                        ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
                 Printcolor.print_colored_string(
-                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-
-                yields = o_outflow.get_nucleo_arr(mask, "yields")
-                a = o_outflow.get_nucleo_arr(mask, "A")
-                z = o_outflow.get_nucleo_arr(mask, "Z")
-                dfile = h5py.File(fpath, "w")
-                dfile.create_dataset("Y_final", data=yields)
-                dfile.create_dataset("A", data=a)
-                dfile.create_dataset("Z", data=z)
-                dfile.close()
-
-                o_plot = PLOT_MANY_TASKS()
-                o_plot.gen_set["figdir"] = outdir
-                o_plot.gen_set["type"] = "cartesian"
-                o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
-                o_plot.gen_set["figname"] = "yields.png"
-                o_plot.gen_set["sharex"] = False
-                o_plot.gen_set["sharey"] = False
-                o_plot.gen_set["dpi"] = 128
-                o_plot.gen_set["subplots_adjust_h"] = 0.3
-                o_plot.gen_set["subplots_adjust_w"] = 0.0
-                o_plot.set_plot_dics = []
-
-                sim_nuc = o_outflow.get_normed_sim_abund(mask, "Asol=195")
-                sol_nuc = o_outflow.get_nored_sol_abund("sum")
-                sim_nucleo = {
-                    'task': 'line', 'ptype': 'cartesian',
-                    'position': (1, 1),
-                    'xarr': sim_nuc[:, 0], 'yarr': sim_nuc[:, 1],
-                    'v_n_x': 'A', 'v_n_y': 'abundances',
-                    'color': 'black', 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
-                    'ymin': 1e-5, 'ymax': 2e-1, 'xmin': 50, 'xmax': 210,
-                    'xlabel': Labels.labels("A"), 'ylabel': Labels.labels("Y_final"),
-                    'label': None, 'yscale': 'log',
-                    'fancyticks': True, 'minorticks': True,
-                    'fontsize': 18,
-                    'labelsize': 14,
-                }
-                o_plot.set_plot_dics.append(sim_nucleo)
-
-                sol_yeilds = {
-                    'task': 'line', 'ptype': 'cartesian',
-                    'position': (1, 1),
-                    'xarr': sol_nuc[:, 0], 'yarr': sol_nuc[:, 1],
-                    'v_n_x': 'Asun', 'v_n_y': 'Ysun',
-                    'color': 'gray', 'marker': 'o', 'ms': 4, 'alpha': 0.4,
-                    'ymin': 1e-5, 'ymax': 2e-1, 'xmin': 50, 'xmax': 210,
-                    'xlabel': Labels.labels("A"), 'ylabel': Labels.labels("Y_final"),
-                    'label': 'solar', 'yscale': 'log',
-                    'fancyticks': True, 'minorticks': True,
-                    'fontsize': 14,
-                    'labelsize': 14,
-                }
-                o_plot.set_plot_dics.append(sol_yeilds)
-                o_plot.main()
-
-                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-            else:
+                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except NameError:
                 Printcolor.print_colored_string(
-                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        except KeyboardInterrupt:
-            Printcolor.red("Forced termination... done")
-            exit(1)
-        except ValueError:
-            Printcolor.print_colored_string(
-                ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except NameError:
-            Printcolor.print_colored_string(
-                ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "NameError"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except:
-            Printcolor.print_colored_string(
-                ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "NameError"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
+                Printcolor.print_colored_string(
+                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_mkn_profile(o_outflow, pprdir, det, masks, rewrite=False):
+
+    def task(mask, fpath, outdir):
+        corr_ye_theta = o_outflow.get_ejecta_arr(mask, "corr2d Y_e theta")
+        corr_vel_inf_theta = o_outflow.get_ejecta_arr(mask, "corr2d vel_inf theta")
+
+        # print(corr_vel_inf_theta[0, 1:]) # velocity
+        # print(corr_vel_inf_theta[1:, 0])  # theta
+        assert corr_vel_inf_theta[0, 1:].min() > 0. and corr_vel_inf_theta[0, 1:].max() < 1.
+        assert corr_vel_inf_theta[1:, 0].min() > 0. and corr_vel_inf_theta[1:, 0].max() < 3.14
+        assert corr_ye_theta[0, 1:].min() > 0.035 and corr_ye_theta[0, 1:].max() < 0.55
+
+        vel_v = np.array(corr_vel_inf_theta[0, 1:])
+        thf = np.array(corr_vel_inf_theta[1:, 0])
+        vel_M = np.array(corr_vel_inf_theta[1:, 1:]).T
+
+        ye_ye = np.array(corr_ye_theta[0, 1:])
+        ye_M = np.array(corr_ye_theta[1:, 1:]).T
+
+        M_of_th = np.sum(vel_M, axis=0)  # Sum of all Mass for all velocities
+        vel_ave = np.sum(vel_v[:, np.newaxis] * vel_M, axis=0) / M_of_th  # average velocity per unit mass ?
+        ye_ave = np.sum(ye_ye[:, np.newaxis] * ye_M, axis=0) / M_of_th  # average Ye per unit mass ?
+
+        out = np.stack((thf, M_of_th, vel_ave, ye_ave), axis=1)
+
+        np.savetxt(fpath, out, '%.6f', '  ', '\n', '1:theta 2:M 3:vel 4:ye  ')
+
+        # -----------------------------------------------------------------
+
+        o_plot = PLOT_MANY_TASKS()
+        o_plot.gen_set["figdir"] = outdir
+        o_plot.gen_set["type"] = "cartesian"
+        o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+        o_plot.gen_set["figname"] = "ejecta_profile.png"
+        o_plot.gen_set["sharex"] = False
+        o_plot.gen_set["sharey"] = False
+        o_plot.gen_set["dpi"] = 128
+        o_plot.gen_set["subplots_adjust_h"] = 0.3
+        o_plot.gen_set["subplots_adjust_w"] = 0.0
+        o_plot.set_plot_dics = []
+
+        mass_dic = {
+            'task': 'line', 'ptype': 'cartesian',
+            'position': (1, 1),
+            'xarr': M_of_th * 1e3, 'yarr': 90. - (thf / np.pi * 180.),
+            'v_n_x': 'A', 'v_n_y': 'abundances',
+            'color': 'black', 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
+            'ymin': 0, 'ymax': 90, 'xmin': 0, 'xmax': 1.,
+            'xlabel': None, 'ylabel': Labels.labels("theta"),
+            'label': Labels.labels("ejmass3"), 'yscale': 'linear',
+            'fancyticks': True, 'minorticks': True,
+            'fontsize': 14,
+            'labelsize': 14,
+        }
+        o_plot.set_plot_dics.append(mass_dic)
+
+        vel_dic = {
+            'task': 'line', 'ptype': 'cartesian',
+            'position': (1, 1),
+            'xarr': vel_ave, 'yarr': 90. - (thf / np.pi * 180.),
+            'v_n_x': 'A', 'v_n_y': 'abundances',
+            'color': 'red', 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
+            'ymin': 0, 'ymax': 90, 'xmin': 0, 'xmax': 1.,
+            'xlabel': None, 'ylabel': Labels.labels("theta"),
+            'label': Labels.labels("vel_inf"), 'yscale': 'linear',
+            'fancyticks': True, 'minorticks': True,
+            'fontsize': 14,
+            'labelsize': 14,
+        }
+        o_plot.set_plot_dics.append(vel_dic)
+
+        ye_dic = {
+            'task': 'line', 'ptype': 'cartesian',
+            'position': (1, 1),
+            'xarr': ye_ave, 'yarr': 90. - (thf / np.pi * 180.),
+            'v_n_x': 'A', 'v_n_y': 'abundances',
+            'color': 'blue', 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
+            'ymin': 0, 'ymax': 90, 'xmin': 0, 'xmax': 1.,
+            'xlabel': None, 'ylabel': Labels.labels("theta"),
+            'label': Labels.labels("Y_e"), 'yscale': 'linear',
+            'fancyticks': True, 'minorticks': True,
+            'fontsize': 14,
+            'labelsize': 14,
+            'legend': {'loc': 'best', 'ncol': 1, 'fontsize': 14}
+        }
+        o_plot.set_plot_dics.append(ye_dic)
+        o_plot.main()
+
     for mask in masks:
         outdir = pprdir + "outflow_{}/".format(det) + mask + '/'
         fpath = outdir + "ejecta_profile.dat"
-        try:
-            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                if os.path.isfile(fpath): os.remove(fpath)
+        if Paths.debug:
+            task(mask, fpath, outdir)
+        else:
+            try:
+                if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
+                    if os.path.isfile(fpath): os.remove(fpath)
+                    Printcolor.print_colored_string(
+                        ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                    task(mask, fpath, outdir)
+                    # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+                else:
+                    Printcolor.print_colored_string(
+                        ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
                 Printcolor.print_colored_string(
-                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-
-                corr_ye_theta = o_outflow.get_ejecta_arr(mask, "corr2d Y_e theta")
-                corr_vel_inf_theta = o_outflow.get_ejecta_arr(mask, "corr2d vel_inf theta")
-
-                # print(corr_vel_inf_theta[0, 1:]) # velocity
-                # print(corr_vel_inf_theta[1:, 0])  # theta
-                assert corr_vel_inf_theta[0, 1:].min() > 0. and corr_vel_inf_theta[0, 1:].max() < 1.
-                assert corr_vel_inf_theta[1:, 0].min() > 0. and corr_vel_inf_theta[1:, 0].max() < 3.14
-                assert corr_ye_theta[0, 1:].min() > 0.035 and corr_ye_theta[0, 1:].max() < 0.55
-
-                vel_v = np.array(corr_vel_inf_theta[0, 1:])
-                thf = np.array(corr_vel_inf_theta[1:, 0])
-                vel_M = np.array(corr_vel_inf_theta[1:, 1:]).T
-
-                ye_ye = np.array(corr_ye_theta[0, 1:])
-                ye_M = np.array(corr_ye_theta[1:, 1:]).T
-
-                M_of_th = np.sum(vel_M, axis=0)  # Sum of all Mass for all velocities
-                vel_ave = np.sum(vel_v[:, np.newaxis] * vel_M, axis=0) / M_of_th  # average velocity per unit mass ?
-                ye_ave = np.sum(ye_ye[:, np.newaxis] * ye_M, axis=0) / M_of_th  # average Ye per unit mass ?
-
-                out = np.stack((thf, M_of_th, vel_ave, ye_ave), axis=1)
-
-                np.savetxt(fpath, out, '%.6f', '  ', '\n', '1:theta 2:M 3:vel 4:ye  ')
-
-                # -----------------------------------------------------------------
-
-                o_plot = PLOT_MANY_TASKS()
-                o_plot.gen_set["figdir"] = outdir
-                o_plot.gen_set["type"] = "cartesian"
-                o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
-                o_plot.gen_set["figname"] = "ejecta_profile.png"
-                o_plot.gen_set["sharex"] = False
-                o_plot.gen_set["sharey"] = False
-                o_plot.gen_set["dpi"] = 128
-                o_plot.gen_set["subplots_adjust_h"] = 0.3
-                o_plot.gen_set["subplots_adjust_w"] = 0.0
-                o_plot.set_plot_dics = []
-
-                mass_dic = {
-                    'task': 'line', 'ptype': 'cartesian',
-                    'position': (1, 1),
-                    'xarr': M_of_th * 1e3, 'yarr': 90. - (thf / np.pi * 180.),
-                    'v_n_x': 'A', 'v_n_y': 'abundances',
-                    'color': 'black', 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
-                    'ymin': 0, 'ymax': 90, 'xmin': 0, 'xmax': 1.,
-                    'xlabel': None, 'ylabel': Labels.labels("theta"),
-                    'label': Labels.labels("ejmass3"), 'yscale': 'linear',
-                    'fancyticks': True, 'minorticks': True,
-                    'fontsize': 14,
-                    'labelsize': 14,
-                }
-                o_plot.set_plot_dics.append(mass_dic)
-
-                vel_dic = {
-                    'task': 'line', 'ptype': 'cartesian',
-                    'position': (1, 1),
-                    'xarr': vel_ave, 'yarr': 90. - (thf / np.pi * 180.),
-                    'v_n_x': 'A', 'v_n_y': 'abundances',
-                    'color': 'red', 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
-                    'ymin': 0, 'ymax': 90, 'xmin': 0, 'xmax': 1.,
-                    'xlabel': None, 'ylabel': Labels.labels("theta"),
-                    'label': Labels.labels("vel_inf"), 'yscale': 'linear',
-                    'fancyticks': True, 'minorticks': True,
-                    'fontsize': 14,
-                    'labelsize': 14,
-                }
-                o_plot.set_plot_dics.append(vel_dic)
-
-                ye_dic = {
-                    'task': 'line', 'ptype': 'cartesian',
-                    'position': (1, 1),
-                    'xarr': ye_ave, 'yarr': 90. - (thf / np.pi * 180.),
-                    'v_n_x': 'A', 'v_n_y': 'abundances',
-                    'color': 'blue', 'ls': '-', 'lw': 0.8, 'ds': 'steps', 'alpha': 1.0,
-                    'ymin': 0, 'ymax': 90, 'xmin': 0, 'xmax': 1.,
-                    'xlabel': None, 'ylabel': Labels.labels("theta"),
-                    'label': Labels.labels("Y_e"), 'yscale': 'linear',
-                    'fancyticks': True, 'minorticks': True,
-                    'fontsize': 14,
-                    'labelsize': 14,
-                    'legend': {'loc': 'best', 'ncol': 1, 'fontsize': 14}
-                }
-                o_plot.set_plot_dics.append(ye_dic)
-                o_plot.main()
-
-                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-            else:
+                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
                 Printcolor.print_colored_string(
-                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        except KeyboardInterrupt:
-            Printcolor.red("Forced termination... done")
-            exit(1)
-        except ValueError:
-            Printcolor.print_colored_string(
-                ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except:
-            Printcolor.print_colored_string(
-                ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+                    ["task:", "module_ejecta nucleo", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 
 def outflowed_summary(o_outflow, pprdir, det, masks, rewrite=False):
-    #
+
+    def task(outdir, outfpath):
+
+        # total flux
+        fpath = outdir + "total_flux.dat"
+        if os.path.isfile(fpath):
+            data = np.array(np.loadtxt(fpath))
+            mass_arr = data[:, 2]
+            time_arr = data[:, 0]
+            total_ej_mass = float(mass_arr[-1])
+            time_end = float(time_arr[-1])  # * Constants.time_constant * 1e-3 # s
+        else:
+            total_ej_mass = np.nan
+            time_end = np.nan
+            Printcolor.red("Missing: {}".format(fpath))
+
+        # Y_e ave
+        v_n = "Y_e"
+        fpath = outdir + "hist_{}.dat".format(v_n)
+        if os.path.isfile(fpath):
+            hist = np.array(np.loadtxt(fpath))
+            ye_ave = o_outflow.compute_ave_ye(np.sum(hist[:, 1]), hist)
+        else:
+            ye_ave = np.nan
+            Printcolor.red("Missing: {}".format(fpath))
+
+        # s_ave
+        v_n = "entropy"
+        fpath = outdir + "hist_{}.dat".format(v_n)
+        if os.path.isfile(fpath):
+            hist = np.array(np.loadtxt(fpath))
+            s_ave = o_outflow.compute_ave_s(np.sum(hist[:, 1]), hist)
+        else:
+            s_ave = np.nan
+            Printcolor.red("Missing: {}".format(fpath))
+
+        # vel inf
+        v_n = "vel_inf"
+        fpath = outdir + "hist_{}.dat".format(v_n)
+        if os.path.isfile(fpath):
+            hist = np.array(np.loadtxt(fpath))
+            vel_inf_ave = o_outflow.compute_ave_vel_inf(np.sum(hist[:, 1]), hist)
+        else:
+            vel_inf_ave = np.nan
+            Printcolor.red("Missing: {}".format(fpath))
+
+        # E kin
+        v_n = "vel_inf"
+        fpath = outdir + "hist_{}.dat".format(v_n)
+        if os.path.isfile(fpath):
+            hist = np.array(np.loadtxt(fpath))
+            e_kin_ave = o_outflow.compute_ave_ekin(np.sum(hist[:, 1]), hist)
+        else:
+            e_kin_ave = np.nan
+            Printcolor.red("Missing: {}".format(fpath))
+
+        # theta
+        v_n = "theta"
+        fpath = outdir + "hist_{}.dat".format(v_n)
+        if os.path.isfile(fpath):
+            hist = np.array(np.loadtxt(fpath))
+            theta_rms = o_outflow.compute_ave_theta_rms(hist)
+        else:
+            theta_rms = np.nan
+            Printcolor.red("Missing: {}".format(fpath))
+
+        # writing the result
+        with open(outfpath, 'w') as f1:
+            f1.write("# module_ejecta properties for det:{} mask:{} \n".format(det, mask))
+            f1.write("m_ej      {:.5f} [M_sun]  total ejected mass \n".format(total_ej_mass))
+            f1.write("<Y_e>     {:.3f}            mass-averaged electron fraction \n".format(ye_ave))
+            f1.write("<s>       {:.3f} [k_b]      mass-averaged entropy \n".format(s_ave))
+            f1.write("<v_inf>   {:.3f} [c]        mass-averaged terminal velocity \n".format(vel_inf_ave))
+            f1.write("<E_kin>   {:.3f} [c^2]      mass-averaged terminal kinetical energy \n".format(e_kin_ave))
+            f1.write(
+                "theta_rms {:.2f} [degrees]  root mean squared angle of the module_ejecta (2 planes) \n".format(
+                    2. * theta_rms))
+            f1.write("time_end  {:.3f} [s]        end data time \n".format(time_end))
+
     for mask in masks:
         outdir = pprdir + "outflow_{}/".format(det) + mask + '/'
         #
         outfpath = outdir + "summary.txt"
-        try:
-            if (os.path.isfile(outfpath) and rewrite) or not os.path.isfile(outfpath):
-                if os.path.isfile(outfpath): os.remove(outfpath)
+        if Paths.debug:
+            task(outdir, outfpath)
+        else:
+            try:
+                if (os.path.isfile(outfpath) and rewrite) or not os.path.isfile(outfpath):
+                    if os.path.isfile(outfpath): os.remove(outfpath)
+                    Printcolor.print_colored_string(
+                        ["task:", "summary", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "green"])
+                    task(outdir, outfpath)
+                else:
+                    Printcolor.print_colored_string(
+                        ["task:", "summary", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
+                        ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
+            except KeyboardInterrupt:
+                Printcolor.red("Forced termination... done")
+                exit(1)
+            except ValueError:
                 Printcolor.print_colored_string(
-                    ["task:", "summary", "det:", "{}".format(det), "mask:", mask, ":", "computing"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "green"])
-                # total flux
-                fpath = outdir + "total_flux.dat"
-                if os.path.isfile(fpath):
-                    data = np.array(np.loadtxt(fpath))
-                    mass_arr = data[:, 2]
-                    time_arr = data[:, 0]
-                    total_ej_mass = float(mass_arr[-1])
-                    time_end = float(time_arr[-1])  # * Constants.time_constant * 1e-3 # s
-                else:
-                    total_ej_mass = np.nan
-                    time_end = np.nan
-                    Printcolor.red("Missing: {}".format(fpath))
-                # Y_e ave
-                v_n = "Y_e"
-                fpath = outdir + "hist_{}.dat".format(v_n)
-                if os.path.isfile(fpath):
-                    hist = np.array(np.loadtxt(fpath))
-                    ye_ave = o_outflow.compute_ave_ye(np.sum(hist[:, 1]), hist)
-                else:
-                    ye_ave = np.nan
-                    Printcolor.red("Missing: {}".format(fpath))
-                # s_ave
-                v_n = "entropy"
-                fpath = outdir + "hist_{}.dat".format(v_n)
-                if os.path.isfile(fpath):
-                    hist = np.array(np.loadtxt(fpath))
-                    s_ave = o_outflow.compute_ave_s(np.sum(hist[:, 1]), hist)
-                else:
-                    s_ave = np.nan
-                    Printcolor.red("Missing: {}".format(fpath))
-                # vel inf
-                v_n = "vel_inf"
-                fpath = outdir + "hist_{}.dat".format(v_n)
-                if os.path.isfile(fpath):
-                    hist = np.array(np.loadtxt(fpath))
-                    vel_inf_ave = o_outflow.compute_ave_vel_inf(np.sum(hist[:, 1]), hist)
-                else:
-                    vel_inf_ave = np.nan
-                    Printcolor.red("Missing: {}".format(fpath))
-                # E kin
-                v_n = "vel_inf"
-                fpath = outdir + "hist_{}.dat".format(v_n)
-                if os.path.isfile(fpath):
-                    hist = np.array(np.loadtxt(fpath))
-                    e_kin_ave = o_outflow.compute_ave_ekin(np.sum(hist[:, 1]), hist)
-                else:
-                    e_kin_ave = np.nan
-                    Printcolor.red("Missing: {}".format(fpath))
-                # theta
-                v_n = "theta"
-                fpath = outdir + "hist_{}.dat".format(v_n)
-                if os.path.isfile(fpath):
-                    hist = np.array(np.loadtxt(fpath))
-                    theta_rms = o_outflow.compute_ave_theta_rms(hist)
-                else:
-                    theta_rms = np.nan
-                    Printcolor.red("Missing: {}".format(fpath))
-                # writing the result
-                with open(outfpath, 'w') as f1:
-                    f1.write("# module_ejecta properties for det:{} mask:{} \n".format(det, mask))
-                    f1.write("m_ej      {:.5f} [M_sun]  total ejected mass \n".format(total_ej_mass))
-                    f1.write("<Y_e>     {:.3f}            mass-averaged electron fraction \n".format(ye_ave))
-                    f1.write("<s>       {:.3f} [k_b]      mass-averaged entropy \n".format(s_ave))
-                    f1.write("<v_inf>   {:.3f} [c]        mass-averaged terminal velocity \n".format(vel_inf_ave))
-                    f1.write("<E_kin>   {:.3f} [c^2]      mass-averaged terminal kinetical energy \n".format(e_kin_ave))
-                    f1.write(
-                        "theta_rms {:.2f} [degrees]  root mean squared angle of the module_ejecta (2 planes) \n".format(
-                            2. * theta_rms))
-                    f1.write("time_end  {:.3f} [s]        end data time \n".format(time_end))
-            else:
+                    ["task:", "summary: total flux", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            except:
                 Printcolor.print_colored_string(
-                    ["task:", "summary", "det:", "{}".format(det), "mask:", mask, ":", "skipping"],
-                    ["blue", "green", "blue", "green", "blue", "green", "", "blue"])
-        except KeyboardInterrupt:
-            Printcolor.red("Forced termination... done")
-            exit(1)
-        except ValueError:
-            Printcolor.print_colored_string(
-                ["task:", "summary: total flux", "det:", "{}".format(det), "mask:", mask, ":", "ValueError"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        except:
-            Printcolor.print_colored_string(
-                ["task:", "summary: total flux", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
-                ["blue", "green", "blue", "green", "blue", "green", "", "red"])
-        #
+                    ["task:", "summary: total flux", "det:", "{}".format(det), "mask:", mask, ":", "failed"],
+                    ["blue", "green", "blue", "green", "blue", "green", "", "red"])
+            #
 
 
 def do_folder_tree(glob_outdir):

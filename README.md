@@ -1,41 +1,87 @@
 # bns_ppr_tools
-Set of scripts and methods for WhyskyTHC output postprocessing 
+
+Set of tools and methods to postprocess standard output of the 
+`WhiskyTHC` GRHD code for binary neturon star mergers.
+
+## Overview: 
+The follwing modules are available:
+- `module_ejecta` contains scripts to analyze data extracted by `HYDRO` thorn of `Whsiky` at a given extraction radius.
+All methods are semi-independent and require only `ouflowed_det_N.dat` ascii files for each output of the simulation.
+- `module_gw` contains methods to analyze `mp_Psi4_lN_mM_rXXX.asc` multipolar modes. Using `scidata` routines 
+it computes the `strain` and `waveforms/` as well as Grav.Wave energy and angular momentum losses.  
+- `module_preanalysis` used to create `ittime.h5` files that collects information about what data is available 
+for the simulation: which ascii files, 2D .h5 files and profiles, and for what timesteps and iterations. 
+This data is then used by other modules. It can also `collate` ascii files.
+- `module_profile` contains methods to analyze 3D profiles of the simulation. It uses `scidata` to reconstract 
+the cartesian grid of the simulation.
+- `module_slices` contains methods to analyze `variable_xy.h5` 2D slices of the simulation. Also uses `scidata` to
+reconstract the cartesian grid.
+- `plotting` contains methods for plotting
+- `standalone` contains scripts that do not require `ittime.h5` can can be run independently. 
+- `pipeline` contains a set of wrappers for above mentioned methods that allow to launch them one after another to 
+perform a complete analysis of the available data.
+
+
 
 ## Dependencies:
-`python 2.7.xx` with `scipy`, `numpy`, `cPickle`, `itertools`, `h5py`, `csv`, `mpl_toolkits`, `matplotlib`, `statsmodels`, `pandas`, `math`, `click`, `re`, `argparse`  
-`scidata` that can be found at https://bitbucket.org/dradice/scidata/src/default/
-
-## Suggested setup:  
-to have a directory with simulation(s), like `/home/my_simulations/` 
-inside of which there are simulation dirs like `LS220_130130_SR/` with output subdirectories like `output-1234`    
-This `/home/my_simulations/` directory can be specified in the file `utils.py` in the class `Paths` in a variable `gw170810`    
-
-If inside of the simulation folder, there is a file `maxtime.txt` with one float, time in GEO units or in seconds,
-its value will we picked up by the `preanalysis.py` and saved as an attribute in `ittime.h5`. Later, the following
-methods can use this value to limit the analysis to this time:  
-- `preanalysis.py` with task `-t collate`
-- `gw.py` does not read this value, but since it uses collated data. The limit is also applied here, if is used there.  
-- `outflowed.py` with task `-t reshape`. Since all other tasks realy on the file that is produced by this task, -- the limit is also applied.
-- `profile.py`. There you manually set, what iterations to use. But setting `--it all` would automatically pick up that there is a limit, and 
-will not analyse profiles that correspond to times beyond maxtime.
-
-to have a separate directory for the results of postprocessing, like `/home/my_postprocessing/` 
-indide of which the pipeline would automatically create a subdirectory for every simulation it 
-analysis with the name of this simulation.  
-This 'root posprecessing directory' can be set in in the file `utils.py` in the class `Paths` in a variable `ppr_sims`.  
-
-This setup would allow a user to set only `-s` option for the pipeline, instead of `-i` and `-o`, 
-as the location of the simulation dir and output are already set in `Paths.gw170817` and `Paths.ppr_sims` respectively.   
+`python 2.7.xx` (incl. `scipy`, `numpy`, `itertools`, `h5py`, `csv`, `matplotlib`, `re`, `argparse`)
+`scidata` for `python 2.7.xx` that can be found at [scidata](https://bitbucket.org/dradice/scidata/src/default/)
 
 
-# Running pipeline:  
-cd `/bns_ppr_tools/`   
-`./analyze.sh simulation_dir_name /path_to_this_dir/ /path_to_output/`  
-example:  
-`./analyze.sh SLy4_M13641364_M0_SR /home/myname/simulations/ /home/myname/postprocessing/`    
-<mark>Note: inside the output directory a directory with the simulation name will be created and results will be put into it</mark>  
-  
-## preprocessing.py
+
+# Suggested Simulation Setup
+
+## Suggested Setup for `pipeline`:
+
+**Example**: 
+Consider a simulation named `Sly4_M125125_M0_SR/`. Inside, there are 
+`WhiskyTHC` `output-xxxx/data/` directories with ascii files and .h5 files.
+Profiles are stored in `profiles/3d/` and named according to iterations, e.g.,
+`12345.h5`.
+
+In the file `config.py` default paths can be set.  
+The path to this directory is given to variable `default_data_dir`, 
+e.g., default_data_dir = '/home/MySimulations/Sly4_M125125_M0_SR/'.  
+The path to where to put the results in given as `default_ppr_dir` variable, e.g, 
+default_ppr_dir = '/home/MyPostProcessing/Sly4_M125125_M0_SR/'
+
+
+
+## Limiting the postprocessing with maximum time.
+
+In case postprocessing for a given simulation has to be limited to a given time, 
+a user can create file `maxtime.txt` insider the `default_data_dir` with a single float: time in **ms**. 
+
+In order to limit the analysis of ejecta, the `outflowed.py` from the `pipeline` runs the script 
+`outflowed.py` with option `-t reshape` to create new `outflow_surface_dens.h5` file that has data limited to that time. 
+Other methods, e.g., `preanalysis/` with `-t collate` and `profile` will see the `maxtime.txt` and 
+adjust the workload automatically
+
+
+
+## Running pipeline with bash script
+
+First. Set all paths in `config.py`.
+
+then run the main script is `pipeline/analyse.sh Sly4_M125125_M0_SR`, where the passed argument is the 
+name of the simulation directory that should be present in `default_data_dir/` and in `default_ppr_dir/`.
+
+The following sequence of analysis will being:
+1. `preanalysis.py -s $1 -t update_status print_status`  that will create `ittime.h5` for a given simulation ($1) 
+with info in available data.
+2. `python preanalysis.py -s $1 -t collate --overwrite yes` that will collate ascii files (necessary for GW) analysis and ejecta
+3. `python gw.py -t strain tmergtcoll -s $1 --overwrite yes` that will compute strain and waveforms from the collated data
+4. `python ejecta.py -s $1 -t reshape -d 0 1 -p 8 --overwrite yes` that will create `.h5` files for the 
+set of ascii files that HYDRO torn outputs into every `output-xxxx` (The .h5 files are more compact and more versitile)
+5. `python ejecta.py -s $1 -t all -d 0 1 -m all --v_n all --overwrite yes` will perform the complete postprocessing of 
+   the ejecta using these `.h5` files as an input.
+6. `python profile.py -s $1 -t all --it all --mask disk remnant --plane all --v_n all --overwrite yes` will 
+perform the analysis of all profiles (named `12345.h5`) assinging them timesteps according to data from `ittime.h5`.
+
+
+## Detailed option list (Warning! Might not be up-to-date)
+
+### preprocessing.py
 purpose: check and show the available data and timespans. Create an `ittime.h5` file that contains the information about timestaps and iterations of different data types, such as ascii files, .xy.h5 files and parfile.h5 files.  
 The `ittime.h5` file is **essential** for all other methods, as they do not have to scan for available data every time.  
 Options for this script:  
@@ -47,7 +93,8 @@ Options for this script:
 `--usemaxtime` used only for the task `-t collate`. Essentially it limits the time up to which to collate data.
 where the last task allows to collate certain ascii files, removing the repetitions.
 
-## outflowed.py
+
+### outflowed.py
 
 Requirements:  
 `ittime.h5` file, created by `preanalysis.py` (see above)  
@@ -96,11 +143,8 @@ of processors to use. It allows to limit, up to what time to postprocess the dat
 `--usemaxtime no` (which is the default)
 
 
-*Example:*  
-`python outflowed.py -s simulation_name -i /path_to_this_dir/ -o /path_to_output/ --eos /path/to/hydro_eos_file.h5 -t all -m geo -d 0 --overwrite yes`  
-would perform all (-t all) the default analysis methods, for geodeiscally unbound materai (-m geo) for detector 0 (-d 0) and if the results are already present, it will overwrite them (--overwrite yes     
 
-# slice.py
+### slice.py
 
 Requirements:  
 `ittime.h5` file, created by `preanalysis.py` (see above)  
@@ -132,7 +176,7 @@ the profile.xy/xz.h5 are expected to be in `/path_to_sim_dir/profiles/123456/`, 
 
 As movie creation takes a considerable time (for long simulations) this is not a part of a pipeline. To be run separately.  
 
-# makeprofile.py 
+### makeprofile.py 
 
 Purpose and usage:
 This is a stand alone tool for converting 3D .h5  data (that is usually 
@@ -165,7 +209,7 @@ where 123456 would be the iteration, closest to the required time (--time 90) ms
 **Note** that overall, this is a lengthy procedure and henceforth is not a part of a pipeline.  
 Which profiles to extract and analyze is up to the user.  
 
-# profile.py
+### profile.py
 
 Requirements: 
 1) ittime.h5 file, created by preanalysis.py (see above)
@@ -227,7 +271,7 @@ Known issues:
 - making many plots, e.g. setting `--it all` and `--v_n all` for a task `-t plotcorr`, might cause some images to be emtpy.
 Cause: overload of matplotlib.pyplot cash. Required plot can be redone with the code separately. This corrects the problem. 
 
-# gw.py
+### gw.py
 
 Requirements: 
 1) ittime.h5 file, created by `preanalysis.py` (see above)  

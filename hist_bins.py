@@ -2,6 +2,7 @@ import numpy as np
 
 rho_const = 6.176269145886162e+17
 
+# === Profile ===
 def get_reflev_borders(rl):
     ''' boundaries of different reflevels '''
     if rl == 6:
@@ -232,3 +233,24 @@ def get_corr_dic(mask, v_ns):
         raise NameError("unknown task for correlation computation: {}".format(v_ns))
 
     return corr_task_dic
+
+# === Ejecta ===
+def get_hist_bins_ej(v_n):
+    """ For ejecta histograms """
+    if v_n == "Y_e":
+        return np.linspace(0.035, 0.55, 100)
+    elif v_n == "theta":
+        return np.linspace(0.031, 3.111, 50)
+    elif v_n == "phi":
+        return np.linspace(0.06, 6.29, 93)
+    elif v_n == "vel_inf" or v_n == "vel_inf_bern":
+        return np.linspace(0., 1., 50)
+    elif v_n == "entropy":
+        return np.linspace(0, 200, 100)
+    elif v_n == "temperature":
+        return np.linspace(0, 5, 100)
+    # elif v_n == "rho": return histogram_rho
+    elif v_n == "logrho":
+        return np.linspace(-16.0, -8.0, 200)
+    else:
+        raise NameError("no hist edges found for v_n:{}".format(v_n))

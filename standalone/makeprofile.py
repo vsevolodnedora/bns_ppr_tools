@@ -41,7 +41,7 @@ import click
 import time
 
 # from uutils import Paths
-import paths as Paths
+import config as Paths
 
 class Names(object):
 

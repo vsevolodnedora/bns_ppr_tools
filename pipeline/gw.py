@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 #from uutils import Paths
-import paths as Paths
+import config as Paths
 
 from module_gw.strain import STRAIN, tmerg_tcoll
 

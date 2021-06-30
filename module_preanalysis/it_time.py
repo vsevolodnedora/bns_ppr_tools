@@ -42,7 +42,7 @@ import re
 from scipy import interpolate
 from argparse import ArgumentParser
 from uutils import Printcolor, Lists, Constants, Tools
-import paths as Paths
+import config as Paths
 
 __all__ = ["SIM_STATUS", "LOAD_ITTIME", "PRINT_SIM_STATUS"]
 

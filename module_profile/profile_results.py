@@ -18,7 +18,7 @@ from scidata.carpet.interp import Interpolator
 
 from uutils import Printcolor, Tools
 
-import paths as Paths
+#import paths as Paths
 
 from profile_methods import (get_time_for_it, get_it_for_time)
 

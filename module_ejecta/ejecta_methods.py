@@ -25,31 +25,7 @@ from functools import partial
 # from module_preanalysis.preanalysis import LOAD_ITTIME
 from ejecta_formulas import FORMULAS
 from uutils import Constants, Printcolor
-
-# bins for histograms
-rho_const = 6.176269145886162e+17
-histogram_ye = np.linspace(0.035, 0.55, 100)
-histogram_theta = np.linspace(0.031, 3.111, 50) # return np.linspace(0.0, np.pi, 50)
-histogram_phi = np.linspace(0.06, 6.29, 93)
-histogram_vel_inf = np.linspace(0., 1., 50)
-histogram_entropy = np.linspace(0, 200, 100)
-histogram_tempreture = np.linspace(0, 5, 100) #return 10.0 ** np.linspace(-2, 2, 100)
-histogram_logrho = np.linspace(-16.0, -8.0, 200) # / rho_const
-
-class HISTOGRAM_EDGES:
-
-    @staticmethod
-    def get_edge(v_n):
-        if v_n == "Y_e": return histogram_ye
-        elif v_n == "theta": return histogram_theta
-        elif v_n == "phi": return histogram_phi
-        elif v_n == "vel_inf" or v_n == "vel_inf_bern": return histogram_vel_inf
-        elif v_n == "entropy": return histogram_entropy
-        elif v_n == "temperature":  return histogram_tempreture
-        # elif v_n == "rho": return histogram_rho
-        elif v_n == "logrho": return histogram_logrho
-        else: raise NameError("no hist edges found for v_n:{}".format(v_n))
-
+from hist_bins import get_hist_bins_ej
 
 class LOAD_OUTFLOW_SURFACE_H5:
 
@@ -674,7 +650,6 @@ class EJECTA(ADD_MASK):
         dmap_rho = np.log10(np.array(densmap["density"]))
         dmap_entr = np.array(densmap["entropy"])
 
-        from scipy.interpolate import RegularGridInterpolator
         interpolator = RegularGridInterpolator((dmap_ye, dmap_entr), dmap_rho,
                                                method="linear", bounds_error=False)
 
@@ -787,21 +762,21 @@ class EJECTA(ADD_MASK):
 
         elif v_n.__contains__("hist "):
             v_n = str(v_n.split("hist ")[-1])
-            edge = HISTOGRAM_EDGES.get_edge(v_n)
+            edge = get_hist_bins_ej(v_n)
             middles, historgram = self.get_hist(mask, v_n, edge)
             arr = np.vstack((middles, historgram)).T
 
         elif v_n.__contains__("corr2d "):
             v_n1 = str(v_n.split(" ")[1])
             v_n2 = str(v_n.split(" ")[2])
-            edge1 = HISTOGRAM_EDGES.get_edge(v_n1)
-            edge2 = HISTOGRAM_EDGES.get_edge(v_n2)
+            edge1 = get_hist_bins_ej(v_n1)
+            edge2 = get_hist_bins_ej(v_n2)
             bins1, bins2, weights = self.get_corr2d(mask, v_n1, v_n2, edge1, edge2)
             arr = self.combine(bins1, bins2, weights) # y_arr [1:, 0] x_arr [0, 1:]
 
         elif v_n.__contains__("timecorr "):
             v_n = str(v_n.split(" ")[1])
-            edge = HISTOGRAM_EDGES.get_edge(v_n)
+            edge = get_hist_bins_ej(v_n)
             bins, binstime, weights = self.get_timecorr(mask, v_n, edge)
             return self.combine(binstime, bins, weights.T)
 

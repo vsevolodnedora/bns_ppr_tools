@@ -12,7 +12,7 @@ from module_preanalysis.init_data import INIT_DATA, LOAD_INIT_DATA
 from module_preanalysis.collate import COLLATE_DATA
 
 from uutils import Printcolor
-import paths as Paths
+import config as Paths
 
 TASKLIST = ["update_status", "collate", "print_status", "init_data"]
 

@@ -13,7 +13,7 @@ import re
 from scipy import interpolate
 from argparse import ArgumentParser
 from uutils import Printcolor, Lists, Constants, Tools
-import paths as Paths
+import config as Paths
 
 list_expected_eos = [
     "SFHo",
