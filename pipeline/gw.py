@@ -9,6 +9,9 @@ import os
 #from uutils import Paths
 import config as Paths
 
+import sys
+sys.path.append("..")
+
 from module_gw.strain import STRAIN, tmerg_tcoll
 
 __tasklist__ = ['strain', "tmergtcoll"]

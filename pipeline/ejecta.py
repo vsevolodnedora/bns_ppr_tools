@@ -12,6 +12,9 @@ import warnings
 import matplotlib.cbook
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
+import sys
+sys.path.append("..")
+
 __tasklist__ = ["reshape", "all", "hist", "timecorr", "corr", "totflux",
                  "massave", "ejtau", "yields", "thetaprof", "summary"]
 

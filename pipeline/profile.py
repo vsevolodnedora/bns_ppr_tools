@@ -15,14 +15,14 @@ import os
 import re
 from argparse import ArgumentParser
 
-from uutils import Printcolor
+from uutils import Printcolor, Tools, Labels
 
 import config as Paths
 
+import sys
+sys.path.append("..")
+
 from module_preanalysis.it_time import LOAD_ITTIME
-
-from uutils import Tools, Labels
-
 from module_profile.profile_grids import (POLAR_GRID, CARTESIAN_GRID, CYLINDRICAL_GRID)
 from module_profile.profile_methods import (MASK_STORE, MAINMETHODS_STORE, INTMETHODS_STORE, get_time_for_it)
 from module_profile.profile_results import (LOAD_DENSITY_MODES, LOAD_RES_CORR)
@@ -32,7 +32,7 @@ from plotting.plotting_methods import PLOT_MANY_TASKS
 
 
 __tasklist__ = ["all", "corr", "hist", "slice", "mass", "densmode", "vtk", "densmode",
-                "densmodeint", "mjenclosed",
+                "densmodeint", "mjenclosed", "collate_mass",
                 "plotall", "plotcorr", "plotslicecorr", "plothist", "plotslice", "plotmass", "slicecorr",
                 "plotdensmode", "plotcenterofmass", "plotdensmodephase"
                 ]
@@ -59,7 +59,7 @@ __d3histvns__      = ["r", "theta", "Ye", "entr", "temp", "velz", "rho", "dens_u
 
 __d3slicesplanes__ = ["xy", "xz"]
 
-# __d3diskmass__ = "disk_mass.txt"
+#__d3diskmass__ = "disk_mass.txt"
 __d3remnantmass__ = "remnant_mass.txt"
 __d3intmjfname__ = "MJ_encl.txt"
 __d3densitymodesfame__ = "density_modes_lap15.h5"
@@ -157,15 +157,15 @@ def d3_mass_for_it(it, d3corrclass, mask, outdir, rewrite=False):
         try:
             if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
                 if os.path.isfile(fpath): os.remove(fpath)
-                print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), "mask:", mask, ":", "computing"],
+                print_colored_string(["task:", "mass", "it:", "{}".format(it), "mask:", mask, ":", "computing"],
                                      ["blue", "green", "blue", "green", "blue", "green", "", "green"])
                 mass = task(fpath)
                 if mass == 0.:  Printcolor.yellow("\tComputed disk mass = 0.")
         except IOError:
-            print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), "mask:", mask, ":", "IOError"],
+            print_colored_string(["task:", "mass", "it:", "{}".format(it), "mask:", mask, ":", "IOError"],
                              ["blue", "green", "blue", "green", "blue", "green", "", "red"])
         except:
-            print_colored_string(["task:", "disk_mass", "it:", "{}".format(it), "mask:", mask, ":", "Error"],
+            print_colored_string(["task:", "mass", "it:", "{}".format(it), "mask:", mask, ":", "Error"],
                              ["blue", "green", "blue", "green", "blue", "green", "", "red"])
 #
 # def d3_remnant_mass_for_it(it, d3corrclass, outdir, rewrite=False):
@@ -2083,8 +2083,7 @@ def plot_density_modes(dmclass, resdir, rewrite=False):
 
 
 
-# broken
-def plot_mass(d3class, masks, resdir, rewrite=False):
+def collate_mass(ittime, masks, resdir, rewrite=False):
     #
     # path = Paths.ppr_sims + d3class.sim + '/' + __rootoutdir__
     #
@@ -2092,13 +2091,13 @@ def plot_mass(d3class, masks, resdir, rewrite=False):
     # fname = __d3diskmass__.replace(".txt",".png")
     # figname = __d3diskmass__.replace(".txt",".png")
     parfilepath = resdir
-    # fpath = parfilepath + mask + '/'
 
     for mask in masks:
+        ffpath = parfilepath + '/' + mask + '_' + 'mass.txt'
         try:
-            if (os.path.isfile(fpath) and rewrite) or not os.path.isfile(fpath):
-                if os.path.isfile(fpath): os.remove(fpath)
-                print_colored_string(["task:", "plotmass", ":", "saving/plotting"],
+            if (os.path.isfile(ffpath) and rewrite) or not os.path.isfile(ffpath):
+                if os.path.isfile(ffpath): os.remove(ffpath)
+                print_colored_string(["task:", "collate", ":", "saving"],
                                      ["blue", "green", "", "green"])
                 #
                 list_iterations = get_list_iterations_from_res_3d(resdir)
@@ -2107,8 +2106,8 @@ def plot_mass(d3class, masks, resdir, rewrite=False):
                 time_arr = []
                 data_arr = []
                 for it in list_iterations:
-                    fpath = parfilepath + str(int(it)) + '/' + mask + "mass.txt"
-                    time_ = d3class.get_time_for_it(it, "profiles", "prof")
+                    fpath = parfilepath + str(int(it)) + '/' + mask + '/' + "mass.txt"
+                    time_ = ittime.get_time_for_it(it, "profiles", "prof")
                     time_arr.append(time_)
                     it_arr.append(it)
                     if os.path.isfile(fpath):
@@ -2123,60 +2122,60 @@ def plot_mass(d3class, masks, resdir, rewrite=False):
                 #
                 if len(it_arr) > 0:
                     x = np.vstack((it_arr, time_arr, data_arr)).T
-                    np.savetxt(parfilepath+__d3diskmass__, x, header="1:it 2:time[s] 3:mass[Msun]", fmt='%i %0.5f %0.5f')
+                    np.savetxt(ffpath, x, header="1:it 2:time[s] 3:mass[Msun]", fmt='%i %0.5f %0.5f')
                 else:
                     Printcolor.yellow("No disk mass found")
                 #
-                if len(it_arr) > 0:
-
-                    time_arr = time_arr * 1e3
-
-                    o_plot = PLOT_MANY_TASKS()
-                    o_plot.gen_set["figdir"] = parfilepath
-                    o_plot.gen_set["type"] = "cartesian"
-                    o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
-                    o_plot.gen_set["figname"] = __d3diskmass__.replace(".txt",".png")
-                    o_plot.gen_set["sharex"] = False
-                    o_plot.gen_set["sharey"] = False
-                    o_plot.gen_set["subplots_adjust_h"] = 0.2
-                    o_plot.gen_set["subplots_adjust_w"] = 0.0
-                    o_plot.set_plot_dics = []
-
-                    # plot
-                    plot_dic = {
-                        'task': 'line', 'ptype': 'cartesian',
-                        'xarr': time_arr, 'yarr': data_arr,
-                        'position': (1, 1),
-                        'v_n_x': 'times', 'v_n_y': 'int_phi_r abs',
-                        'marker': '.', 'color': 'black', 'ms': 5., 'alpha': 1.0, #'ds': 'default',
-                        'label': None, 'ylabel': r'$M_{\rm{disk}}$ [$M_{\odot}$]', 'xlabel': r"$t$ [ms]",
-                        'xmin': -5., 'xmax': time_arr.max(), 'ymin': 0, 'ymax': 0.5,
-                        'xscale': None, 'yscale': None,
-                        'fancyticks': True, 'minorticks': True,
-                        'legend': {'loc': 'upper right', 'ncol': 2, 'fontsize': 10, 'shadow': False, 'framealpha': 0.5,
-                                   'borderaxespad': 0.0},
-                        'fontsize': 14,
-                        'labelsize': 14,
-                        'title': {'text': "Disk Mass Evolution", 'fontsize': 14},
-                        # 'mark_end': {'marker': 'x', 'ms': 5, 'color': 'red', 'alpha': 0.7, 'label': 'end'},
-                        # 'mark_beginning': {'marker': 's', 'ms': 5, 'color': 'blue', 'alpha': 0.7, 'label': 'beginning'},
-                        # 'axvline': {'x': 0, 'linestyle': 'dashed', 'color': 'gray', 'linewidth': 0.5},
-                        # 'axhline': {'y': 0, 'linestyle': 'dashed', 'color': 'gray', 'linewidth': 0.5}
-                    }
-
-                    o_plot.set_plot_dics.append(plot_dic)
-
-                    o_plot.main()
+                # if len(it_arr) > 0:
+                #
+                #     time_arr = time_arr * 1e3
+                #
+                #     o_plot = PLOT_MANY_TASKS()
+                #     o_plot.gen_set["figdir"] = parfilepath
+                #     o_plot.gen_set["type"] = "cartesian"
+                #     o_plot.gen_set["figsize"] = (4.2, 3.6)  # <->, |]
+                #     o_plot.gen_set["figname"] = __d3diskmass__.replace(".txt",".png")
+                #     o_plot.gen_set["sharex"] = False
+                #     o_plot.gen_set["sharey"] = False
+                #     o_plot.gen_set["subplots_adjust_h"] = 0.2
+                #     o_plot.gen_set["subplots_adjust_w"] = 0.0
+                #     o_plot.set_plot_dics = []
+                #
+                #     # plot
+                #     plot_dic = {
+                #         'task': 'line', 'ptype': 'cartesian',
+                #         'xarr': time_arr, 'yarr': data_arr,
+                #         'position': (1, 1),
+                #         'v_n_x': 'times', 'v_n_y': 'int_phi_r abs',
+                #         'marker': '.', 'color': 'black', 'ms': 5., 'alpha': 1.0, #'ds': 'default',
+                #         'label': None, 'ylabel': r'$M_{\rm{disk}}$ [$M_{\odot}$]', 'xlabel': r"$t$ [ms]",
+                #         'xmin': -5., 'xmax': time_arr.max(), 'ymin': 0, 'ymax': 0.5,
+                #         'xscale': None, 'yscale': None,
+                #         'fancyticks': True, 'minorticks': True,
+                #         'legend': {'loc': 'upper right', 'ncol': 2, 'fontsize': 10, 'shadow': False, 'framealpha': 0.5,
+                #                    'borderaxespad': 0.0},
+                #         'fontsize': 14,
+                #         'labelsize': 14,
+                #         'title': {'text': "Disk Mass Evolution", 'fontsize': 14},
+                #         # 'mark_end': {'marker': 'x', 'ms': 5, 'color': 'red', 'alpha': 0.7, 'label': 'end'},
+                #         # 'mark_beginning': {'marker': 's', 'ms': 5, 'color': 'blue', 'alpha': 0.7, 'label': 'beginning'},
+                #         # 'axvline': {'x': 0, 'linestyle': 'dashed', 'color': 'gray', 'linewidth': 0.5},
+                #         # 'axhline': {'y': 0, 'linestyle': 'dashed', 'color': 'gray', 'linewidth': 0.5}
+                #     }
+                #
+                #     o_plot.set_plot_dics.append(plot_dic)
+                #
+                #     o_plot.main()
             else:
-                print_colored_string(["task:", "plotmass", ":", "skipping"],
+                print_colored_string(["task:", "collate", ":", "skipping"],
                                      ["blue", "green", "", "blue"])
         except IOError:
-            print_colored_string(["task:", "plotmass", ":", "IOError"],
+            print_colored_string(["task:", "collate", ":", "IOError"],
                                  ["blue", "green", "", "red"])
         except KeyboardInterrupt:
             exit(1)
         except:
-            print_colored_string(["task:", "plotmass", ":", "failed"],
+            print_colored_string(["task:", "collate", ":", "failed"],
                                  ["blue", "green", "", "red"])
 
 
@@ -2198,7 +2197,7 @@ def plot_mass(d3class, masks, resdir, rewrite=False):
 # fname = "profile" + '.' + plane + ".h5"
 # fpath = path + fname
 
-
+# broken
 def get_list_iterations_from_res_3d(prodfir):
     """
     Checks the /res_3d/ for 12345 folders, (iterations) retunrs their sorted list
@@ -2308,23 +2307,33 @@ def compute_methods_with_original_data(
                 if task == "corr":  d3_corr_for_it(it, d3corr_class, mask, glob_v_ns, __outdir, rewrite=glob_overwrite)
                 if task == "hist":  d3_hist_for_it(it, d3corr_class, mask, glob_v_ns, __outdir, rewrite=glob_overwrite)
                 if task == "mass": d3_mass_for_it(it, d3corr_class, mask, __outdir, rewrite=glob_overwrite)
+
                 # d3_remnant_mass_for_it(it, d3corr_class, outdir, rewrite=glob_overwrite)
             # else:
             #     raise NameError("d3 method is not recognized: {}".format(task))
+
         d3corr_class.delete_for_it(it=it, except_v_ns=[], rm_masks=True, rm_comp=True, rm_prof=False)
         sys.stdout.flush()
         print("\n")
+
+    # collate tasks
+    for task in glob_tasklist:
+        if task == "collate_mass": collate_mass(ittime, glob_masks, outdir, rewrite=glob_overwrite)
 
     # methods that require all iterations loaded
     if "densmode" in glob_tasklist:
         if len(glob_its) < 2:
             raise ValueError("For density model computation at least two iterstions are needed")
         d3_dens_modes(d3corr_class, outdir=outdir, rewrite=glob_overwrite)
+    if "collate_mass"in glob_tasklist:
+        if len(glob_its) < 1:
+            raise ValueError("For collate at least one iterstion is needed")
+        collate_mass(ittime, glob_masks, outdir, rewrite=glob_overwrite)
 
     # summary plot of values in every iteration
     if "plotmass" in glob_tasklist:
         pass
-        # plot_disk_mass(d3corr_class, resdir=outdir, rewrite=glob_overwrite)
+        #plot_disk_mass(d3corr_class, resdir=outdir, rewrite=glob_overwrite)
 
 
 def compute_methods_with_processed_data(

@@ -7,6 +7,9 @@ import os
 import re
 import numpy as np
 
+import sys
+sys.path.append("..")
+
 from module_preanalysis.it_time import LOAD_ITTIME, SIM_STATUS, PRINT_SIM_STATUS
 from module_preanalysis.init_data import INIT_DATA, LOAD_INIT_DATA
 from module_preanalysis.collate import COLLATE_DATA

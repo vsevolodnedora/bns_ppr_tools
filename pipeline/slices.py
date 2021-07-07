@@ -1,6 +1,6 @@
 from __future__ import division
-from sys import path
-path.append('modules/')
+#from sys import path
+#path.append('modules/')
 import os.path
 import click
 import h5py
@@ -13,6 +13,9 @@ from scidata.carpet.interp import Interpolator
 import numpy as np
 
 from glob import glob
+
+import sys
+sys.path.append("..")
 
 from plotting.plotting_methods import PLOT_MANY_TASKS
 
