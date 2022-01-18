@@ -115,7 +115,12 @@ def outflowed_correlations(o_outflow, pprdir, det, masks, v_ns, rewrite=False):
         dfile = h5py.File(fpath, "w")
         dfile.create_dataset(v_n1, data=x_arr)
         dfile.create_dataset(v_n2, data=y_arr)
-        dfile.create_dataset("mass", data=z_arr)
+        _zarr = np.zeros((len(y_arr)-1, len(x_arr)-1))
+        # print(y_arr.shape, x_arr.shape, _zarr.shape)
+        for iy in range(len(y_arr) - 1):
+            for jx in range(len(x_arr) - 1):
+                _zarr[iy, jx] = z_arr[iy, jx]
+        dfile.create_dataset("mass", data=_zarr.T)
         dfile.close()
         # print(x_arr)
         # exit(1)

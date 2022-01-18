@@ -553,6 +553,16 @@ class EJECTA(ADD_MASK):
         y = np.array(y)
         xy = np.array((xy))
 
+        # work around the fact that for corr we want to save 'edges' not bins that exceed the size of xy data by 1
+        if ( len(x) == 1 + len(xy[0,:]) and len(y) == 1 + len(xy[:,0]) ):
+            # print('ping')
+            _xy = np.zeros((len(y),len(x)))
+            print(y.shape, x.shape, xy.shape)
+            for iy in range(len(y)-1):
+                for jx in range(len(x)-1):
+                    _xy[iy,jx] = xy[iy,jx]
+            xy = _xy
+
         res = np.insert(xy, 0, x, axis=0)
         new_y = np.insert(y, 0, 0, axis=0)  # inserting a 0 to a first column of a
         res = np.insert(res, 0, new_y, axis=1)
@@ -561,6 +571,8 @@ class EJECTA(ADD_MASK):
             res[0, 0] = corner_val
 
         return res
+
+
 
     @staticmethod
     def combine3d(x, y, z, xyz, corner_val=None):
@@ -601,7 +613,7 @@ class EJECTA(ADD_MASK):
         bins1 = 0.5 * (edge1[1:] + edge1[:-1])
         bins2 = 0.5 * (edge2[1:] + edge2[:-1])
 
-        return bins1, bins2, correlation.T
+        return (bins1, bins2, correlation.T)
 
     def get_corr3d(self, mask, v_n1, v_n2, v_n3, edge1, edge2, edge3):
 
@@ -772,7 +784,8 @@ class EJECTA(ADD_MASK):
             edge1 = get_hist_bins_ej(v_n1)
             edge2 = get_hist_bins_ej(v_n2)
             bins1, bins2, weights = self.get_corr2d(mask, v_n1, v_n2, edge1, edge2)
-            arr = self.combine(bins1, bins2, weights) # y_arr [1:, 0] x_arr [0, 1:]
+            # arr = self.combine(bins1, bins2, weights) # y_arr [1:, 0] x_arr [0, 1:]
+            arr = self.combine(edge1, edge2, weights) # y_arr [1:, 0] x_arr [0, 1:]
 
         elif v_n.__contains__("timecorr "):
             v_n = str(v_n.split(" ")[1])
